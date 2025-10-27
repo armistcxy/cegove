@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: cegove-db
+    restart: always
+    environment:
+      POSTGRES_USER: dev 
+      POSTGRES_PASSWORD: 123456789
+      POSTGRES_DB: cegove
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./db:/docker-entrypoint-initdb.d
+      - cegove_data:/var/lib/postgresql/data
+
+volumes:
+  cegove_data:
