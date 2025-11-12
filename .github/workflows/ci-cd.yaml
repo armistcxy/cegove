@@ -215,7 +215,7 @@ jobs:
           SERVICE="${{ matrix.service }}"
           IMAGE_TAG="${{ steps.extract_tag.outputs.tag }}"
           
-          git add apps/${SERVICE}/deployment.yaml
+          git add apps/${SERVICE}/overlays/staging/patch-deployment.yaml
           
           if git diff --staged --quiet; then
             echo "No changes to commit for ${SERVICE}"

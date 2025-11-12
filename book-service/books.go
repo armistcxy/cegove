@@ -20,7 +20,7 @@ func NewBookRepository(db *pgxpool.Pool) *BookRepository {
 }
 
 func (b *BookRepository) GetBook(id int) (*Book, error) {
-	row := b.db.QueryRow(context.Background(), "SELECT id, name FROM books WHERE id = $1", id)
+	row := b.db.QueryRow(context.Background(), "SELECT id, name FROM books WHERE id = $1;", id)
 	book := &Book{}
 	if err := row.Scan(&book.ID, &book.Name); err != nil {
 		return nil, err
