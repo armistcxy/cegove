@@ -39,6 +39,19 @@ jobs:
             payment-service/**
             recommendation-service/**
             user-service/**
+      
+      - name: Show all changes
+        run: |
+          echo "=== ALL CHANGED FILES ==="
+          echo "${{ steps.changed-files.outputs.all_changed_files }}"
+          echo ""
+          echo "=== ONE PER LINE ==="
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            echo "  - $file"
+          done
+          echo ""
+          echo "=== TOTAL FILES CHANGED ==="
+          echo "Count: $(echo '${{ steps.changed-files.outputs.all_changed_files }}' | wc -w)"
 
       - name: Detect changed services
         id: detect
