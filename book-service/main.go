@@ -96,7 +96,7 @@ func main() {
 		}
 	})
 
-	log.Println("Starting server")
+	log.Println("Starting server...")
 	log.Println("Server is listening on port 8080")
 	http.ListenAndServe(":8080", nil)
 }
