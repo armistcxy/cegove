@@ -28,6 +28,7 @@ for service in "${SERVICES[@]}"; do
     if echo "$CHANGED_FILES" | grep -q "^${service}/"; then
         CHANGED_SERVICES+=("$service")
     fi
+done
 
 if echo "$CHANGED_FILES" | grep -q "^scripts/\|^.github/"; then
   echo "Shared files changed, building all services"
