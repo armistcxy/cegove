@@ -1,0 +1,184 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  DOCKER_REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+  GITOPS_REPO: armistcxy/cegove-gitops
+  GITOPS_BRANCH: main
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.detect.outputs.services }}
+      has_changes: ${{ steps.check.outputs.has_changes }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for all branches and tags
+      
+      - name: Detect changed services
+        id: detect
+        run: |
+          chmod +x scripts/detect-changes.sh
+          ./scripts/detect-changes.sh
+        
+      - name: Check if any services changed
+        id: check
+        run: |
+          SERVICES='${{ steps.detect.outputs.services }}'
+          if [ "$SERVICES" == "[]" ]; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Print detected services
+        run: |
+          echo "Services to build: ${{ steps.detect.outputs.services }}"
+      
+  build-and-push:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+      fail-fast: false # Continue even if a job fails
+    
+    outputs:
+      # Output image tags for each service
+      image_tag_${{ matrix.service }}: ${{ steps.short_sha.outputs.tag }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Generate short SHA
+        id: short_sha
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          BRANCH_NAME=$(echo ${{ github.ref_name }} | sed 's/\//-/g')
+          TAG="${BRANCH_NAME}-${SHORT_SHA}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Image tag: ${TAG}"
+      
+      - name: Build and push ${{ matrix.service }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ./${{ matrix.service }}
+          push: true
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ steps.short_sha.outputs.tag }}
+            ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:latest
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          labels: |
+            org.opencontainers.image.source=${{ github.repositoryUrl }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            service=${{ matrix.service }}
+
+  update-gitops:
+    needs: [detect-changes, build-and-push]
+    if: needs.detect-changes.outputs.has_changes == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+      fail-fast: false
+    
+    steps:
+      - name: Checkout GitOps repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.GITOPS_REPO }}
+          token: ${{ secrets.GITOPS_PAT }}
+          ref: ${{ env.GITOPS_BRANCH }}
+      
+      - name: Install yq
+        run: |
+          wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq
+          chmod +x /usr/local/bin/yq
+      
+      - name: Extract image tag
+        id: extract_tag
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          BRANCH_NAME=$(echo ${{ github.ref_name }} | sed 's/\//-/g')
+          TAG="${BRANCH_NAME}-${SHORT_SHA}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+      
+      - name: Update ${{ matrix.service }} image
+        run: |
+          SERVICE="${{ matrix.service }}"
+          IMAGE_TAG="${{ steps.extract_tag.outputs.tag }}"
+          FULL_IMAGE="${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_PREFIX }}-${SERVICE}:${IMAGE_TAG}"
+          
+          DEPLOYMENT_FILE="apps/${SERVICE}/deployment.yaml"
+          
+          if [ -f "$DEPLOYMENT_FILE" ]; then
+            echo "Updating ${DEPLOYMENT_FILE} with image: ${FULL_IMAGE}"
+            
+            # Update image using yq
+            yq eval ".spec.template.spec.containers[0].image = \"${FULL_IMAGE}\"" \
+              -i "$DEPLOYMENT_FILE"
+            
+            echo "✅ Updated ${SERVICE}"
+          else
+            echo "⚠️  Warning: ${DEPLOYMENT_FILE} not found"
+          fi
+      
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+          
+          SERVICE="${{ matrix.service }}"
+          IMAGE_TAG="${{ steps.extract_tag.outputs.tag }}"
+          
+          git add apps/${SERVICE}/deployment.yaml
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit for ${SERVICE}"
+          else
+            git commit -m "Update ${SERVICE} image to ${IMAGE_TAG}"
+            git push origin ${{ env.GITOPS_BRANCH }}
+            echo "✅ Pushed changes for ${SERVICE}"
+          fi
+
+  summary:
+    needs: [detect-changes, build-and-push, update-gitops]
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Print summary
+        run: |
+          echo "## CI/CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Changed Services:** ${{ needs.detect-changes.outputs.services }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Build Status:** ${{ needs.build-and-push.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "**GitOps Update Status:** ${{ needs.update-gitops.result }}" >> $GITHUB_STEP_SUMMARY
