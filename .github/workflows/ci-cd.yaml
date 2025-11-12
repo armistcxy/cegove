@@ -57,10 +57,6 @@ jobs:
         service: ${{ fromJson(needs.detect-changes.outputs.services) }}
       fail-fast: false # Continue even if a job fails
     
-    outputs:
-      # Output image tags for each service
-      image_tag_${{ matrix.service }}: ${{ steps.short_sha.outputs.tag }}
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -167,7 +163,7 @@ jobs:
             git push origin ${{ env.GITOPS_BRANCH }}
             echo "✅ Pushed changes for ${SERVICE}"
           fi
-
+  
   summary:
     needs: [detect-changes, build-and-push, update-gitops]
     if: always()
