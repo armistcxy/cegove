@@ -22,13 +22,61 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Fetch all history for all branches and tags
+          fetch-depth: 2 # Fetch all history for all branches and tags
       
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v41
+        with:
+          files: |
+            admin-service/**
+            booking-service/**
+            book-service/**
+            cinema-service/**
+            frontend/**
+            movie-service/**
+            notification-service/**
+            payment-service/**
+            recommendation-service/**
+            user-service/**
+
       - name: Detect changed services
         id: detect
         run: |
-          chmod +x scripts/detect-changes.sh
-          ./scripts/detect-changes.sh
+          CHANGED_SERVICES=()
+          
+          # List tất cả services
+          SERVICES=(
+            "admin-service"
+            "booking-service"
+            "book-service"
+            "cinema-service"
+            "frontend"
+            "movie-service"
+            "notification-service"
+            "payment-service"
+            "recommendation-service"
+            "user-service"
+          )
+          
+          # Check từng service
+          for service in "${SERVICES[@]}"; do
+            # Dùng output từ changed-files action
+            if echo "${{ steps.changed-files.outputs.all_changed_files }}" | grep -q "${service}/"; then
+              CHANGED_SERVICES+=("$service")
+              echo "✅ Detected change in: $service"
+            fi
+          done
+
+          # Output JSON array
+          if [ ${#CHANGED_SERVICES[@]} -eq 0 ]; then
+            echo "services=[]" >> $GITHUB_OUTPUT
+            echo "No service changes detected"
+          else
+            SERVICES_JSON=$(printf '%s\n' "${CHANGED_SERVICES[@]}" | jq -R . | jq -s -c .)
+            echo "services=$SERVICES_JSON" >> $GITHUB_OUTPUT
+            echo "Changed services: ${CHANGED_SERVICES[@]}"
+          fi
         
       - name: Check if any services changed
         id: check
