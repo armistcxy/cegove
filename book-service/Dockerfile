@@ -7,10 +7,10 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
-ARG BIN_PATH=./main.go
+ARG BIN_PATH=.
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o application ${BIN_PATH}
+RUN CGO_ENABLED=0 GOOS=linux go build -v -o application ${BIN_PATH}
 
 # ---- Run stage ----
 FROM alpine:3.20
