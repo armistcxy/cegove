@@ -193,7 +193,7 @@ jobs:
           IMAGE_TAG="${{ steps.extract_tag.outputs.tag }}"
           FULL_IMAGE="${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_PREFIX }}-${SERVICE}:${IMAGE_TAG}"
           
-          DEPLOYMENT_FILE="apps/${SERVICE}/deployment.yaml"
+          DEPLOYMENT_FILE="apps/${SERVICE}/overlays/staging/patch-deployment.yaml"
           
           if [ -f "$DEPLOYMENT_FILE" ]; then
             echo "Updating ${DEPLOYMENT_FILE} with image: ${FULL_IMAGE}"
