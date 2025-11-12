@@ -7,7 +7,7 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
-ARG BIN_PATH=./cmd/main.go
+ARG BIN_PATH=./main.go
 
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o application ${BIN_PATH}
