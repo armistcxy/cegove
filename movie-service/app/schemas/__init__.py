@@ -1,0 +1,1 @@
+from app.schemas.movie import MovieCreate, MovieUpdate, MovieResponse
