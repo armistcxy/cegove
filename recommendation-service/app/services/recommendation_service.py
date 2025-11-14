@@ -136,7 +136,7 @@ class RecommendationService:
             features = []
             
             if movie.genre:
-                # Repeat genre 3 times to give it more weight
+                # Repeat genre 2 times to give it more weight
                 features.append(movie.genre * 2)
             
             if movie.director:
