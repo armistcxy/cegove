@@ -2,37 +2,75 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.database import get_db
-from app.schemas.movie import MovieCreate, MovieUpdate, MovieResponse
+from app.schemas.movie import (
+    MovieCreate, MovieUpdate, MovieResponse, 
+    PaginationParams, PaginatedResponse,
+    GenreStats, DirectorStats, YearStats, 
+    RatingDistribution, DashboardStats
+)
 from app.services.movie_service import MovieService
+import math
 
 router = APIRouter()
 
 
-@router.get("/", response_model=List[MovieResponse])
+@router.get("/", response_model=PaginatedResponse[MovieResponse])
 def get_movies(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=100),
-    genre: Optional[str] = None,
-    director: Optional[str] = None,
-    search: Optional[str] = None,
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    sort_by: Optional[str] = Query(None, description="Field to sort by"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$", description="Sort order"),
+    search: Optional[str] = Query(None, description="Full-text search query"),
+    genre: Optional[str] = Query(None, description="Filter by genre"),
+    year: Optional[str] = Query(None, description="Filter by year"),
+    min_rating: Optional[float] = Query(None, ge=0, le=10, description="Minimum IMDB rating"),
     db: Session = Depends(get_db)
 ):
-    """Get list of movies with optional filters"""
-    movies = MovieService.get_movies(
-        db=db,
-        skip=skip,
-        limit=limit,
-        genre=genre,
-        director=director,
-        search=search
+    """
+    Get paginated list of movies with advanced filtering and sorting
+    
+    - **page**: Page number (starts from 1)
+    - **page_size**: Number of items per page (max 100)
+    - **sort_by**: Field to sort by (rating, released_year, meta_score, etc.)
+    - **sort_order**: asc or desc
+    - **search**: Full-text search in title, overview, director, genre
+    - **genre**: Filter by genre (partial match)
+    - **year**: Filter by exact release year
+    - **min_rating**: Filter movies with rating >= this value
+    """
+    params = PaginationParams(
+        page=page,
+        page_size=page_size,
+        sort_by=sort_by,
+        sort_order=sort_order
     )
-    return movies
+    
+    movies, total = MovieService.get_movies_paginated(
+        db=db,
+        params=params,
+        search=search,
+        genre=genre,
+        year=year,
+        min_rating=min_rating
+    )
+    
+    total_pages = math.ceil(total / page_size)
+    
+    return PaginatedResponse(
+        items=movies,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+        has_next=page < total_pages,
+        has_prev=page > 1
+    )
 
 
 @router.get("/{movie_id}", response_model=MovieResponse)
 def get_movie(movie_id: int, db: Session = Depends(get_db)):
-    """Get a specific movie by ID"""
-    movie = MovieService.get_movie(db=db, movie_id=movie_id)
+    """Get movie by ID"""
+    movie = MovieService.get_movie_by_id(db, movie_id)
     if not movie:
         raise HTTPException(status_code=404, detail="Movie not found")
     return movie
@@ -40,18 +78,23 @@ def get_movie(movie_id: int, db: Session = Depends(get_db)):
 
 @router.post("/", response_model=MovieResponse, status_code=201)
 def create_movie(movie: MovieCreate, db: Session = Depends(get_db)):
-    """Create a new movie"""
-    return MovieService.create_movie(db=db, movie=movie)
+    """
+    Create new movie with validation
+    
+    Validations:
+    - series_title and overview are required
+    - released_year must be between 1900-2030
+    - imdb_rating must be between 0-10
+    - meta_score must be between 0-100
+    - runtime must be > 0
+    """
+    return MovieService.create_movie(db, movie)
 
 
 @router.put("/{movie_id}", response_model=MovieResponse)
-def update_movie(
-    movie_id: int,
-    movie: MovieUpdate,
-    db: Session = Depends(get_db)
-):
-    """Update a movie"""
-    updated_movie = MovieService.update_movie(db=db, movie_id=movie_id, movie=movie)
+def update_movie(movie_id: int, movie: MovieUpdate, db: Session = Depends(get_db)):
+    """Update existing movie"""
+    updated_movie = MovieService.update_movie(db, movie_id, movie)
     if not updated_movie:
         raise HTTPException(status_code=404, detail="Movie not found")
     return updated_movie
@@ -59,15 +102,83 @@ def update_movie(
 
 @router.delete("/{movie_id}", status_code=204)
 def delete_movie(movie_id: int, db: Session = Depends(get_db)):
-    """Delete a movie"""
-    success = MovieService.delete_movie(db=db, movie_id=movie_id)
+    """Delete movie by ID"""
+    success = MovieService.delete_movie(db, movie_id)
     if not success:
         raise HTTPException(status_code=404, detail="Movie not found")
     return None
 
 
-@router.get("/stats/total", response_model=dict)
-def get_total_movies(db: Session = Depends(get_db)):
-    """Get total number of movies"""
-    total = MovieService.get_total_count(db=db)
-    return {"total": total}
+# ==================== DASHBOARD/STATS ENDPOINTS ====================
+
+@router.get("/stats/overview", response_model=DashboardStats)
+def get_dashboard_overview(db: Session = Depends(get_db)):
+    """
+    Get overall dashboard statistics
+    
+    Returns:
+    - Total movies, directors, genres
+    - Average rating and meta score
+    """
+    stats = MovieService.get_dashboard_stats(db)
+    return stats
+
+
+@router.get("/stats/by-genre", response_model=List[GenreStats])
+def get_stats_by_genre(db: Session = Depends(get_db)):
+    """
+    Get statistics by genre
+    
+    Returns list of genres with:
+    - Number of movies
+    - Average rating
+    """
+    return MovieService.get_stats_by_genre(db)
+
+
+@router.get("/stats/top-directors", response_model=List[DirectorStats])
+def get_top_directors(
+    limit: int = Query(10, ge=1, le=50, description="Number of directors to return"),
+    db: Session = Depends(get_db)
+):
+    """
+    Get top directors by average rating
+    
+    Returns directors with:
+    - Number of movies
+    - Average rating
+    - Total votes
+    
+    Only includes directors with at least 2 movies
+    """
+    return MovieService.get_top_directors(db, limit)
+
+
+@router.get("/stats/by-year", response_model=List[YearStats])
+def get_movies_per_year(db: Session = Depends(get_db)):
+    """
+    Get number of movies per year
+    
+    Useful for timeline charts
+    """
+    return MovieService.get_movies_per_year(db)
+
+
+@router.get("/stats/rating-distribution", response_model=List[RatingDistribution])
+def get_rating_distribution(db: Session = Depends(get_db)):
+    """
+    Get IMDB rating distribution histogram
+    
+    Returns count of movies in ranges: 0-1, 1-2, ..., 9-10
+    """
+    return MovieService.get_rating_distribution(db)
+
+
+@router.get("/stats/meta-score-distribution", response_model=List[RatingDistribution])
+def get_meta_score_distribution(db: Session = Depends(get_db)):
+    """
+    Get Meta Score distribution histogram
+    
+    Returns count of movies in ranges: 0-10, 10-20, ..., 90-100
+    """
+    return MovieService.get_meta_score_distribution(db)
