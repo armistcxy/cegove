@@ -1,5 +1,6 @@
 package com.spring.authservice.Models;
 
+import com.spring.authservice.Enums.Gender;
 import com.spring.authservice.Enums.UserRole;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -14,6 +15,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
@@ -42,5 +44,13 @@ public class User {
     @Column(name = "role", nullable = false)
     private UserRole role;
 
-    private final LocalDate createdAt = LocalDate.now();
+    private LocalDate dob;
+    private Gender gender;
+    private String address;
+    private String district;
+    private String city;
+    private String img;
+
+    private final LocalDateTime createdAt = LocalDateTime.now();
 }
+

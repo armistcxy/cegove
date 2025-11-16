@@ -61,7 +61,15 @@ public class AuthService {
                 .email(request.getEmail())
                 .phone(request.getPhone())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .role(UserRole.USER).build();
+                .role(UserRole.USER)
+                .dob(request.getDob())
+                .gender(request.getGender())
+                .address(request.getAddress())
+                .district(request.getDistrict())
+                .city(request.getCity()).build();
+
+        // Todo: Handle image upload and set img field
+
         reposistory.save(newUser);
     }
 

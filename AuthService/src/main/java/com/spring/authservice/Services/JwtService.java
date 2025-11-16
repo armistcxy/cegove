@@ -14,7 +14,7 @@ import static io.jsonwebtoken.security.Keys.hmacShaKeyFor;
 
 @Service
 public class JwtService {
-    // This service is responsible for generating and validating JWT tokens.
+    // This service is responsible for generating JWT tokens.
 
     private final Long EXPIRATION_TIME = 3600000L; // 1 hour in milliseconds
 
@@ -41,30 +41,6 @@ public class JwtService {
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
                 .signWith(secretKey)
                 .compact();
-    }
-
-    public String getUsernameFromToken(String token) {
-        return Jwts.parser()
-                .verifyWith(secretKey)
-                .build()
-                .parseSignedClaims(token)
-                .getBody()
-                .getSubject();
-    }
-
-    public boolean isTokenValid(String token, User user) {
-        String username = getUsernameFromToken(token);
-        return username.equals(user.getEmail()) && !isTokenExpired(token);
-    }
-
-    public boolean isTokenExpired(String token) {
-        Date expirationDate = Jwts.parser()
-                .verifyWith(secretKey)
-                .build()
-                .parseSignedClaims(token)
-                .getBody()
-                .getExpiration();
-        return expirationDate.before(new Date());
     }
 
     public long getExpirationTime(String token) {
