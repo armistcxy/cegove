@@ -1,4 +1,4 @@
-package com.spring.userservice.Services;
+package com.spring.userservice.Security.Service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;

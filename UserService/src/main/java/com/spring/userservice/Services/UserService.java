@@ -28,6 +28,9 @@ public class UserService {
     @Autowired
     private BookingReposistory bookingReposistory;
 
+    @Autowired
+    private ImageUploadClient imageUploadClient;
+
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public User getCurrentUser() {
@@ -87,7 +90,10 @@ public class UserService {
             currentUser.setGender(updatedUser.getGender());
         }
 
-        // Todo: Handle image update if needed
+        if (updatedUser.getImgFile() != null) {
+            String imageUrl = imageUploadClient.uploadImage(updatedUser.getImgFile());
+            currentUser.setImg(imageUrl);
+        }
 
         repository.save(currentUser);
     }

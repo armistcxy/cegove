@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 @RestController
 @RequestMapping("/users")
@@ -41,6 +42,8 @@ public class UserController {
             return ResponseEntity.status(404).body(e.getMessage());
         } catch (UserAlreadyExistedException e) {
             return ResponseEntity.status(409).body(e.getMessage());
+        } catch (WebClientResponseException e) {
+            return ResponseEntity.status(e.getRawStatusCode()).body(e.getResponseBodyAsString());
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

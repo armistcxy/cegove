@@ -1,9 +1,9 @@
 package com.spring.userservice.Security;
 
 import com.spring.userservice.Models.User;
-import com.spring.userservice.Services.CustomUserDetailsService;
-import com.spring.userservice.Services.JwtService;
-import com.spring.userservice.Services.RedisService;
+import com.spring.userservice.Security.Service.CustomUserDetailsService;
+import com.spring.userservice.Security.Service.JwtService;
+import com.spring.userservice.Security.Service.RedisService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;

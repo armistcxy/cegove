@@ -1,4 +1,4 @@
-package com.spring.userservice.Services;
+package com.spring.userservice.Security.Service;
 
 import com.spring.userservice.Models.User;
 import com.spring.userservice.Reposistories.UserReposistory;
