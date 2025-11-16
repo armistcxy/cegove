@@ -26,6 +26,9 @@ public class AuthService {
     @Autowired
     private RedisService redisService;
 
+    @Autowired
+    private ImageUploadClient imageUploadClient;
+
     private PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public String login(LoginRequest request) {
@@ -68,7 +71,9 @@ public class AuthService {
                 .district(request.getDistrict())
                 .city(request.getCity()).build();
 
-        // Todo: Handle image upload and set img field
+        if (request.getImg() != null && !request.getImg().isEmpty()) {
+            newUser.setImg(imageUploadClient.uploadImage(request.getImg()));
+        }
 
         reposistory.save(newUser);
     }
