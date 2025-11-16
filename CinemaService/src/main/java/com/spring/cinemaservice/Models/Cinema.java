@@ -1,5 +1,6 @@
 package com.spring.cinemaservice.Models;
 
+import com.spring.cinemaservice.DTOs.CinemaResponse;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
@@ -45,4 +46,15 @@ public class Cinema {
     private List<String> images;
 
     private final LocalDate createdAt = LocalDate.now();
+
+    public CinemaResponse convertToDTO() {
+        return CinemaResponse.builder()
+                .name(this.name)
+                .address(this.address)
+                .district(this.district)
+                .city(this.city)
+                .phone(this.phone)
+                .images(this.images)
+                .build();
+    }
 }

@@ -3,15 +3,14 @@ package com.spring.cinemaservice.Services;
 import com.spring.cinemaservice.DTOs.AuditoriumDTO;
 import com.spring.cinemaservice.DTOs.CinemaRequest;
 import com.spring.cinemaservice.DTOs.CinemaResponse;
-import com.spring.cinemaservice.Mapper.CinemaMapper;
 import com.spring.cinemaservice.Models.Cinema;
 import com.spring.cinemaservice.Reposistories.CinemaReposistory;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,17 +19,14 @@ public class CinemaService {
     @Autowired
     private CinemaReposistory reposistory;
 
-//    @Autowired
-//    private CinemaMapper mapper;
-
     @Autowired
     private AuditoriumService auditoriumService;
 
     @Autowired
-    private ImageService imageService;
+    private ImageUploadClient imageUploadClient;
 
     @Transactional
-    public void createCinema(CinemaRequest cinemaRequest) throws IOException {
+    public void createCinema(CinemaRequest cinemaRequest) {
         Cinema cinema = Cinema.builder()
                 .name(cinemaRequest.getName())
                 .address(cinemaRequest.getAddress())
@@ -43,7 +39,7 @@ public class CinemaService {
         cinema.setImages(new ArrayList<>());
         if (cinemaRequest.getImages() != null) {
             for (MultipartFile image : cinemaRequest.getImages()) {
-                String imageUrl = imageService.uploadImage(image);
+                String imageUrl = imageUploadClient.uploadImage(image);
                 cinema.getImages().add(imageUrl);
             }
         }
@@ -61,13 +57,14 @@ public class CinemaService {
 
     public CinemaResponse getCinema(long id) {
         Cinema cinema = reposistory.findById(id)
-                .orElseThrow(() -> new RuntimeException("Do not have cinema with id:" + id));
-        return CinemaResponse.builder()
-                .name(cinema.getName())
-                .address(cinema.getAddress())
-                .district(cinema.getDistrict())
-                .city(cinema.getCity())
-                .phone(cinema.getPhone())
-                .build();
+                .orElseThrow(() -> new UsernameNotFoundException("Do not have cinema with id:" + id));
+        return cinema.convertToDTO();
+    }
+
+    public List<CinemaResponse> getAllCinemas() {
+        List<Cinema> cinemas = reposistory.findAll();
+        return cinemas.stream()
+                .map(Cinema::convertToDTO)
+                .toList();
     }
 }
