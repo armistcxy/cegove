@@ -3,6 +3,8 @@ package com.spring.userservice.Services;
 import com.spring.userservice.DTOs.BookingDTO;
 import com.spring.userservice.DTOs.ChangePasswordForm;
 import com.spring.userservice.DTOs.UserDTO;
+import com.spring.userservice.Enums.Provider;
+import com.spring.userservice.Exceptions.ActionNotAllowedException;
 import com.spring.userservice.Exceptions.InvalidCredentialsException;
 import com.spring.userservice.Exceptions.UserAlreadyExistedException;
 import com.spring.userservice.Models.Booking;
@@ -47,15 +49,24 @@ public class UserService {
 
     public void changePassword(ChangePasswordForm changePasswordForm) {
         User currentUser = getCurrentUser();
+        if (currentUser.getProvider().equals(Provider.GOOGLE)) {
+            throw new ActionNotAllowedException("Cannot update profile for Google authenticated users.");
+        }
+
         if (!passwordEncoder.matches(changePasswordForm.getOldPassword(), currentUser.getPassword())) {
             throw new InvalidCredentialsException("Old password does not match");
         }
+
         currentUser.setPassword(passwordEncoder.encode(changePasswordForm.getNewPassword()));
         repository.save(currentUser);
     }
 
     public void updateProfile(UserDTO updatedUser) {
         User currentUser = getCurrentUser();
+        if (currentUser.getProvider().equals(Provider.GOOGLE)) {
+            throw new ActionNotAllowedException("Cannot update profile for Google authenticated users.");
+        }
+
         if (updatedUser.getEmail() != null && !updatedUser.getEmail().equals(currentUser.getEmail())) {
             Optional<User> existingUser = repository.findByEmail(updatedUser.getEmail());
             if (existingUser.isPresent()) {
@@ -64,12 +75,16 @@ public class UserService {
             currentUser.setEmail(updatedUser.getEmail());
         }
 
-        if (updatedUser.getFullName() != null) {
-            currentUser.setFullName(updatedUser.getFullName());
+        if (updatedUser.getPhone() != null && !updatedUser.getPhone().equals(currentUser.getPhone())) {
+            Optional<User> existingUser = repository.findByPhone(updatedUser.getPhone());
+            if (existingUser.isPresent()) {
+                throw new UserAlreadyExistedException("User with this phone number already exists.");
+            }
+            currentUser.setPhone(updatedUser.getPhone());
         }
 
-        if (updatedUser.getPhone() != null) {
-            currentUser.setPhone(updatedUser.getPhone());
+        if (updatedUser.getFullName() != null) {
+            currentUser.setFullName(updatedUser.getFullName());
         }
 
         if (updatedUser.getAddress() != null) {
@@ -100,7 +115,7 @@ public class UserService {
 
     public List<BookingDTO> bookingHistory() {
         User currentUser = getCurrentUser();
-        List<Booking> bookings = bookingReposistory.findByUserId(currentUser.getId());
+        List<Booking> bookings = currentUser.getBookings();
         return bookings.stream()
                 .map(Booking::convertToDTO)
                 .toList();

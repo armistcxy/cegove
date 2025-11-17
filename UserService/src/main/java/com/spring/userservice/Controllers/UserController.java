@@ -2,6 +2,7 @@ package com.spring.userservice.Controllers;
 
 import com.spring.userservice.DTOs.ChangePasswordForm;
 import com.spring.userservice.DTOs.UserDTO;
+import com.spring.userservice.Exceptions.ActionNotAllowedException;
 import com.spring.userservice.Exceptions.InvalidCredentialsException;
 import com.spring.userservice.Exceptions.UserAlreadyExistedException;
 import com.spring.userservice.Services.UserService;
@@ -40,6 +41,8 @@ public class UserController {
             return ResponseEntity.ok("Profile updated successfully");
         } catch (UsernameNotFoundException e) {
             return ResponseEntity.status(404).body(e.getMessage());
+        } catch (ActionNotAllowedException e) {
+            return ResponseEntity.status(403).body(e.getMessage());
         } catch (UserAlreadyExistedException e) {
             return ResponseEntity.status(409).body(e.getMessage());
         } catch (WebClientResponseException e) {
@@ -56,6 +59,8 @@ public class UserController {
             return ResponseEntity.ok("Password changed successfully");
         } catch (UsernameNotFoundException e) {
             return ResponseEntity.status(404).body(e.getMessage());
+        } catch (ActionNotAllowedException e) {
+            return ResponseEntity.status(403).body(e.getMessage());
         } catch (InvalidCredentialsException e) {
             return ResponseEntity.status(401).body(e.getMessage());
         } catch (Exception e) {
