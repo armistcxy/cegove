@@ -1,9 +1,12 @@
 package com.spring.authservice.Models;
 
 import com.spring.authservice.Enums.Gender;
+import com.spring.authservice.Enums.Provider;
 import com.spring.authservice.Enums.UserRole;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -35,21 +38,27 @@ public class User {
     @Column(name = "email", nullable = false, unique = true)
     private String email;
 
-    @Column(name = "phone", nullable = false, unique = true)
+    @Column(name = "phone", unique = true)
     private String phone;
 
-    @Column(name = "password", nullable = false)
     private String password;
 
     @Column(name = "role", nullable = false)
+    @Enumerated(value = EnumType.STRING)
     private UserRole role;
 
     private LocalDate dob;
+
+    @Enumerated(value = EnumType.STRING)
     private Gender gender;
+
     private String address;
     private String district;
     private String city;
     private String img;
+
+    @Enumerated(value = EnumType.STRING)
+    private Provider provider;
 
     private final LocalDateTime createdAt = LocalDateTime.now();
 }
