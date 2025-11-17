@@ -68,7 +68,7 @@ public class User implements UserDetails {
     private String img;
 
     @Enumerated(value = EnumType.STRING)
-    private Provider provider;
+    private Provider provider = Provider.SELF;
 
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<Booking> bookings;

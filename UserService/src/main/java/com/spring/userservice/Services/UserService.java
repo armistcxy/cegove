@@ -9,7 +9,6 @@ import com.spring.userservice.Exceptions.InvalidCredentialsException;
 import com.spring.userservice.Exceptions.UserAlreadyExistedException;
 import com.spring.userservice.Models.Booking;
 import com.spring.userservice.Models.User;
-import com.spring.userservice.Reposistories.BookingReposistory;
 import com.spring.userservice.Reposistories.UserReposistory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -26,9 +25,6 @@ import java.util.Optional;
 public class UserService {
     @Autowired
     private UserReposistory repository;
-
-    @Autowired
-    private BookingReposistory bookingReposistory;
 
     @Autowired
     private ImageUploadClient imageUploadClient;
@@ -63,11 +59,10 @@ public class UserService {
 
     public void updateProfile(UserDTO updatedUser) {
         User currentUser = getCurrentUser();
-        if (currentUser.getProvider().equals(Provider.GOOGLE)) {
-            throw new ActionNotAllowedException("Cannot update profile for Google authenticated users.");
-        }
 
-        if (updatedUser.getEmail() != null && !updatedUser.getEmail().equals(currentUser.getEmail())) {
+        if (updatedUser.getEmail() != null
+                && !updatedUser.getEmail().equals(currentUser.getEmail())
+                && currentUser.getProvider().equals(Provider.SELF)) {
             Optional<User> existingUser = repository.findByEmail(updatedUser.getEmail());
             if (existingUser.isPresent()) {
                 throw new UserAlreadyExistedException("User with this email already exists.");
