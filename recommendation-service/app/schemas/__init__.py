@@ -1,4 +1,4 @@
-from app.schemas.recommendation import RecommendationRequest, RecommendationResponse
+from app.schemas.recommendation import MovieRecommendation, RecommendationResponse
 from app.schemas.collaborative import (
     UserBehaviorCreate,
     UserBehaviorResponse,
