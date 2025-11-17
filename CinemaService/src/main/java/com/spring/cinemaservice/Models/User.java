@@ -1,7 +1,5 @@
 package com.spring.cinemaservice.Models;
 
-import com.spring.cinemaservice.DTOs.UserDTO;
-import com.spring.cinemaservice.Enums.Gender;
 import com.spring.cinemaservice.Enums.UserRole;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -18,7 +16,6 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -35,9 +32,6 @@ public class User implements UserDetails {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "full_name", nullable = false)
-    private String fullName;
-
     @Column(name = "email", nullable = false, unique = true)
     private String email;
 
@@ -49,13 +43,6 @@ public class User implements UserDetails {
 
     @Column(name = "role", nullable = false)
     private UserRole role;
-
-    private LocalDate dob;
-    private Gender gender;
-    private String address;
-    private String district;
-    private String city;
-    private String img;
 
     private final LocalDateTime createdAt = LocalDateTime.now();
 
@@ -87,21 +74,5 @@ public class User implements UserDetails {
     @Override
     public boolean isEnabled() {
         return true;
-    }
-
-    public UserDTO convertToDTO() {
-        return UserDTO.builder()
-                .id(getId())
-                .fullName(getFullName())
-                .email(getEmail())
-                .phone(getPhone())
-                .dob(getDob())
-                .gender(getGender())
-                .role(getRole())
-                .address(getAddress())
-                .district(getDistrict())
-                .city(getCity())
-                .img(getImg())
-                .createdAt(getCreatedAt()).build();
     }
 }

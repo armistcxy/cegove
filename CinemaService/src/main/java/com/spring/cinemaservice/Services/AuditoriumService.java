@@ -1,8 +1,8 @@
 package com.spring.cinemaservice.Services;
 
 import com.spring.cinemaservice.DTOs.AuditoriumDTO;
-import com.spring.cinemaservice.Mapper.AuditoriumMapper;
 import com.spring.cinemaservice.Models.Auditorium;
+import com.spring.cinemaservice.Models.Cinema;
 import com.spring.cinemaservice.Reposistories.AuditoriumReposistory;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,19 +13,17 @@ public class AuditoriumService {
     @Autowired
     private AuditoriumReposistory reposistory;
 
-//    @Autowired
-//    private AuditoriumMapper mapper;
-
     @Autowired
     private SeatService seatService;
 
     @Transactional
-    public void createAuditorium(AuditoriumDTO auditoriumDTO, Long cinemaId) {
+    public void createAuditorium(AuditoriumDTO auditoriumDTO, Cinema cinema) {
         Auditorium auditorium = Auditorium.builder()
                 .name(auditoriumDTO.getName())
                 .pattern(auditoriumDTO.getPattern())
                 .build();
-        auditorium.setCinemaId(cinemaId);
+        auditorium.setCinema(cinema);
+        cinema.getAuditoriums().add(auditorium);
         Auditorium savedAuditorium = reposistory.save(auditorium);
 
         // Generate seating arrangement based on the auditorium pattern

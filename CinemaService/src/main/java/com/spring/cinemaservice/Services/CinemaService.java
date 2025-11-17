@@ -44,13 +44,12 @@ public class CinemaService {
             }
         }
 
-
         Cinema savedCinema = reposistory.save(cinema);
 
         // Create auditoriums
         if (cinemaRequest.getAuditoriumList() != null) {
             for (AuditoriumDTO auditoriumDTO : cinemaRequest.getAuditoriumList()) {
-                auditoriumService.createAuditorium(auditoriumDTO, savedCinema.getId());
+                auditoriumService.createAuditorium(auditoriumDTO, savedCinema);
             }
         }
     }
