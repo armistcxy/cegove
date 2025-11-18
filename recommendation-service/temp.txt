@@ -1,0 +1,5 @@
+docker run -d `
+  --name recommendation-service `
+  -p 8002:8002 `
+  --env-file .env `
+  recommendation-service:latest
