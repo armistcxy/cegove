@@ -3,10 +3,13 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from app.database import get_db
 from app.schemas.recommendation import (
-    MovieRecommendation, RecommendationResponse,
-    PopularMoviesParams, TopRatedParams, SimilarMoviesParams
+    MovieRecommendation, 
+    RecommendationResponse,
+    RecommendationRequest,
+    ContentBasedRequest
 )
 from app.services.recommendation_service import RecommendationService
+from app.services.recommendation_helpers import movie_to_recommendation
 
 router = APIRouter()
 
@@ -18,41 +21,25 @@ def get_popular_recommendations(
     db: Session = Depends(get_db)
 ):
     """
-    Get popular movie recommendations
-    
-    Based on number of votes and IMDB rating.
-    Best for new users or homepage.
-    
-    - **limit**: Number of movies to return (max 50)
-    - **min_votes**: Minimum number of votes required (default 10,000)
+    Get popular movie recommendations based on votes and rating
+    Best for new users or homepage
     """
-    results = RecommendationService.get_popular_movies(
-        db=db,
-        limit=limit,
-        min_votes=min_votes
-    )
+    rec_service = RecommendationService(db)
+    results = rec_service.get_popular_movies(limit=limit, min_votes=min_votes)
     
-    recommendations = []
-    for movie, reason in results:
-        rec = MovieRecommendation(
-            id=movie.id,
-            series_title=movie.series_title,
-            released_year=movie.released_year,
-            genre=movie.genre,
-            imdb_rating=movie.imdb_rating,
-            meta_score=movie.meta_score,
-            director=movie.director,
-            poster_link=movie.poster_link,
-            overview=movie.overview,
-            no_of_votes=movie.no_of_votes,
+    recommendations = [
+        movie_to_recommendation(
+            movie=movie,
+            recommendation_type="popularity",
             reason=reason
         )
-        recommendations.append(rec)
+        for movie, reason in results
+    ]
     
     return RecommendationResponse(
         recommendations=recommendations,
         total=len(recommendations),
-        method="popular"
+        method="popularity"
     )
 
 
@@ -63,35 +50,19 @@ def get_top_rated_recommendations(
     db: Session = Depends(get_db)
 ):
     """
-    Get top rated movie recommendations
-    
-    Based on highest IMDB ratings with sufficient votes.
-    
-    - **limit**: Number of movies to return (max 50)
-    - **min_votes**: Minimum number of votes required (default 5,000)
+    Get top rated movie recommendations based on IMDB ratings
     """
-    results = RecommendationService.get_top_rated_movies(
-        db=db,
-        limit=limit,
-        min_votes=min_votes
-    )
+    rec_service = RecommendationService(db)
+    results = rec_service.get_top_rated_movies(limit=limit, min_votes=min_votes)
     
-    recommendations = []
-    for movie, reason in results:
-        rec = MovieRecommendation(
-            id=movie.id,
-            series_title=movie.series_title,
-            released_year=movie.released_year,
-            genre=movie.genre,
-            imdb_rating=movie.imdb_rating,
-            meta_score=movie.meta_score,
-            director=movie.director,
-            poster_link=movie.poster_link,
-            overview=movie.overview,
-            no_of_votes=movie.no_of_votes,
+    recommendations = [
+        movie_to_recommendation(
+            movie=movie,
+            recommendation_type="popularity",
             reason=reason
         )
-        recommendations.append(rec)
+        for movie, reason in results
+    ]
     
     return RecommendationResponse(
         recommendations=recommendations,
@@ -107,20 +78,12 @@ def get_similar_movie_recommendations(
     db: Session = Depends(get_db)
 ):
     """
-    Get similar movie recommendations (Content-Based Filtering)
+    Get similar movie recommendations using Content-Based Filtering (TF-IDF)
     
-    Uses TF-IDF on movie features:
-    - Genre (weighted heavily)
-    - Director (weighted)
-    - Overview/plot
-    - Cast members
-    
-    Returns movies with similar content and style.
-    
-    - **movie_id**: Source movie ID
-    - **limit**: Number of recommendations (max 50)
+    Uses features: genre, director, overview, cast
     """
-    source_movie, results = RecommendationService.get_similar_movies_content_based(
+    rec_service = RecommendationService(db)
+    source_movie, results = rec_service.get_similar_movies_content_based(
         db=db,
         movie_id=movie_id,
         limit=limit
@@ -130,33 +93,24 @@ def get_similar_movie_recommendations(
         raise HTTPException(status_code=404, detail="Movie not found")
     
     if not results:
-        # Fallback: Get movies by same genre
+        # Fallback: same genre
         if source_movie.genre:
             genre = source_movie.genre.split(',')[0].strip()
-            fallback_results = RecommendationService.get_movies_by_genre(
+            fallback_results = rec_service.get_movies_by_genre(
                 db=db,
                 genre=genre,
                 limit=limit,
                 exclude_movie_id=movie_id
             )
             
-            recommendations = []
-            for movie, reason in fallback_results:
-                rec = MovieRecommendation(
-                    id=movie.id,
-                    series_title=movie.series_title,
-                    released_year=movie.released_year,
-                    genre=movie.genre,
-                    imdb_rating=movie.imdb_rating,
-                    meta_score=movie.meta_score,
-                    director=movie.director,
-                    poster_link=movie.poster_link,
-                    overview=movie.overview,
-                    no_of_votes=movie.no_of_votes,
-                    similarity_score=None,
+            recommendations = [
+                movie_to_recommendation(
+                    movie=movie,
+                    recommendation_type="content-based",
                     reason=reason
                 )
-                recommendations.append(rec)
+                for movie, reason in fallback_results
+            ]
             
             return RecommendationResponse(
                 recommendations=recommendations,
@@ -168,26 +122,18 @@ def get_similar_movie_recommendations(
         else:
             raise HTTPException(
                 status_code=404,
-                detail="No similar movies found and no genre available for fallback"
+                detail="No similar movies found"
             )
     
-    recommendations = []
-    for movie, similarity, reason in results:
-        rec = MovieRecommendation(
-            id=movie.id,
-            series_title=movie.series_title,
-            released_year=movie.released_year,
-            genre=movie.genre,
-            imdb_rating=movie.imdb_rating,
-            meta_score=movie.meta_score,
-            director=movie.director,
-            poster_link=movie.poster_link,
-            overview=movie.overview,
-            no_of_votes=movie.no_of_votes,
-            similarity_score=round(similarity, 4),
+    recommendations = [
+        movie_to_recommendation(
+            movie=movie,
+            predicted_score=round(similarity, 4),
+            recommendation_type="content-based",
             reason=reason
         )
-        recommendations.append(rec)
+        for movie, similarity, reason in results
+    ]
     
     return RecommendationResponse(
         recommendations=recommendations,
@@ -205,18 +151,10 @@ def get_recommendations_by_genre(
     db: Session = Depends(get_db)
 ):
     """
-    Get movie recommendations by genre
-    
-    Simple genre-based recommendations sorted by rating.
-    
-    - **genre**: Genre name (e.g., "Action", "Drama")
-    - **limit**: Number of movies (max 50)
+    Get movie recommendations by genre, sorted by rating
     """
-    results = RecommendationService.get_movies_by_genre(
-        db=db,
-        genre=genre,
-        limit=limit
-    )
+    rec_service = RecommendationService(db)
+    results = rec_service.get_movies_by_genre(db=db, genre=genre, limit=limit)
     
     if not results:
         raise HTTPException(
@@ -224,22 +162,14 @@ def get_recommendations_by_genre(
             detail=f"No movies found for genre: {genre}"
         )
     
-    recommendations = []
-    for movie, reason in results:
-        rec = MovieRecommendation(
-            id=movie.id,
-            series_title=movie.series_title,
-            released_year=movie.released_year,
-            genre=movie.genre,
-            imdb_rating=movie.imdb_rating,
-            meta_score=movie.meta_score,
-            director=movie.director,
-            poster_link=movie.poster_link,
-            overview=movie.overview,
-            no_of_votes=movie.no_of_votes,
+    recommendations = [
+        movie_to_recommendation(
+            movie=movie,
+            recommendation_type="content-based",
             reason=reason
         )
-        recommendations.append(rec)
+        for movie, reason in results
+    ]
     
     return RecommendationResponse(
         recommendations=recommendations,

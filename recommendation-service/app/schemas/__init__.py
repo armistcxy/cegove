@@ -1,16 +1,28 @@
-from app.schemas.recommendation import MovieRecommendation, RecommendationResponse
-from app.schemas.collaborative import (
-    UserBehaviorCreate,
-    UserBehaviorResponse,
+from app.schemas.recommendation import (
+    MovieRecommendation,
+    RecommendationResponse,
+    RecommendationRequest,
+    CollaborativeRequest,
+    ContentBasedRequest,
+    PopularMoviesParams,
+    TopRatedParams,
+    SimilarMoviesParams,
+    # Deprecated
     CollaborativeRecommendationRequest,
-    CollaborativeRecommendationResponse
+    CollaborativeRecommendationResponse,
+    HybridRecommendationRequest
 )
 
 __all__ = [
-    "RecommendationRequest",
-    "RecommendationResponse",
-    "UserBehaviorCreate",
-    "UserBehaviorResponse",
-    "CollaborativeRecommendationRequest",
-    "CollaborativeRecommendationResponse"
+    'MovieRecommendation',
+    'RecommendationResponse',
+    'RecommendationRequest',
+    'CollaborativeRequest',
+    'ContentBasedRequest',
+    'PopularMoviesParams',
+    'TopRatedParams',
+    'SimilarMoviesParams',
+    'CollaborativeRecommendationRequest',
+    'CollaborativeRecommendationResponse',
+    'HybridRecommendationRequest'
 ]
