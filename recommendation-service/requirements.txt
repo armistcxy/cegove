@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+pydantic
+pydantic-settings
+python-dotenv
+
+# Machine Learning for recommendations
+scikit-learn
+numpy
+pandas
+
+# Future: for collaborative filtering
+scikit-surprise

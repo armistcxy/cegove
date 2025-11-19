@@ -1,0 +1,9 @@
+cd recommendation-service
+
+docker build -t recommendation-service:latest .
+
+docker run -d `
+  --name recommendation-service `
+  -p 8002:8002 `
+  --env-file .env `
+  recommendation-service:latest
