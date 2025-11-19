@@ -1,11 +1,20 @@
 from app.services.payment_providers.base import PaymentProvider
+from app.services.payment_providers.provider_factory import PaymentProviderFactory
+from app.core.config import settings
+
 import urllib
 import hmac
 import hashlib
 import datetime
 
 class VNPayProvider(PaymentProvider):
-
+    def __init__(self):
+        self.tmn_code = settings.VNPAY_TMN_CODE
+        self.secret_key = settings.VNPAY_HASH_SECRET
+        self.payment_url = settings.VNPAY_PAYMENT_URL
+        self.return_url = settings.VNPAY_RETURN_URL
+        self.ipn_url = settings.VNPAY_IPN_URL
+    
     def extract_payment_id(self, params: dict) -> int:
         return int(params["vnp_TxnRef"])
 
@@ -13,9 +22,16 @@ class VNPayProvider(PaymentProvider):
         return params.get("vnp_ResponseCode") == "00"
 
     def verify_ipn(self, params: dict) -> bool:
-        received_hash = params.pop("vnp_SecureHash", None)
+        # Required by VNPay: Do NOT include vnp_SecureHash
+        received_hash = params.get("vnp_SecureHash")
 
-        sorted_query = urllib.parse.urlencode(sorted(params.items()))
+        params_for_hash = {
+            k: v for k, v in params.items()
+            if k != "vnp_SecureHash"
+        }
+
+        sorted_query = urllib.parse.urlencode(sorted(params_for_hash.items()))
+
         valid_hash = hmac.new(
             self.secret_key.encode(),
             sorted_query.encode(),
@@ -49,3 +65,4 @@ class VNPayProvider(PaymentProvider):
         ).hexdigest()
 
         return f"{self.payment_url}?{sorted_query}&vnp_SecureHash={secure_hash}"
+

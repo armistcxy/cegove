@@ -6,19 +6,35 @@ from app.database.models import Base
 
 dotenv.load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://dev:123456789@localhost:5433/cegove")
-USE_LOCAL_DB = False
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-# if not DATABASE_URL:
-#     DATABASE_URL = "sqlite+aiosqlite:///./local.db"
+# ⇩ If empty → fallback to SQLite
+if not DATABASE_URL or DATABASE_URL.strip() == "":
+    DATABASE_URL = "postgresql+asyncpg://admin:admin@localhost:5432/movie"
+    USE_LOCAL_DB = True
+else:
+    USE_LOCAL_DB = False
 
-engine = create_async_engine(DATABASE_URL, echo=False)
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=False,
+    future=True
+)
 
 AsyncSessionLocal = sessionmaker(
-    bind=engine,
+    engine,
+    expire_on_commit=False,
     class_=AsyncSession,
-    expire_on_commit=False
 )
+
+
+async def init_db():
+    """Create tables if using local SQLite."""
+    async with engine.begin() as conn:
+        # Only auto-create schema for SQLite fallback
+        if USE_LOCAL_DB:
+            await conn.run_sync(Base.metadata.create_all)
+
 
 async def get_db():
     async with AsyncSessionLocal() as session:

@@ -11,7 +11,22 @@ class PaymentBase(BaseModel):
 
 
 class PaymentCreate(PaymentBase):
-    pass
+    client_ip: str
+
+class PaymentOut(BaseModel):
+    id: int
+    booking_id: int
+    provider: str
+    amount: Decimal
+    status: str
+
+    model_config = {"from_attributes": True}
+
+
+class PaymentInitResponse(BaseModel):
+    payment: PaymentOut  # nested object
+    url: str
+
 
 
 class PaymentUpdate(BaseModel):

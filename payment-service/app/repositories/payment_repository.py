@@ -7,17 +7,14 @@ from app.database.models import Payment
 class PaymentRepository:
     # Post
     async def create_payment(self, db: AsyncSession, data: PaymentCreate) -> Payment:
-        payment_data = data.model_dump()
+        payment_data = data.model_dump(exclude={"client_ip"})
 
         db_payment = Payment(**payment_data)
 
         try:
             db.add(db_payment)
-
             await db.commit()
-
             await db.refresh(db_payment)
-
             return db_payment
         
         except Exception as e:

@@ -1,16 +1,17 @@
-from app.services.payment_providers.vnpay_provider import VNPayProvider
-
 class PaymentProviderFactory:
-    providers = {
-        "vnpay": VNPayProvider,
-        "momo" : ""
-    }
+    registry = {}
 
-    @staticmethod
-    def get_provider(provider_name: str):
-        provider_name = provider_name.lower()
+    @classmethod
+    def register(cls, name: str, provider_cls):
+        cls.registry[name.lower()] = provider_cls
 
-        if provider_name not in PaymentProviderFactory.providers:
-            raise ValueError("Unsupported payment provider")
+    @classmethod
+    def get_provider(cls, name: str, **kwargs):
+        name = name.lower()
+        provider_cls = cls.registry.get(name)
 
-        return PaymentProviderFactory.providers[provider_name]()
+        if not provider_cls:
+            raise ValueError(f"Unsupported provider: {name}")
+
+        return provider_cls(**kwargs)
+

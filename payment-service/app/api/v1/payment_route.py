@@ -2,17 +2,16 @@ from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.session import get_db
 from app.services.payment_service import PaymentService
-from app.schema.payment import PaymentCreate
+from app.schema.payment import PaymentCreate, PaymentInitResponse
 
 router = APIRouter(prefix="/api/v1/payments", tags=["Payments"])
 
 service = PaymentService()
 
 
-@router.post("/", response_model=dict)
+@router.post("/", response_model=PaymentInitResponse)
 async def create_payment(data: PaymentCreate, db: AsyncSession = Depends(get_db)):
-    payment = await service.create_payment(db, data)
-    return {"id": payment.id, "url": payment.url}
+    return await service.create_payment(db, data)
 
 @router.get("/vnpay/ipn")
 async def vnpay_ipn(request: Request, db: AsyncSession = Depends(get_db)):
@@ -23,6 +22,14 @@ async def vnpay_ipn(request: Request, db: AsyncSession = Depends(get_db)):
         return {"RspCode": "00", "Message": "Success"}
     else:
         return {"RspCode": "97", "Message": "Failure"}
+
+@router.get("/vnpay/return")
+async def vnpay_return(request: Request):
+    params = dict(request.query_params)
+    if params.get("vnp_ResponseCode") == "00":
+        return {"message": "Payment success. Waiting for confirmation."}
+    else:
+        return {"message": "Payment failed."}
 
 @router.get("/{payment_id}")
 async def get_payment(payment_id: int, db: AsyncSession = Depends(get_db)):
