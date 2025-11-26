@@ -1,5 +1,7 @@
 package domain
 
+import "time"
+
 type SeatType int
 
 const (
@@ -22,7 +24,7 @@ type Seat struct {
 	Number int    `json:"number"` // Number of seat in row, could be 1, 2, 3, etc.
 
 	Type     SeatType `json:"type"`
-	ScreenID string   `json:"screen_id"` // ID of the
+	ScreenID string   `json:"screen_id"` // ID of the screen
 }
 
 type ShowtimeSeat struct {
@@ -31,4 +33,14 @@ type ShowtimeSeat struct {
 	Status     SeatStatus `json:"status"`
 	Price      float64    `json:"price"`
 	BookingID  string     `json:"booking_id,omitempty"`
+}
+
+type Showtime struct {
+	ID        string    `json:"id"`
+	MovieID   string    `json:"movie_id"`
+	ScreenID  string    `json:"screen_id"`
+	StartTime time.Time `json:"start_time"`
+	EndTime   time.Time `json:"end_time"`
+	BasePrice float64   `json:"base_price"`
+	Status    int       `json:"status"`
 }

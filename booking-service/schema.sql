@@ -8,6 +8,16 @@ CREATE TABLE seats (
 
 CREATE INDEX idx_seats_on_screen_id ON seats(screen_id);
 
+CREATE TABLE showtimes (
+    id VARCHAR(255) PRIMARY KEY,
+    movie_id VARCHAR(255) NOT NULL,
+    screen_id VARCHAR(255) NOT NULL,
+    start_time TIMESTAMPTZ NOT NULL,
+    end_time TIMESTAMPTZ NOT NULL,
+    base_price DECIMAL(10, 2) NOT NULL,
+    status SMALLINT NOT NULL DEFAULT 0
+);
+
 CREATE TABLE showtime_seats (
     seat_id VARCHAR(255) NOT NULL,
     showtime_id VARCHAR(255) NOT NULL,
