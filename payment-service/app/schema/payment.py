@@ -7,7 +7,7 @@ class PaymentBase(BaseModel):
     booking_id: int
     provider: str
     amount: Decimal
-    status: str
+    # status: str
 
 
 class PaymentCreate(PaymentBase):

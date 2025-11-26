@@ -8,11 +8,12 @@ class PaymentService:
         self.repo = PaymentRepository()
     
     async def create_payment(self, db: AsyncSession, data: PaymentCreate):
+        print("=" * 100)
         payment = await self.repo.create_payment(db, data)
+
 
         print(payment.provider)
         print(type(payment.provider))
-        print("=" * 100)
         provider = PaymentProviderFactory.get_provider(payment.provider)
         client_ip = data.client_ip
 

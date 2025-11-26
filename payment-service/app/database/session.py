@@ -10,7 +10,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 # ⇩ If empty → fallback to SQLite
 if not DATABASE_URL or DATABASE_URL.strip() == "":
-    DATABASE_URL = "postgresql+asyncpg://admin:admin@localhost:5432/movie"
+    DATABASE_URL = "sqlite+aiosqlite:///./payment_service.db"
     USE_LOCAL_DB = True
 else:
     USE_LOCAL_DB = False
@@ -18,7 +18,8 @@ else:
 engine = create_async_engine(
     DATABASE_URL,
     echo=False,
-    future=True
+    future=True,
+    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
 )
 
 AsyncSessionLocal = sessionmaker(
