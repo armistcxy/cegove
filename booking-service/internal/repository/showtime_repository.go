@@ -1,9 +1,10 @@
 package repository
 
 import (
-	"booking-service/internal/domain"
 	"context"
 	"fmt"
+
+	"github.com/armistcxy/cegove/booking-service/internal/domain"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5/pgxpool"

@@ -1,11 +1,12 @@
 package handler
 
 import (
-	"booking-service/internal/repository"
-	"booking-service/pkg/httphelp"
-	"booking-service/pkg/logging"
 	"errors"
 	"net/http"
+
+	"github.com/armistcxy/cegove/booking-service/internal/repository"
+	"github.com/armistcxy/cegove/booking-service/pkg/httphelp"
+	"github.com/armistcxy/cegove/booking-service/pkg/logging"
 )
 
 type ShowtimeHandler struct {
@@ -20,6 +21,12 @@ func NewShowtimeHandler(showtimeRepo repository.ShowtimeRepository, logger *logg
 	}
 }
 
+// @Summary List all showtimes
+// @Description Get a list of all available showtimes
+// @Tags showtimes
+// @Produce json
+// @Success 200 {array} domain.Showtime "List of showtimes retrieved successfully"
+// @Router /showtimes [get]
 func (h *ShowtimeHandler) HandleListShowtimes(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	showtimes, err := h.showtimeRepo.ListShowtimes(ctx)
@@ -31,6 +38,13 @@ func (h *ShowtimeHandler) HandleListShowtimes(w http.ResponseWriter, r *http.Req
 	httphelp.EncodeJSON(w, r, http.StatusOK, showtimes)
 }
 
+// @Summary Get showtime seats
+// @Description Get a list of seats for a specific showtime
+// @Tags showtimes
+// @Produce json
+// @Param showtime_id path string true "Showtime ID"
+// @Success 200 {array} domain.ShowtimeSeat "List of showtime seats retrieved successfully"
+// @Router /showtimes/{showtime_id}/seats [get]
 func (h *ShowtimeHandler) HandleGetShowtimeSeats(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	showtimeID := r.PathValue("showtime_id")

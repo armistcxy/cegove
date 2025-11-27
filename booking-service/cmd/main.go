@@ -1,18 +1,35 @@
 package main
 
+//go:generate swag init -g cmd/main.go -o docs
+
+//go:generate swag init -g cmd/main.go -o docs
+
+// @title Booking Service API
+// @version 1.0
+// @description This is the booking service API.
+// @contact.name API Support
+// @contact.email support@example.com
+// @host localhost:8080
+// @BasePath /api
+
 import (
-	"booking-service/internal/handler"
-	"booking-service/pkg/config"
-	"booking-service/pkg/httphelp"
-	"booking-service/pkg/logging"
 	"context"
 	"fmt"
 	"log"
 	"os"
 
+	"github.com/armistcxy/cegove/booking-service/internal/handler"
+	"github.com/armistcxy/cegove/booking-service/pkg/config"
+	"github.com/armistcxy/cegove/booking-service/pkg/httphelp"
+	"github.com/armistcxy/cegove/booking-service/pkg/logging"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/viper"
 	"go.uber.org/zap/zapcore"
+
+	_ "github.com/armistcxy/cegove/booking-service/docs"
+
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func main() {
@@ -68,6 +85,13 @@ func main() {
 
 	bookingRouter := handler.NewBookingRouter(pool, logger)
 	server.RegisterRouter("/api", bookingRouter.Router)
+
+	// Swagger UI
+	server.Router.Handle("/api/swagger/*", httpSwagger.Handler(
+		httpSwagger.URL("/api/swagger/doc.json"),
+	))
+
+	// Remove duplicate Swagger UI registration
 
 	if err := server.ListenAndServe(":8080"); err != nil {
 		log.Fatalf("failed to start server: %v", err)

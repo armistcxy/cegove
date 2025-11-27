@@ -1,19 +1,31 @@
 package handler
 
 import (
-	"booking-service/internal/domain"
-	"booking-service/internal/repository"
-	"booking-service/pkg/httphelp"
-	"booking-service/pkg/logging"
 	"errors"
 	"net/http"
+
+	"github.com/armistcxy/cegove/booking-service/internal/domain"
+	"github.com/armistcxy/cegove/booking-service/internal/repository"
+	"github.com/armistcxy/cegove/booking-service/pkg/httphelp"
+	"github.com/armistcxy/cegove/booking-service/pkg/logging"
 )
 
 type createBookingRequest struct {
-	UserID     string   `json:"user_id"`
-	ShowtimeID string   `json:"showtime_id"`
-	SeatIDs    []string `json:"seat_ids"`
+	UserID     string   `json:"user_id" example:"user123"`
+	ShowtimeID string   `json:"showtime_id" example:"showtime123"`
+	SeatIDs    []string `json:"seat_ids" example:"seat1,seat2"`
 }
+
+// @BasePath /api/v1
+
+// @Summary Create a new booking
+// @Description Create a new booking for a user and showtime with selected seats
+// @Tags bookings
+// @Accept json
+// @Produce json
+// @Param booking body createBookingRequest true "Booking creation request"
+// @Success 200 {object} domain.Booking "Booking created successfully"
+// @Router /bookings [post]
 
 type BookingHandle struct {
 	logger      *logging.Logger
@@ -27,6 +39,14 @@ func NewBookingHandler(bookingRepo repository.BookingRepository, logger *logging
 	}
 }
 
+// @Summary Create a new booking
+// @Description Create a new booking for a user and showtime with selected seats
+// @Tags bookings
+// @Accept json
+// @Produce json
+// @Param booking body createBookingRequest true "Booking creation request"
+// @Success 200 {object} domain.Booking "Booking created successfully"
+// @Router /bookings [post]
 func (h *BookingHandle) HandleCreateBooking(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -55,6 +75,20 @@ func (h *BookingHandle) HandleCreateBooking(w http.ResponseWriter, r *http.Reque
 	httphelp.EncodeJSON(w, r, http.StatusOK, booking)
 }
 
+// @Summary Get booking information
+// @Description Get detailed information about a specific booking
+// @Tags bookings
+// @Produce json
+// @Param booking_id path string true "Booking ID"
+// @Success 200 {object} domain.Booking "Booking information retrieved successfully"
+// @Router /bookings/{booking_id} [get]
+// @Summary Get booking information
+// @Description Get detailed information about a specific booking
+// @Tags bookings
+// @Produce json
+// @Param booking_id path string true "Booking ID"
+// @Success 200 {object} domain.Booking "Booking information retrieved successfully"
+// @Router /bookings/{booking_id} [get]
 func (h *BookingHandle) HandleGetBookingInformation(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -74,6 +108,18 @@ func (h *BookingHandle) HandleGetBookingInformation(w http.ResponseWriter, r *ht
 	httphelp.EncodeJSON(w, r, http.StatusOK, booking)
 }
 
+// @Summary List all bookings
+// @Description Get a list of all bookings
+// @Tags bookings
+// @Produce json
+// @Success 200 {array} domain.Booking "List of bookings retrieved successfully"
+// @Router /bookings [get]
+// @Summary List all bookings
+// @Description Get a list of all bookings
+// @Tags bookings
+// @Produce json
+// @Success 200 {array} domain.Booking "List of bookings retrieved successfully"
+// @Router /bookings [get]
 func (h *BookingHandle) HandleListBookings(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 

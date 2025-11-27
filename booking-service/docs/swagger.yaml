@@ -1,0 +1,248 @@
+basePath: /api
+definitions:
+  domain.Booking:
+    properties:
+      created_at:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      seat_ids:
+        items:
+          type: string
+        type: array
+      showtime_id:
+        type: string
+      status:
+        $ref: '#/definitions/domain.BookingStatus'
+      tickets:
+        items:
+          $ref: '#/definitions/domain.Ticket'
+        type: array
+      total_price:
+        type: number
+      user_id:
+        type: string
+    type: object
+  domain.BookingStatus:
+    enum:
+    - 0
+    - 1
+    - 2
+    - 3
+    type: integer
+    x-enum-varnames:
+    - BookingStatusPending
+    - BookingStatusConfirmed
+    - BookingStatusCancelled
+    - BookingStatusFailed
+  domain.SeatStatus:
+    enum:
+    - 0
+    - 1
+    - 2
+    type: integer
+    x-enum-varnames:
+    - SeatStatusAvailable
+    - SeatStatusLocked
+    - SeatStatusSold
+  domain.Showtime:
+    properties:
+      base_price:
+        type: number
+      end_time:
+        type: string
+      id:
+        type: string
+      movie_id:
+        type: string
+      screen_id:
+        type: string
+      start_time:
+        type: string
+      status:
+        type: integer
+    type: object
+  domain.ShowtimeSeat:
+    properties:
+      booking_id:
+        type: string
+      price:
+        type: number
+      seat_id:
+        type: string
+      showtime_id:
+        type: string
+      status:
+        $ref: '#/definitions/domain.SeatStatus'
+    type: object
+  domain.Ticket:
+    properties:
+      booking_id:
+        type: string
+      cinema_name:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      movie_title:
+        type: string
+      price:
+        type: number
+      qr_code:
+        type: string
+      screen_name:
+        type: string
+      seat_number:
+        type: integer
+      seat_row:
+        type: string
+      showtime:
+        type: string
+      showtime_id:
+        type: string
+      status:
+        $ref: '#/definitions/domain.TicketStatus'
+    type: object
+  domain.TicketStatus:
+    enum:
+    - 0
+    - 1
+    - 2
+    type: integer
+    x-enum-varnames:
+    - TicketStatusActive
+    - TicketStatusUsed
+    - TicketStatusCancelled
+  handler.createBookingRequest:
+    properties:
+      seat_ids:
+        example:
+        - seat1
+        - seat2
+        items:
+          type: string
+        type: array
+      showtime_id:
+        example: showtime123
+        type: string
+      user_id:
+        example: user123
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@example.com
+    name: API Support
+  description: This is the booking service API.
+  title: Booking Service API
+  version: "1.0"
+paths:
+  /bookings:
+    get:
+      description: |-
+        Get a list of all bookings
+        Get a list of all bookings
+      produces:
+      - application/json
+      - application/json
+      responses:
+        "200":
+          description: List of bookings retrieved successfully
+          schema:
+            items:
+              $ref: '#/definitions/domain.Booking'
+            type: array
+      summary: List all bookings
+      tags:
+      - bookings
+      - bookings
+    post:
+      consumes:
+      - application/json
+      description: Create a new booking for a user and showtime with selected seats
+      parameters:
+      - description: Booking creation request
+        in: body
+        name: booking
+        required: true
+        schema:
+          $ref: '#/definitions/handler.createBookingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Booking created successfully
+          schema:
+            $ref: '#/definitions/domain.Booking'
+      summary: Create a new booking
+      tags:
+      - bookings
+  /bookings/{booking_id}:
+    get:
+      description: |-
+        Get detailed information about a specific booking
+        Get detailed information about a specific booking
+      parameters:
+      - description: Booking ID
+        in: path
+        name: booking_id
+        required: true
+        type: string
+      - description: Booking ID
+        in: path
+        name: booking_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      - application/json
+      responses:
+        "200":
+          description: Booking information retrieved successfully
+          schema:
+            $ref: '#/definitions/domain.Booking'
+      summary: Get booking information
+      tags:
+      - bookings
+      - bookings
+  /showtimes:
+    get:
+      description: Get a list of all available showtimes
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of showtimes retrieved successfully
+          schema:
+            items:
+              $ref: '#/definitions/domain.Showtime'
+            type: array
+      summary: List all showtimes
+      tags:
+      - showtimes
+  /showtimes/{showtime_id}/seats:
+    get:
+      description: Get a list of seats for a specific showtime
+      parameters:
+      - description: Showtime ID
+        in: path
+        name: showtime_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of showtime seats retrieved successfully
+          schema:
+            items:
+              $ref: '#/definitions/domain.ShowtimeSeat'
+            type: array
+      summary: Get showtime seats
+      tags:
+      - showtimes
+swagger: "2.0"

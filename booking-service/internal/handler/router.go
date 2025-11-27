@@ -1,10 +1,18 @@
 package handler
 
+// @title Booking Service API
+// @description This is the API documentation for the Booking Service.
+// @version 1.0
+// @host localhost:8080
+// @BasePath /api/v1
+
 import (
-	"booking-service/internal/repository"
-	"booking-service/pkg/httphelp"
-	"booking-service/pkg/logging"
 	"net/http"
+
+	"github.com/armistcxy/cegove/booking-service/internal/repository"
+
+	"github.com/armistcxy/cegove/booking-service/pkg/httphelp"
+	"github.com/armistcxy/cegove/booking-service/pkg/logging"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

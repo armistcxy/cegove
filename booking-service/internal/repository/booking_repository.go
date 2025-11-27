@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"booking-service/internal/domain"
+	"github.com/armistcxy/cegove/booking-service/internal/domain"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/google/uuid"

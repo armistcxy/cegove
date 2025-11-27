@@ -1,0 +1,360 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "This is the booking service API.",
+        "title": "Booking Service API",
+        "contact": {
+            "name": "API Support",
+            "email": "support@example.com"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api",
+    "paths": {
+        "/bookings": {
+            "get": {
+                "description": "Get a list of all bookings\nGet a list of all bookings",
+                "produces": [
+                    "application/json",
+                    "application/json"
+                ],
+                "tags": [
+                    "bookings",
+                    "bookings"
+                ],
+                "summary": "List all bookings",
+                "responses": {
+                    "200": {
+                        "description": "List of bookings retrieved successfully",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/domain.Booking"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a new booking for a user and showtime with selected seats",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "bookings"
+                ],
+                "summary": "Create a new booking",
+                "parameters": [
+                    {
+                        "description": "Booking creation request",
+                        "name": "booking",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.createBookingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Booking created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Booking"
+                        }
+                    }
+                }
+            }
+        },
+        "/bookings/{booking_id}": {
+            "get": {
+                "description": "Get detailed information about a specific booking\nGet detailed information about a specific booking",
+                "produces": [
+                    "application/json",
+                    "application/json"
+                ],
+                "tags": [
+                    "bookings",
+                    "bookings"
+                ],
+                "summary": "Get booking information",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Booking ID",
+                        "name": "booking_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Booking ID",
+                        "name": "booking_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Booking information retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Booking"
+                        }
+                    }
+                }
+            }
+        },
+        "/showtimes": {
+            "get": {
+                "description": "Get a list of all available showtimes",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "showtimes"
+                ],
+                "summary": "List all showtimes",
+                "responses": {
+                    "200": {
+                        "description": "List of showtimes retrieved successfully",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/domain.Showtime"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/showtimes/{showtime_id}/seats": {
+            "get": {
+                "description": "Get a list of seats for a specific showtime",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "showtimes"
+                ],
+                "summary": "Get showtime seats",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Showtime ID",
+                        "name": "showtime_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of showtime seats retrieved successfully",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/domain.ShowtimeSeat"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "domain.Booking": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "seat_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "showtime_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/domain.BookingStatus"
+                },
+                "tickets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Ticket"
+                    }
+                },
+                "total_price": {
+                    "type": "number"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.BookingStatus": {
+            "type": "integer",
+            "enum": [
+                0,
+                1,
+                2,
+                3
+            ],
+            "x-enum-varnames": [
+                "BookingStatusPending",
+                "BookingStatusConfirmed",
+                "BookingStatusCancelled",
+                "BookingStatusFailed"
+            ]
+        },
+        "domain.SeatStatus": {
+            "type": "integer",
+            "enum": [
+                0,
+                1,
+                2
+            ],
+            "x-enum-varnames": [
+                "SeatStatusAvailable",
+                "SeatStatusLocked",
+                "SeatStatusSold"
+            ]
+        },
+        "domain.Showtime": {
+            "type": "object",
+            "properties": {
+                "base_price": {
+                    "type": "number"
+                },
+                "end_time": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "movie_id": {
+                    "type": "string"
+                },
+                "screen_id": {
+                    "type": "string"
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                }
+            }
+        },
+        "domain.ShowtimeSeat": {
+            "type": "object",
+            "properties": {
+                "booking_id": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "seat_id": {
+                    "type": "string"
+                },
+                "showtime_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/domain.SeatStatus"
+                }
+            }
+        },
+        "domain.Ticket": {
+            "type": "object",
+            "properties": {
+                "booking_id": {
+                    "type": "string"
+                },
+                "cinema_name": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "movie_title": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "qr_code": {
+                    "type": "string"
+                },
+                "screen_name": {
+                    "type": "string"
+                },
+                "seat_number": {
+                    "type": "integer"
+                },
+                "seat_row": {
+                    "type": "string"
+                },
+                "showtime": {
+                    "type": "string"
+                },
+                "showtime_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/domain.TicketStatus"
+                }
+            }
+        },
+        "domain.TicketStatus": {
+            "type": "integer",
+            "enum": [
+                0,
+                1,
+                2
+            ],
+            "x-enum-varnames": [
+                "TicketStatusActive",
+                "TicketStatusUsed",
+                "TicketStatusCancelled"
+            ]
+        },
+        "handler.createBookingRequest": {
+            "type": "object",
+            "properties": {
+                "seat_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "seat1",
+                        "seat2"
+                    ]
+                },
+                "showtime_id": {
+                    "type": "string",
+                    "example": "showtime123"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "user123"
+                }
+            }
+        }
+    }
+}
