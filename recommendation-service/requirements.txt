@@ -5,6 +5,7 @@ psycopg2-binary
 pydantic
 pydantic-settings
 python-dotenv
+PyJWT
 
 # Machine Learning for recommendations
 scikit-learn
