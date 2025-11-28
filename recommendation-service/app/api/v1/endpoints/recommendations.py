@@ -10,6 +10,7 @@ from app.schemas.recommendation import (
 )
 from app.services.recommendation_service import RecommendationService
 from app.services.recommendation_helpers import movie_to_recommendation
+from app.api.v1.deps import get_current_user
 
 router = APIRouter()
 
@@ -19,9 +20,13 @@ def get_popular_recommendations(
     limit: int = Query(10, ge=1, le=50, description="Number of recommendations"),
     min_votes: int = Query(10000, ge=0, description="Minimum votes required"),
     db: Session = Depends(get_db)
+    # Public endpoint - không yêu cầu authentication
 ):
     """
     Get popular movie recommendations based on votes and rating
+    
+    **Public endpoint** - No authentication required
+    
     Best for new users or homepage
     """
     rec_service = RecommendationService(db)
@@ -48,9 +53,12 @@ def get_top_rated_recommendations(
     limit: int = Query(10, ge=1, le=50, description="Number of recommendations"),
     min_votes: int = Query(5000, ge=0, description="Minimum votes required"),
     db: Session = Depends(get_db)
+    # Public endpoint - không yêu cầu authentication
 ):
     """
     Get top rated movie recommendations based on IMDB ratings
+    
+    **Public endpoint** - No authentication required
     """
     rec_service = RecommendationService(db)
     results = rec_service.get_top_rated_movies(limit=limit, min_votes=min_votes)
@@ -76,9 +84,12 @@ def get_similar_movie_recommendations(
     movie_id: int,
     limit: int = Query(10, ge=1, le=50, description="Number of recommendations"),
     db: Session = Depends(get_db)
+    # Public endpoint - không yêu cầu authentication
 ):
     """
     Get similar movie recommendations using Content-Based Filtering (TF-IDF)
+    
+    **Public endpoint** - No authentication required
     
     Uses features: genre, director, overview, cast
     """
@@ -149,9 +160,12 @@ def get_recommendations_by_genre(
     genre: str,
     limit: int = Query(10, ge=1, le=50, description="Number of recommendations"),
     db: Session = Depends(get_db)
+    # Public endpoint - không yêu cầu authentication
 ):
     """
     Get movie recommendations by genre, sorted by rating
+    
+    **Public endpoint** - No authentication required
     """
     rec_service = RecommendationService(db)
     results = rec_service.get_movies_by_genre(db=db, genre=genre, limit=limit)

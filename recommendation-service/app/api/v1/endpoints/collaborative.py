@@ -18,13 +18,21 @@ from app.services.recommendation_helpers import (
     get_content_based_from_user_history
 )
 from app.models.movie import Movie
+from app.api.v1.deps import get_current_user, require_admin
 
 router = APIRouter()
 
 
 @router.post("/train")
-async def train_model(db: Session = Depends(get_db)):
-    """Train collaborative filtering model with current data"""
+async def train_model(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_admin)  # Chỉ Admin
+):
+    """
+    Train collaborative filtering model with current data
+    
+    **Admin only** - Model training is resource-intensive
+    """
     try:
         cf_service = get_cf_service()
         result = cf_service.train(db, verbose=True)
@@ -41,10 +49,14 @@ async def train_model(db: Session = Depends(get_db)):
 @router.post("/recommendations", response_model=RecommendationResponse)
 async def get_collaborative_recommendations(
     request: CollaborativeRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)  # Yêu cầu đăng nhập
 ):
     """
     Get pure collaborative filtering recommendations
+    
+    **Authentication required** - Personalized for logged-in users
+    
     Auto fallback to popularity if cold-start user
     """
     cf_service = get_cf_service()
@@ -132,10 +144,14 @@ async def get_collaborative_recommendations(
 @router.post("/personalized", response_model=RecommendationResponse)
 async def get_personalized_recommendations(
     request: RecommendationRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)  # Yêu cầu đăng nhập
 ):
     """
     Personalized hybrid recommendations: collaborative + content-based
+    
+    **Authentication required** - Highly personalized for each user
+    
     - Cold-start users: 100% content-based (from watched movies)
     - Regular users: Hybrid weighted combination
     """
@@ -292,8 +308,16 @@ async def get_personalized_recommendations(
 
 
 @router.get("/predict/{user_id}/{movie_id}")
-async def predict_score(user_id: int, movie_id: int):
-    """Predict rating score for a specific user-movie pair"""
+async def predict_score(
+    user_id: int, 
+    movie_id: int,
+    current_user: dict = Depends(get_current_user)  # Yêu cầu đăng nhập
+):
+    """
+    Predict rating score for a specific user-movie pair
+    
+    **Authentication required**
+    """
     cf_service = get_cf_service()
     
     if cf_service.user_factors is None:
@@ -312,23 +336,43 @@ async def predict_score(user_id: int, movie_id: int):
 
 
 @router.get("/model/info")
-async def get_model_info():
-    """Get current model information and statistics"""
+async def get_model_info(
+    current_user: dict = Depends(get_current_user)  # Yêu cầu đăng nhập
+):
+    """
+    Get current model information and statistics
+    
+    **Authentication required**
+    """
     cf_service = get_cf_service()
     return cf_service.get_model_info()
 
 
 @router.post("/model/clear-cache")
-async def clear_cache():
-    """Clear recommendation cache"""
+async def clear_cache(
+    current_user: dict = Depends(require_admin)  # Chỉ Admin
+):
+    """
+    Clear recommendation cache
+    
+    **Admin only**
+    """
     cf_service = get_cf_service()
     cf_service.clear_cache()
     return {"message": "Cache cleared successfully"}
 
 
 @router.get("/user/{user_id}/status")
-async def get_user_status(user_id: int, db: Session = Depends(get_db)):
-    """Check user status (cold-start or not)"""
+async def get_user_status(
+    user_id: int, 
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)  # Yêu cầu đăng nhập
+):
+    """
+    Check user status (cold-start or not)
+    
+    **Authentication required**
+    """
     cf_service = get_cf_service()
     
     if cf_service.user_factors is None:
