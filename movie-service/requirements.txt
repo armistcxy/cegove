@@ -8,3 +8,4 @@ alembic
 python-dotenv
 pandas
 python-multipart
+PyJWT
