@@ -2,9 +2,12 @@ package repository
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"strconv"
 	"time"
+
+	"github.com/skip2/go-qrcode"
 
 	"github.com/armistcxy/cegove/booking-service/internal/domain"
 
@@ -18,6 +21,9 @@ type BookingRepository interface {
 	InsertBooking(ctx context.Context, booking *domain.Booking) error
 	ListBookings(ctx context.Context) ([]domain.Booking, error)
 	GetBookingInformation(ctx context.Context, bookingID string) (*domain.Booking, error)
+
+	ProcessPaymentWebhook(ctx context.Context, req domain.PaymentWebhookRequest) error
+	ScanTicket(ctx context.Context, code string) (*domain.Ticket, error)
 }
 
 type bookingRepository struct {
@@ -241,4 +247,195 @@ func (r *bookingRepository) GetBookingInformation(ctx context.Context, bookingID
 
 	b.Tickets = tickets
 	return &b, nil
+}
+
+func (r *bookingRepository) ProcessPaymentWebhook(ctx context.Context, req domain.PaymentWebhookRequest) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback(ctx)
+		}
+	}()
+
+	builder := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+
+	query, args, err := builder.Select("status").
+		From("bookings").
+		Where(sq.Eq{"id": req.BookingID}).
+		Suffix("FOR UPDATE").
+		ToSql()
+	if err != nil {
+		return fmt.Errorf("build select booking query: %w", err)
+	}
+
+	var currentStatus domain.BookingStatus
+	err = tx.QueryRow(ctx, query, args...).Scan(&currentStatus)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return fmt.Errorf("booking not found: %s", req.BookingID)
+		}
+		return fmt.Errorf("query booking status: %w", err)
+	}
+
+	// Idempotency check
+	// If booking is already Confirmed or Failed, we do nothing and return success
+	if currentStatus == domain.BookingStatusConfirmed || currentStatus == domain.BookingStatusFailed {
+		return nil
+	}
+
+	// Update booking status
+	if req.PaymentStatus == "SUCCESS" {
+		// Pending -> Confirmed
+		uQuery, uArgs, err := builder.Update("bookings").
+			Set("status", domain.BookingStatusConfirmed).
+			Where(sq.Eq{"id": req.BookingID}).
+			ToSql()
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, uQuery, uArgs...); err != nil {
+			return fmt.Errorf("update booking confirmed: %w", err)
+		}
+
+		// Locked -> Sold
+		sQuery, sArgs, err := builder.Update("showtime_seats").
+			Set("status", domain.SeatStatusSold).
+			Where(sq.Eq{"booking_id": req.BookingID}).
+			ToSql()
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, sQuery, sArgs...); err != nil {
+			return fmt.Errorf("update seats sold: %w", err)
+		}
+
+		// Generate and update QR codes for tickets
+		rows, err := tx.Query(ctx, "SELECT id FROM tickets WHERE booking_id=$1", req.BookingID)
+		if err != nil {
+			return fmt.Errorf("query tickets for QR generation: %w", err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var ticketID string
+			if err := rows.Scan(&ticketID); err != nil {
+				return fmt.Errorf("scan ticket id: %w", err)
+			}
+			png, err := qrcode.Encode(ticketID, qrcode.Medium, 256)
+			if err != nil {
+				return fmt.Errorf("generate QR code: %w", err)
+			}
+			qrB64 := base64.StdEncoding.EncodeToString(png)
+			uQrQuery, uQrArgs, err := builder.Update("tickets").
+				Set("qr_code", qrB64).
+				Where(sq.Eq{"id": ticketID}).
+				ToSql()
+			if err != nil {
+				return fmt.Errorf("build update qr query: %w", err)
+			}
+			if _, err := tx.Exec(ctx, uQrQuery, uQrArgs...); err != nil {
+				return fmt.Errorf("update ticket qr code: %w", err)
+			}
+		}
+
+	} else {
+		// Pending -> Failed
+		uQuery, uArgs, err := builder.Update("bookings").
+			Set("status", domain.BookingStatusFailed).
+			Where(sq.Eq{"id": req.BookingID}).
+			ToSql()
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, uQuery, uArgs...); err != nil {
+			return fmt.Errorf("update booking failed: %w", err)
+		}
+
+		// Locked -> Available
+		sQuery, sArgs, err := builder.Update("showtime_seats").
+			Set("status", domain.SeatStatusAvailable).
+			Set("booking_id", nil). // Clear the relationship
+			Where(sq.Eq{"booking_id": req.BookingID}).
+			ToSql()
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, sQuery, sArgs...); err != nil {
+			return fmt.Errorf("release seats: %w", err)
+		}
+
+		// cancel ticket
+		tQuery, tArgs, err := builder.Update("tickets").
+			Set("status", domain.TicketStatusCancelled).
+			Where(sq.Eq{"booking_id": req.BookingID}).
+			ToSql()
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, tQuery, tArgs...); err != nil {
+			return fmt.Errorf("cancel tickets: %w", err)
+		}
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (r *bookingRepository) ScanTicket(ctx context.Context, code string) (*domain.Ticket, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback(ctx)
+		}
+	}()
+
+	builder := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+	query, args, err := builder.Select(
+		"id", "booking_id", "showtime_id", "movie_title", "cinema_name", "screen_name",
+		"showtime", "seat_row", "seat_number", "qr_code", "price", "status", "created_at",
+	).From("tickets").Where(sq.Eq{"qr_code": code}).Suffix("FOR UPDATE").ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("build select ticket query: %w", err)
+	}
+
+	var t domain.Ticket
+	row := tx.QueryRow(ctx, query, args...)
+	if err := row.Scan(
+		&t.ID, &t.BookingID, &t.ShowtimeID, &t.MovieTitle, &t.CinemaName, &t.ScreenName,
+		&t.Showtime, &t.SeatRow, &t.SeatNumber, &t.QRCode, &t.Price, &t.Status, &t.CreatedAt,
+	); err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("scan ticket: %w", err)
+	}
+
+	if t.Status != domain.TicketStatusActive {
+		return nil, fmt.Errorf("ticket not valid or already used")
+	}
+
+	// Mark ticket as used
+	uQuery, uArgs, err := builder.Update("tickets").
+		Set("status", domain.TicketStatusUsed).
+		Where(sq.Eq{"id": t.ID}).
+		ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("build update ticket status query: %w", err)
+	}
+	if _, err := tx.Exec(ctx, uQuery, uArgs...); err != nil {
+		return nil, fmt.Errorf("update ticket status: %w", err)
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit scan ticket transaction: %w", err)
+	}
+	return &t, nil
 }

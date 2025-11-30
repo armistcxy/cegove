@@ -23,3 +23,9 @@ type Booking struct {
 	CreatedAt  time.Time     `json:"created_at"`
 	ExpiresAt  time.Time     `json:"expires_at"`
 }
+
+type PaymentWebhookRequest struct {
+	BookingID     string `json:"booking_id"`
+	PaymentStatus string `json:"payment_status"` // "SUCCESS" or "FAILED"
+	TransactionID string `json:"transaction_id"`
+}

@@ -1,0 +1,1 @@
+Use for bootstrap database (generate mock data for testing purpose)

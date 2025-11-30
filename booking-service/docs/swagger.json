@@ -69,6 +69,61 @@
                 }
             }
         },
+        "/bookings/webhooks/payment": {
+            "post": {
+                "description": "Receive payment status updates from Payment Service",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "bookings"
+                ],
+                "summary": "Handle Payment Webhook",
+                "parameters": [
+                    {
+                        "description": "Payment Status",
+                        "name": "payment",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/domain.PaymentWebhookRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "status: received",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid payload",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/bookings/{booking_id}": {
             "get": {
                 "description": "Get detailed information about a specific booking\nGet detailed information about a specific booking",
@@ -161,6 +216,99 @@
                     }
                 }
             }
+        },
+        "/tickets/scan": {
+            "post": {
+                "description": "Validate and mark a ticket as used using its QR code",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tickets"
+                ],
+                "summary": "Scan ticket",
+                "parameters": [
+                    {
+                        "description": "Scan ticket request",
+                        "name": "scan",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.scanTicketRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Ticket scanned successfully",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Ticket"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Ticket not found or already used",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v2/showtimes/{showtime_id}/seats": {
+            "get": {
+                "description": "Get seats with computed labels and visual metadata suitable for frontend rendering",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "showtimes"
+                ],
+                "summary": "Get showtime seats V2 (Rich Data)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Showtime ID",
+                        "name": "showtime_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/domain.SeatV2Response"
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -217,6 +365,63 @@
                 "BookingStatusFailed"
             ]
         },
+        "domain.PaymentWebhookRequest": {
+            "type": "object",
+            "properties": {
+                "booking_id": {
+                    "type": "string"
+                },
+                "payment_status": {
+                    "description": "\"SUCCESS\" or \"FAILED\"",
+                    "type": "string"
+                },
+                "transaction_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.SeatMetadata": {
+            "type": "object",
+            "properties": {
+                "color_hex": {
+                    "type": "string"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "type_code": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.SeatPosition": {
+            "type": "object",
+            "properties": {
+                "grid_x": {
+                    "type": "integer"
+                },
+                "grid_y": {
+                    "type": "integer"
+                },
+                "number": {
+                    "type": "integer"
+                },
+                "row": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.SeatPricing": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "currency": {
+                    "type": "string"
+                }
+            }
+        },
         "domain.SeatStatus": {
             "type": "integer",
             "enum": [
@@ -229,6 +434,29 @@
                 "SeatStatusLocked",
                 "SeatStatusSold"
             ]
+        },
+        "domain.SeatV2Response": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "$ref": "#/definitions/domain.SeatMetadata"
+                },
+                "position": {
+                    "$ref": "#/definitions/domain.SeatPosition"
+                },
+                "pricing": {
+                    "$ref": "#/definitions/domain.SeatPricing"
+                },
+                "status_text": {
+                    "type": "string"
+                }
+            }
         },
         "domain.Showtime": {
             "type": "object",
@@ -353,6 +581,14 @@
                 "user_id": {
                     "type": "string",
                     "example": "user123"
+                }
+            }
+        },
+        "handler.scanTicketRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
                 }
             }
         }

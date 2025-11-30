@@ -30,12 +30,16 @@ func NewBookingRouter(pool *pgxpool.Pool, logger *logging.Logger) *BookingRouter
 	// Showtime routes
 	showtimeRepo := repository.NewShowtimeRepository(pool)
 	showtimeHandler := NewShowtimeHandler(showtimeRepo, logger)
-	router.RegisterHandlerFunc(http.MethodGet, "/showtimes", showtimeHandler.HandleListShowtimes)
-	router.RegisterHandlerFunc(http.MethodGet, "/showtimes/{showtime_id}/seats", showtimeHandler.HandleGetShowtimeSeats)
 
-	router.RegisterHandlerFunc(http.MethodPost, "/bookings", bookingHandler.HandleCreateBooking)
-	router.RegisterHandlerFunc(http.MethodGet, "/bookings", bookingHandler.HandleListBookings)
-	router.RegisterHandlerFunc(http.MethodGet, "/bookings/{booking_id}", bookingHandler.HandleGetBookingInformation)
+	router.RegisterHandlerFunc(http.MethodGet, "/v1/showtimes", showtimeHandler.HandleListShowtimes)
+	router.RegisterHandlerFunc(http.MethodGet, "/v1/showtimes/{showtime_id}/seats", showtimeHandler.HandleGetShowtimeSeats)
+	router.RegisterHandlerFunc(http.MethodGet, "/v2/showtimes/{showtime_id}/seats", showtimeHandler.HandleGetShowtimeSeatsV2)
+
+	router.RegisterHandlerFunc(http.MethodPost, "/v1/bookings", bookingHandler.HandleCreateBooking)
+	router.RegisterHandlerFunc(http.MethodGet, "/v1/bookings", bookingHandler.HandleListBookings)
+	router.RegisterHandlerFunc(http.MethodGet, "/v1/bookings/{booking_id}", bookingHandler.HandleGetBookingInformation)
+	router.RegisterHandlerFunc(http.MethodPost, "/v1/bookings/webhooks/payment", bookingHandler.HandlePaymentWebhook)
+	router.RegisterHandlerFunc(http.MethodPost, "/v1/tickets/scan", bookingHandler.HandleScanTicket)
 
 	return &BookingRouter{
 		Router: router,

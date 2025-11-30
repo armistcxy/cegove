@@ -22,19 +22,21 @@ import (
 	"github.com/armistcxy/cegove/booking-service/pkg/config"
 	"github.com/armistcxy/cegove/booking-service/pkg/httphelp"
 	"github.com/armistcxy/cegove/booking-service/pkg/logging"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/viper"
 	"go.uber.org/zap/zapcore"
 
 	_ "github.com/armistcxy/cegove/booking-service/docs"
+	_ "github.com/prometheus/client_golang/prometheus/promauto"
 
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func main() {
-	server := httphelp.NewServer()
-
 	var (
 		consulAddr = os.Getenv("CONSUL_ADDR")
 		consulUser = os.Getenv("CONSUL_USER")
@@ -49,6 +51,16 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to create consul loader: %v", err)
 	}
+
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+		collectors.NewGoCollector(),
+	)
+
+	httpMetrics := httphelp.NewHTTPMetrics(reg, "booking-service")
+	server := httphelp.NewServer(httpMetrics.Middleware)
+	server.Router.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 
 	remoteConfigKeys := []string{
 		"infra/postgres.toml",

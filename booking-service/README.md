@@ -39,3 +39,13 @@ Mô hình domain của Booking Service với 4 thành phần chính quản lý v
 - Đại diện cho quyền vào cửa của một người tại một ghế ngồi cụ thể. Có thể coi `Ticket` là một món hàng trong `Booking`
 - Ticket được tạo ra sau khi một Booking được xác nhận thanh toán thành công
 - Trách nhiệm: Chứa tất cả thông tin cần thiết để được xác thực tại của soát vé (tên phim, rạp chiếu, giờ chiếu, vị trí, ghế, mã qr). Quản lý vòng đời sử dụng với các trạng thái hợp lệ, đã dùng, bị huỷ.
+
+
+
+### In-development API
+1. POST `/bookings/webhooks/payment` (Done)
+2. POST `/showtimes` 
+3. PUT `/showtimes{id}`
+4. DELETE `/showtimes{id}`
+5. POST `/bookings/{booking_id}/cancel`
+6. POST `/tickets/scan`: QR code scanning endpoint

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/armistcxy/cegove/booking-service/internal/domain"
 	"github.com/armistcxy/cegove/booking-service/internal/repository"
 	"github.com/armistcxy/cegove/booking-service/pkg/httphelp"
 	"github.com/armistcxy/cegove/booking-service/pkg/logging"
@@ -59,4 +60,46 @@ func (h *ShowtimeHandler) HandleGetShowtimeSeats(w http.ResponseWriter, r *http.
 		return
 	}
 	httphelp.EncodeJSON(w, r, http.StatusOK, seats)
+}
+
+// @Summary Get showtime seats V2 (Rich Data)
+// @Description Get seats with computed labels and visual metadata suitable for frontend rendering
+// @Tags showtimes
+// @Produce json
+// @Param showtime_id path string true "Showtime ID"
+// @Success 200 {array} domain.SeatV2Response
+// @Router /v2/showtimes/{showtime_id}/seats [get]
+func (h *ShowtimeHandler) HandleGetShowtimeSeatsV2(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	showtimeID := r.PathValue("showtime_id")
+	if showtimeID == "" {
+		httphelp.EncodeJSONError(w, r, http.StatusBadRequest, errors.New("missing showtime ID"))
+		return
+	}
+
+	rawSeats, err := h.showtimeRepo.GetShowtimeSeats(ctx, showtimeID)
+	if err != nil {
+		h.logger.Error("Failed to get showtime seats", err)
+		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
+		return
+	}
+
+	v2Response := make([]domain.SeatV2Response, 0, len(rawSeats))
+
+	for i, s := range rawSeats {
+		mockRow := "A"
+		if i > 5 {
+			mockRow = "B"
+		}
+		mockNum := (i % 6) + 1
+		mockType := domain.SeatTypeNormal
+		if mockRow == "B" {
+			mockType = domain.SeatTypeVIP
+		}
+
+		v2Seat := domain.MapShowtimeSeatToV2(s, mockRow, mockNum, mockType)
+		v2Response = append(v2Response, v2Seat)
+	}
+
+	httphelp.EncodeJSON(w, r, http.StatusOK, v2Response)
 }

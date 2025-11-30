@@ -37,6 +37,43 @@ definitions:
     - BookingStatusConfirmed
     - BookingStatusCancelled
     - BookingStatusFailed
+  domain.PaymentWebhookRequest:
+    properties:
+      booking_id:
+        type: string
+      payment_status:
+        description: '"SUCCESS" or "FAILED"'
+        type: string
+      transaction_id:
+        type: string
+    type: object
+  domain.SeatMetadata:
+    properties:
+      color_hex:
+        type: string
+      display_name:
+        type: string
+      type_code:
+        type: string
+    type: object
+  domain.SeatPosition:
+    properties:
+      grid_x:
+        type: integer
+      grid_y:
+        type: integer
+      number:
+        type: integer
+      row:
+        type: string
+    type: object
+  domain.SeatPricing:
+    properties:
+      amount:
+        type: number
+      currency:
+        type: string
+    type: object
   domain.SeatStatus:
     enum:
     - 0
@@ -47,6 +84,21 @@ definitions:
     - SeatStatusAvailable
     - SeatStatusLocked
     - SeatStatusSold
+  domain.SeatV2Response:
+    properties:
+      id:
+        type: string
+      label:
+        type: string
+      metadata:
+        $ref: '#/definitions/domain.SeatMetadata'
+      position:
+        $ref: '#/definitions/domain.SeatPosition'
+      pricing:
+        $ref: '#/definitions/domain.SeatPricing'
+      status_text:
+        type: string
+    type: object
   domain.Showtime:
     properties:
       base_price:
@@ -132,6 +184,11 @@ definitions:
         example: user123
         type: string
     type: object
+  handler.scanTicketRequest:
+    properties:
+      code:
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact:
@@ -209,6 +266,42 @@ paths:
       tags:
       - bookings
       - bookings
+  /bookings/webhooks/payment:
+    post:
+      consumes:
+      - application/json
+      description: Receive payment status updates from Payment Service
+      parameters:
+      - description: Payment Status
+        in: body
+        name: payment
+        required: true
+        schema:
+          $ref: '#/definitions/domain.PaymentWebhookRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: received'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Invalid payload
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Handle Payment Webhook
+      tags:
+      - bookings
   /showtimes:
     get:
       description: Get a list of all available showtimes
@@ -243,6 +336,68 @@ paths:
               $ref: '#/definitions/domain.ShowtimeSeat'
             type: array
       summary: Get showtime seats
+      tags:
+      - showtimes
+  /tickets/scan:
+    post:
+      consumes:
+      - application/json
+      description: Validate and mark a ticket as used using its QR code
+      parameters:
+      - description: Scan ticket request
+        in: body
+        name: scan
+        required: true
+        schema:
+          $ref: '#/definitions/handler.scanTicketRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Ticket scanned successfully
+          schema:
+            $ref: '#/definitions/domain.Ticket'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Ticket not found or already used
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Scan ticket
+      tags:
+      - tickets
+  /v2/showtimes/{showtime_id}/seats:
+    get:
+      description: Get seats with computed labels and visual metadata suitable for
+        frontend rendering
+      parameters:
+      - description: Showtime ID
+        in: path
+        name: showtime_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.SeatV2Response'
+            type: array
+      summary: Get showtime seats V2 (Rich Data)
       tags:
       - showtimes
 swagger: "2.0"
