@@ -31,12 +31,16 @@ public class JwtService {
 
     public String generateToken(User user) {
         String username = user.getEmail();
-        return generateToken(username);
+        Long userId = user.getId();
+        String role = user.getRole().name();
+        return generateToken(username, userId, role);
     }
 
-    public String generateToken(String username) {
+    public String generateToken(String username, Long userId, String role) {
         return Jwts.builder()
                 .setSubject(username)
+                .claim("userId", userId)
+                .claim("role", role)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
                 .signWith(secretKey)
