@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     # API
     API_V1_PREFIX: str = "/api/v1"
     
+    # JWT
+    JWT_SECRET_KEY: str = "your-secret-key"  # Default fallback
+    
     class Config:
         env_file = ".env"
         case_sensitive = True
@@ -43,13 +46,14 @@ def get_settings() -> Settings:
         )
         
         # Load config from Consul KV
-        # Adjust the key path according to your Consul structure
         consul_config = loader.load_config("service/movie-service.json")
         
         # Update settings with Consul values
         for key, value in consul_config.items():
-            if hasattr(settings, key.upper()):
-                setattr(settings, key.upper(), value)
+            key_upper = key.upper()
+            if hasattr(settings, key_upper):
+                setattr(settings, key_upper, value)
+                print(f"Loaded from Consul: {key_upper}")
     
     except Exception as e:
         print(f"Warning: Failed to load config from Consul: {e}")
