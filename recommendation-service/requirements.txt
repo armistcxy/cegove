@@ -6,6 +6,7 @@ pydantic
 pydantic-settings
 python-dotenv
 PyJWT
+python-consul
 
 # Machine Learning for recommendations
 scikit-learn

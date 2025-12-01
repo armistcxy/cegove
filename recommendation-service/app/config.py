@@ -1,10 +1,17 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+from typing import Optional
+import os
 
 
 class Settings(BaseSettings):
-    # Database
-    DATABASE_URL: str
+    # Consul Configuration
+    CONSUL_ADDR: str
+    CONSUL_USER: Optional[str] = None
+    CONSUL_PASSWORD: Optional[str] = None
+    
+    # Database (will be loaded from Consul)
+    DATABASE_URL: str = ""
     
     # Service
     SERVICE_NAME: str = "recommendation-service"
@@ -14,9 +21,6 @@ class Settings(BaseSettings):
     # API
     API_V1_PREFIX: str = "/api/v1"
     
-    # Movie Service
-    MOVIE_SERVICE_URL: str = "http://localhost:8002/api/v1"
-    
     class Config:
         env_file = ".env"
         case_sensitive = True
@@ -24,7 +28,34 @@ class Settings(BaseSettings):
 
 @lru_cache()
 def get_settings() -> Settings:
-    return Settings()
+    """Load settings from .env and Consul"""
+    # Load basic settings from .env
+    settings = Settings()
+    
+    # Load additional config from Consul
+    try:
+        from .consul_loader import ConsulConfigLoader
+        
+        loader = ConsulConfigLoader(
+            consul_addr=settings.CONSUL_ADDR,
+            user=settings.CONSUL_USER,
+            password=settings.CONSUL_PASSWORD
+        )
+        
+        # Load config from Consul KV
+        # Adjust the key path according to your Consul structure
+        consul_config = loader.load_config("service/recommendation-service.json")
+        
+        # Update settings with Consul values
+        for key, value in consul_config.items():
+            if hasattr(settings, key.upper()):
+                setattr(settings, key.upper(), value)
+    
+    except Exception as e:
+        print(f"Warning: Failed to load config from Consul: {e}")
+        # Fall back to .env values if Consul fails
+    
+    return settings
 
 
 settings = get_settings()
