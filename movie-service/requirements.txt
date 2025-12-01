@@ -9,3 +9,4 @@ python-dotenv
 pandas
 python-multipart
 PyJWT
+python-consul
