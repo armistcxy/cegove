@@ -34,6 +34,17 @@ public class UserController {
         }
     }
 
+    @GetMapping("/{userId}/profile")
+    public ResponseEntity<?> getUserProfile(@ModelAttribute("userId") Long userId) {
+        try {
+            return ResponseEntity.ok(service.getUserProfile(userId));
+        } catch (UsernameNotFoundException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     @PutMapping("/profile")
     public ResponseEntity<?> updateProfile(@ModelAttribute UserDTO userDTO) {
         try {
