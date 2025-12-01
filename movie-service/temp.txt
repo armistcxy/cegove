@@ -1,0 +1,9 @@
+cd movie-service
+
+docker build -t movie-service:latest .
+
+docker run -d `
+  --name movie-service `
+  -p 8001:8001 `
+  --env-file .env `
+  movie-service:latest
