@@ -1,7 +1,9 @@
 package com.spring.authservice.Controllers;
 
+import com.spring.authservice.DTOs.ChangeForgotPasswordRequest;
 import com.spring.authservice.DTOs.LoginRequest;
 import com.spring.authservice.DTOs.RegisterRequest;
+import com.spring.authservice.DTOs.VerifyOtpRequest;
 import com.spring.authservice.Exceptions.InvalidCredentialsException;
 import com.spring.authservice.Exceptions.UserAlreadyExistedException;
 import com.spring.authservice.Services.AuthService;
@@ -68,6 +70,29 @@ public class AuthController {
             return ResponseEntity.ok("Logout successfully");
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Logout failed: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/otp-verify")
+    public ResponseEntity<?> verifyOtp(@RequestBody VerifyOtpRequest request) {
+        try {
+            return ResponseEntity.ok(service.verifyOtp(request));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/forgot-password-change")
+    public ResponseEntity<?> changeForgotPassword(@RequestBody ChangeForgotPasswordRequest request) {
+        try {
+            service.changeForgotPassword(request);
+            return ResponseEntity.ok("Password changed successfully");
+        } catch (InvalidCredentialsException e) {
+            return ResponseEntity.status(401).body(e.getMessage());
+        } catch (UsernameNotFoundException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 }
