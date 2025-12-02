@@ -30,11 +30,9 @@ AsyncSessionLocal = sessionmaker(
 
 
 async def init_db():
-    """Create tables if using local SQLite."""
+    """Create tables on startup."""
     async with engine.begin() as conn:
-        # Only auto-create schema for SQLite fallback
-        if USE_LOCAL_DB:
-            await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(Base.metadata.create_all)
 
 
 async def get_db():

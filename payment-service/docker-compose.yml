@@ -6,31 +6,14 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=sqlite+aiosqlite:///./payment_service.db
+      - DATABASE_URL=sqlite+aiosqlite:///./data/payment_service.db
       - VNPAY_TMN_CODE=${VNPAY_TMN_CODE}
       - VNPAY_HASH_SECRET=${VNPAY_HASH_SECRET}
       - VNPAY_PAYMENT_URL=https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
       - VNPAY_RETURN_URL=${VNPAY_RETURN_URL:-http://localhost:8000/api/v1/webhooks/vnpay/return}
       - VNPAY_IPN_URL=${VNPAY_IPN_URL:-http://localhost:8000/api/v1/webhooks/vnpay/ipn}
     volumes:
-      - app_data:/app
-    depends_on:
-      - db
-
-  db:
-    image: postgres:15
-    container_name: movie_db
-    restart: always
-    environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
-      POSTGRES_DB: movie
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./schema:/docker-entrypoint-initdb.d:ro
+      - sqlite_data:/app/data
 
 volumes:
-  postgres_data:
-  app_data:
+  sqlite_data:
