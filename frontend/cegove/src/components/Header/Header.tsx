@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import logo from '../../assets/cgvlogo.png';
 import muaVeNgay from '../../assets/mua-ve_ngay.png';
 
-import "./Header.css";
+import "./Header.module.css";
 
 export default function Header() {
   return (
