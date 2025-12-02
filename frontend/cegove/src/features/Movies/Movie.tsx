@@ -116,6 +116,10 @@ export default function Movies() {
     navigate(`/MovieDetail/${movieId}`);
   };
 
+  const handleBuyClick = () => {
+    navigate('/NotAvailable');
+  };
+
   const handleRetry = () => {
     setError(null);
     if (movies.length === 0) {
@@ -166,7 +170,12 @@ export default function Movies() {
             <div className={styles.movieInfo}>
               <p className={styles.movieTitle}>{m.series_title}</p>
               <div className={styles.movieButtons}>
-                <button className={styles.btnBuy}>Buy</button>
+                <button 
+                  className={styles.btnBuy}
+                  onClick={handleBuyClick}
+                >
+                  Buy
+                </button>
                 <button 
                   className={styles.btnDetail}
                   onClick={() => handleDetailClick(m.id)}

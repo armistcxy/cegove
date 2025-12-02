@@ -10,7 +10,7 @@ export default function Header() {
     <div className="header">
       <div className="header-mini">
         <ul>
-          <li><a href="#">đăng nhập/đăng ký</a></li>
+          <li><Link to="/NotAvailable">đăng nhập/đăng ký</Link></li>
         </ul>
       </div>
 
@@ -22,28 +22,28 @@ export default function Header() {
               phim
               <ul className="child-menu">
                 <li><Link to="/movie" className="hover-red">Phim đang chiếu</Link></li>
-                <li><a href="#" className="hover-red">Phim sắp chiếu</a></li>
-              </ul>
+                <li><Link to="/NotAvailable" className="hover-red">Phim sắp chiếu</Link></li>
+              </ul> 
             </li>
             <li className="hover-effect">
               rạp cgv
               <ul className="child-menu">
-                <li><a href="#" className="hover-red">Tất cả các rạp</a></li>
-                <li><a href="#" className="hover-red">Rạp đặc biệt</a></li>
-                <li><a href="#" className="hover-red">Rạp sắp mở</a></li>
+                <li><Link to="/NotAvailable" className="hover-red">Tất cả các rạp</Link></li>
+                <li><Link to="/NotAvailable" className="hover-red">Rạp đặc biệt</Link></li>
+                <li><Link to="/NotAvailable" className="hover-red">Rạp sắp mở</Link></li>
               </ul>
-            </li>
+            </li> 
             <li className="hover-effect">
               thành viên
               <ul className="child-menu">
-                <li><a href="#" className="hover-red">Tài khoản CGV</a></li>
-                <li><a href="#" className="hover-red">Quyền lợi</a></li>
+                <li><Link to="/NotAvailable" className="hover-red">Tài khoản CGV</Link></li>
+                <li><Link to="/NotAvailable" className="hover-red">Quyền lợi</Link></li>
               </ul>
             </li>
           </ul>
 
           <div className="search-buy-infor">
-            <a href="#" className="mua-ve"><img src={muaVeNgay} alt="" /></a>
+            <Link to="/NotAvailable" className="mua-ve"><img src={muaVeNgay} alt="" /></Link>
           </div>
         </div>
       </div>
