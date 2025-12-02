@@ -39,6 +39,8 @@ jobs:
             payment-service/**
             recommendation-service/**
             user-service/**
+            auth-service/**
+            image-service/**
       
       - name: Show all changes
         run: |

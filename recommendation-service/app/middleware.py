@@ -4,7 +4,7 @@ from typing import Optional, List
 import jwt
 from jwt import PyJWTError
 from functools import wraps
-import os
+from app.config import settings
 
 security = HTTPBearer()
 
@@ -12,7 +12,8 @@ class AuthMiddleware:
     """Middleware để xác thực và phân quyền"""
     
     def __init__(self):
-        self.secret_key = os.getenv("JWT_SECRET_KEY", "your-secret-key")
+        # Load JWT secret from config (loaded from Consul)
+        self.secret_key = settings.JWT_SECRET_KEY
         self.algorithm = "HS256"
     
     def decode_token(self, token: str) -> dict:
