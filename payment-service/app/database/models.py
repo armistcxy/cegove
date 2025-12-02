@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    Column, BigInteger, ForeignKey, String, Numeric, TIMESTAMP
+    Column, Integer, BigInteger, ForeignKey, String, Numeric, TIMESTAMP
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
 from datetime import datetime
@@ -11,7 +11,7 @@ class Base(DeclarativeBase):
 class Payment(Base):
     __tablename__ = "payments"
 
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     booking_id = Column(BigInteger, nullable=False)
 
     provider = Column(String(50), nullable=False)      # VNPay, MoMo, Stripe
