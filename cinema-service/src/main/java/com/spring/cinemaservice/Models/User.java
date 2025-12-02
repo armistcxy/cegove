@@ -3,6 +3,8 @@ package com.spring.cinemaservice.Models;
 import com.spring.cinemaservice.Enums.UserRole;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -35,13 +37,13 @@ public class User implements UserDetails {
     @Column(name = "email", nullable = false, unique = true)
     private String email;
 
-    @Column(name = "phone", nullable = false, unique = true)
+    @Column(name = "phone", unique = true)
     private String phone;
 
-    @Column(name = "password", nullable = false)
     private String password;
 
     @Column(name = "role", nullable = false)
+    @Enumerated(value = EnumType.STRING)
     private UserRole role;
 
     private final LocalDateTime createdAt = LocalDateTime.now();
