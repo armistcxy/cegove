@@ -13,7 +13,7 @@ import sjora from '../../assets/sjora_240x201.jpg';
 import waffle from '../../assets/waffle_240-x-201.jpg';
 import photoTicket from '../../assets/phototicket---496x247_1.jpg';
 import "./HomePage.module.css";
-import { movieList as initialMovieList } from "./HomePageLogic";
+import { movieList as initialMovieList } from "./HomePageLogic.ts";
 
 export default function HomePage() {
   const [movies] = useState(initialMovieList);

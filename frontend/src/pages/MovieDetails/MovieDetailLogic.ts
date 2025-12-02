@@ -1,4 +1,4 @@
-import type { Movie } from '../Movies/MovieLogic';
+import type { Movie } from '../Movies/MovieLogic.ts';
 
 const API_URL = "https://movies.cegove.cloud/api/v1/movies";
 

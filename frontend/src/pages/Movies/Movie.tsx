@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import type { Movie, MoviesResponse } from "./MovieLogic";
-import { fetchMovies } from "./MovieLogic";
+import type { Movie, MoviesResponse } from "./MovieLogic.ts";
+import { fetchMovies } from "./MovieLogic.ts";
 import styles from "./Movie.module.css";
 
 export default function Movies() {
