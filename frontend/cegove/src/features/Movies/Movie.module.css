@@ -47,7 +47,7 @@
   font-size: 14px;
   font-weight: 600;
   margin: 8px 0;
-  height: 38px; 
+  height: 38px; /* cố định chiều cao, chữ dài sẽ ... */
   overflow: hidden;
   color: #333;
 }

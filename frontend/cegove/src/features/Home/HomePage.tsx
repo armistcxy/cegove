@@ -12,7 +12,7 @@ import gudetama2 from '../../assets/gudetama2_240-x-201.jpg';
 import sjora from '../../assets/sjora_240x201.jpg';
 import waffle from '../../assets/waffle_240-x-201.jpg';
 import photoTicket from '../../assets/phototicket---496x247_1.jpg';
-import "./HomePage.css";
+import "./HomePage.module.css";
 import { movieList as initialMovieList } from "./HomePageLogic";
 
 export default function HomePage() {
