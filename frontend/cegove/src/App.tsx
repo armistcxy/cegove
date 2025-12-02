@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Header from './components/Header/Header';
 import HomePage from './features/Home/HomePage';
 import Movies from './features/Movies/Movie';
+import MovieDetail from './features/MovieDetails/MovieDetail';
 import './App.css';
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
             <Route path="/" element={<Navigate to="/homepage" replace />} />
             <Route path="/homepage" element={<HomePage />} />
             <Route path="/movie" element={<Movies />} />
+            <Route path="/MovieDetail/:id" element={<MovieDetail />} />
           </Routes>
         </main>
       </div>
