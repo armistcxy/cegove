@@ -3,6 +3,7 @@ import Header from './components/Header/Header';
 import HomePage from './features/Home/HomePage';
 import Movies from './features/Movies/Movie';
 import MovieDetail from './features/MovieDetails/MovieDetail';
+import NotAvailable from './features/NotAvailable/NotAvailable';
 import './App.css';
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
             <Route path="/homepage" element={<HomePage />} />
             <Route path="/movie" element={<Movies />} />
             <Route path="/MovieDetail/:id" element={<MovieDetail />} />
+            <Route path="/NotAvailable" element={<NotAvailable />} />
           </Routes>
         </main>
       </div>
