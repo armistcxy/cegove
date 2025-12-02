@@ -1,11 +1,12 @@
 package com.spring.authservice.Controllers;
 
+import com.spring.authservice.DTOs.ChangeForgotPasswordRequest;
 import com.spring.authservice.DTOs.LoginRequest;
 import com.spring.authservice.DTOs.RegisterRequest;
+import com.spring.authservice.DTOs.VerifyOtpRequest;
 import com.spring.authservice.Exceptions.InvalidCredentialsException;
 import com.spring.authservice.Exceptions.UserAlreadyExistedException;
 import com.spring.authservice.Services.AuthService;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,14 +40,7 @@ public class AuthController {
         try {
             String token = service.login(loginForm);
 
-            // Insert cookie
-            Cookie cookie = new Cookie("token", token);
-            cookie.setHttpOnly(true);
-            cookie.setPath("/");
-            cookie.setMaxAge(60 * 60);
-            response.addCookie(cookie);
-
-            return ResponseEntity.ok("Login successfully");
+            return ResponseEntity.ok(token);
         } catch (UsernameNotFoundException e) {
             return ResponseEntity.status(404).body(e.getMessage());
         } catch (InvalidCredentialsException e) {
@@ -57,35 +51,48 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response) {
+    public ResponseEntity<?> logout(HttpServletRequest request) {
         try {
-            // Get token from cookie
+            // Get token from header Authorization
+            String header = request.getHeader("Authorization");
             String token = null;
-            if (request.getCookies() != null) {
-                for (Cookie cookie : request.getCookies()) {
-                    if ("token".equals(cookie.getName())) {
-                        token = cookie.getValue();
-                        break;
-                    }
-                }
+
+            if (header != null && header.startsWith("Bearer ")) {
+                token = header.substring(7);
             }
 
             if (token == null) {
-                return ResponseEntity.badRequest().body("No token found in cookies");
+                return ResponseEntity.badRequest().body("No Bearer token found");
             }
 
             service.logout(token);
 
-            // Delete cookie
-            Cookie deleteCookie = new Cookie("token", null);
-            deleteCookie.setPath("/");
-            deleteCookie.setMaxAge(0);
-            deleteCookie.setHttpOnly(true);
-            response.addCookie(deleteCookie);
-
             return ResponseEntity.ok("Logout successfully");
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Logout failed: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/otp-verify")
+    public ResponseEntity<?> verifyOtp(@RequestBody VerifyOtpRequest request) {
+        try {
+            return ResponseEntity.ok(service.verifyOtp(request));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/forgot-password-change")
+    public ResponseEntity<?> changeForgotPassword(@RequestBody ChangeForgotPasswordRequest request) {
+        try {
+            service.changeForgotPassword(request);
+            return ResponseEntity.ok("Password changed successfully");
+        } catch (InvalidCredentialsException e) {
+            return ResponseEntity.status(401).body(e.getMessage());
+        } catch (UsernameNotFoundException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 }

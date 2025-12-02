@@ -15,6 +15,7 @@ public class RedisService {
     private RedisTemplate<String, String> redisTemplate;
 
     private static final String BLACKLIST_PREFIX = "blacklist:";
+    private static final String OTP_PREFIX = "otp:";
 
     public void blacklistToken(String token, long expirationMillis) {
         String key = BLACKLIST_PREFIX + token;
@@ -24,5 +25,16 @@ public class RedisService {
     public boolean isTokenBlacklisted(String token) {
         String key = BLACKLIST_PREFIX + token;
         return redisTemplate.hasKey(key);
+    }
+
+    public boolean verifyOtp(String email, String otp) {
+        String key = OTP_PREFIX + email;
+        String storedOtp = redisTemplate.opsForValue().get(key);
+        return otp.equals(storedOtp);
+    }
+
+    public void removeOtp(String email) {
+        String key = OTP_PREFIX + email;
+        redisTemplate.delete(key);
     }
 }

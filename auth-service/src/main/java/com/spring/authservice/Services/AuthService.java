@@ -1,7 +1,9 @@
 package com.spring.authservice.Services;
 
+import com.spring.authservice.DTOs.ChangeForgotPasswordRequest;
 import com.spring.authservice.DTOs.LoginRequest;
 import com.spring.authservice.DTOs.RegisterRequest;
+import com.spring.authservice.DTOs.VerifyOtpRequest;
 import com.spring.authservice.Enums.UserRole;
 import com.spring.authservice.Exceptions.InvalidCredentialsException;
 import com.spring.authservice.Exceptions.UserAlreadyExistedException;
@@ -83,5 +85,26 @@ public class AuthService {
             long expiration = jwtService.getExpirationTime(token);
             redisService.blacklistToken(token, expiration);
         }
+    }
+
+    public boolean verifyOtp(VerifyOtpRequest request) {
+        return redisService.verifyOtp(request.getEmail(), request.getOtp());
+    }
+
+    public void changeForgotPassword(ChangeForgotPasswordRequest request) {
+        if (!redisService.verifyOtp(request.getEmail(), request.getOtp())) {
+            throw new InvalidCredentialsException("Invalid OTP");
+        }
+
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new InvalidCredentialsException("New password and confirm new password do not match");
+        }
+
+        redisService.removeOtp(request.getEmail());
+        User user = reposistory.findByEmail(request.getEmail())
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + request.getEmail()));
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        reposistory.save(user);
     }
 }
