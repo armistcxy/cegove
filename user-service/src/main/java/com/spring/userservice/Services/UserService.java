@@ -43,6 +43,12 @@ public class UserService {
         return user.convertToDTO();
     }
 
+    public UserDTO getUserProfile(Long userId) {
+        User user = repository.findById(userId)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with id: " + userId));
+        return user.convertToDTO();
+    }
+
     public void changePassword(ChangePasswordForm changePasswordForm) {
         User currentUser = getCurrentUser();
         if (currentUser.getProvider().equals(Provider.GOOGLE)) {
