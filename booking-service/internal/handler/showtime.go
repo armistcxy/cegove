@@ -30,7 +30,12 @@ func NewShowtimeHandler(showtimeRepo repository.ShowtimeRepository, logger *logg
 // @Router /showtimes [get]
 func (h *ShowtimeHandler) HandleListShowtimes(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	showtimes, err := h.showtimeRepo.ListShowtimes(ctx)
+	// optional query params to filter
+	q := r.URL.Query()
+	movieID := q.Get("movie_id")
+	cinemaID := q.Get("cinema_id")
+
+	showtimes, err := h.showtimeRepo.ListShowtimes(ctx, movieID, cinemaID)
 	if err != nil {
 		h.logger.Error("Failed to list showtimes", err)
 		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)

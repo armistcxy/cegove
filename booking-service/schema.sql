@@ -11,6 +11,7 @@ CREATE INDEX idx_seats_on_screen_id ON seats(screen_id);
 CREATE TABLE showtimes (
     id VARCHAR(255) PRIMARY KEY,
     movie_id VARCHAR(255) NOT NULL,
+    cinema_id VARCHAR(255),
     screen_id VARCHAR(255) NOT NULL,
     start_time TIMESTAMPTZ NOT NULL,
     end_time TIMESTAMPTZ NOT NULL,

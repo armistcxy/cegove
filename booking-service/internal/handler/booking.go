@@ -26,7 +26,6 @@ type createBookingRequest struct {
 // @Param booking body createBookingRequest true "Booking creation request"
 // @Success 200 {object} domain.Booking "Booking created successfully"
 // @Router /bookings [post]
-
 type BookingHandler struct {
 	logger      *logging.Logger
 	bookingRepo repository.BookingRepository

@@ -11,8 +11,10 @@ import (
 )
 
 type ShowtimeRepository interface {
-	ListShowtimes(ctx context.Context) ([]domain.Showtime, error)
+	ListShowtimes(ctx context.Context, movieID, cinemaID string) ([]domain.Showtime, error)
 	GetShowtimeSeats(ctx context.Context, showtimeID string) ([]domain.ShowtimeSeat, error)
+
+	InsertShowtimes(ctx context.Context, showtimes []domain.Showtime) error
 }
 
 type showtimeRepository struct {
@@ -27,10 +29,16 @@ func NewShowtimeRepository(pool *pgxpool.Pool) ShowtimeRepository {
 	}
 }
 
-func (r *showtimeRepository) ListShowtimes(ctx context.Context) ([]domain.Showtime, error) {
+func (r *showtimeRepository) ListShowtimes(ctx context.Context, movieID, cinemaID string) ([]domain.Showtime, error) {
 	builder := r.queryBuilder.Select(
-		"id", "movie_id", "screen_id", "start_time", "end_time", "base_price", "status",
+		"id", "movie_id", "cinema_id", "screen_id", "start_time", "end_time", "base_price", "status",
 	).From("showtimes")
+	if movieID != "" {
+		builder = builder.Where(squirrel.Eq{"movie_id": movieID})
+	}
+	if cinemaID != "" {
+		builder = builder.Where(squirrel.Eq{"cinema_id": cinemaID})
+	}
 	query, args, err := builder.ToSql()
 	if err != nil {
 		return nil, fmt.Errorf("build list showtimes query: %w", err)
@@ -44,7 +52,7 @@ func (r *showtimeRepository) ListShowtimes(ctx context.Context) ([]domain.Showti
 	for rows.Next() {
 		var st domain.Showtime
 		if err := rows.Scan(
-			&st.ID, &st.MovieID, &st.ScreenID, &st.StartTime, &st.EndTime, &st.BasePrice, &st.Status,
+			&st.ID, &st.MovieID, &st.CinemaID, &st.ScreenID, &st.StartTime, &st.EndTime, &st.BasePrice, &st.Status,
 		); err != nil {
 			return nil, fmt.Errorf("scan showtime: %w", err)
 		}
@@ -81,4 +89,21 @@ func (r *showtimeRepository) GetShowtimeSeats(ctx context.Context, showtimeID st
 		return nil, fmt.Errorf("rows error: %w", err)
 	}
 	return seats, nil
+}
+
+func (r *showtimeRepository) InsertShowtimes(ctx context.Context, showtimes []domain.Showtime) error {
+	builder := r.queryBuilder.Insert("showtimes").Columns(
+		"id", "movie_id", "cinema_id", "screen_id", "start_time", "end_time", "base_price", "status",
+	)
+	for _, st := range showtimes {
+		builder = builder.Values(st.ID, st.MovieID, st.CinemaID, st.ScreenID, st.StartTime, st.EndTime, st.BasePrice, st.Status)
+	}
+	query, args, err := builder.ToSql()
+	if err != nil {
+		return fmt.Errorf("build insert showtimes query: %w", err)
+	}
+	if _, err := r.pool.Exec(ctx, query, args...); err != nil {
+		return fmt.Errorf("insert showtimes: %w", err)
+	}
+	return nil
 }

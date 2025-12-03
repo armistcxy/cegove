@@ -41,6 +41,7 @@ type ShowtimeSeat struct {
 type Showtime struct {
 	ID        string    `json:"id"`
 	MovieID   string    `json:"movie_id"`
+	CinemaID  string    `json:"cinema_id"`
 	ScreenID  string    `json:"screen_id"`
 	StartTime time.Time `json:"start_time"`
 	EndTime   time.Time `json:"end_time"`
