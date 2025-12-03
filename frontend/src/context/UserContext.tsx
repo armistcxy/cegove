@@ -1,6 +1,6 @@
 // src/context/UserContext.tsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getUserProfile } from '../components/Header/Utils/ApiFunction';
+import { getUserProfile } from '../pages/User/Utils/ApiFunction';
 import {logout} from "../pages/Auth/Utils/ApiFunction.ts";
 
 interface UserContextType {

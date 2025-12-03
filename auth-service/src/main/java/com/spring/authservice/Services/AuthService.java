@@ -4,8 +4,10 @@ import com.spring.authservice.DTOs.ChangeForgotPasswordRequest;
 import com.spring.authservice.DTOs.LoginRequest;
 import com.spring.authservice.DTOs.RegisterRequest;
 import com.spring.authservice.DTOs.VerifyOtpRequest;
+import com.spring.authservice.Enums.Provider;
 import com.spring.authservice.Enums.UserRole;
 import com.spring.authservice.Exceptions.InvalidCredentialsException;
+import com.spring.authservice.Exceptions.NotAuthorizeException;
 import com.spring.authservice.Exceptions.UserAlreadyExistedException;
 import com.spring.authservice.Models.User;
 import com.spring.authservice.Reposistories.UserReposistory;
@@ -37,6 +39,10 @@ public class AuthService {
         Optional<User> user = reposistory.findByEmail(request.getUsername());
         if (!user.isPresent()) {
             user = reposistory.findByPhone(request.getUsername());
+        }
+
+        if (!user.get().getProvider().equals(Provider.SELF)) {
+            throw new NotAuthorizeException("Please login with " + user.get().getProvider() + " account");
         }
 
         if (!user.isPresent()) {
@@ -71,7 +77,8 @@ public class AuthService {
                 .gender(request.getGender())
                 .address(request.getAddress())
                 .district(request.getDistrict())
-                .city(request.getCity()).build();
+                .city(request.getCity())
+                .provider(Provider.SELF).build();
 
         if (request.getImg() != null && !request.getImg().isEmpty()) {
             newUser.setImg(imageUploadClient.uploadImage(request.getImg()));

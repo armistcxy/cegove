@@ -5,6 +5,7 @@ import com.spring.authservice.DTOs.LoginRequest;
 import com.spring.authservice.DTOs.RegisterRequest;
 import com.spring.authservice.DTOs.VerifyOtpRequest;
 import com.spring.authservice.Exceptions.InvalidCredentialsException;
+import com.spring.authservice.Exceptions.NotAuthorizeException;
 import com.spring.authservice.Exceptions.UserAlreadyExistedException;
 import com.spring.authservice.Services.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -43,6 +44,8 @@ public class AuthController {
             return ResponseEntity.ok(token);
         } catch (UsernameNotFoundException e) {
             return ResponseEntity.status(404).body(e.getMessage());
+        } catch (NotAuthorizeException e) {
+            return ResponseEntity.status(403).body(e.getMessage());
         } catch (InvalidCredentialsException e) {
             return ResponseEntity.status(401).body(e.getMessage());
         }catch (Exception e) {

@@ -5,6 +5,7 @@ import Movies from './pages/Movies/Movie.tsx';
 import MovieDetail from './pages/MovieDetails/MovieDetail.tsx';
 import NotAvailable from './pages/NotAvailable/NotAvailable.tsx';
 import AuthPage from "./pages/Auth/AuthPage.tsx";
+import Profile from "./pages/User/Profile.tsx";
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
             <Route path="/NotAvailable" element={<NotAvailable />} />
             <Route path="/login" element={<AuthPage />} />
             <Route path="/register" element={<AuthPage />} />
+            <Route path="/profile" element={<Profile />} />
           </Routes>
         </main>
       </div>
