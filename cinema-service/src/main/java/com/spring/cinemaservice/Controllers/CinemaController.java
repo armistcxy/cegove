@@ -1,7 +1,9 @@
 package com.spring.cinemaservice.Controllers;
 
+import com.spring.cinemaservice.DTOs.AuditoriumDTO;
 import com.spring.cinemaservice.DTOs.CinemaRequest;
 import com.spring.cinemaservice.DTOs.CinemaResponse;
+import com.spring.cinemaservice.Services.AuditoriumService;
 import com.spring.cinemaservice.Services.CinemaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +23,9 @@ public class CinemaController {
     @Autowired
     private CinemaService service;
 
+    @Autowired
+    private AuditoriumService auditoriumService;
+
     @PreAuthorize("hasAuthority('SUPER_ADMIN')")
     @PostMapping("")
     public ResponseEntity<?> createCinema(@RequestBody CinemaRequest req) {
@@ -29,6 +34,19 @@ public class CinemaController {
             return ResponseEntity.status(201).body("Create");
         } catch (WebClientResponseException e) {
             return ResponseEntity.status(e.getRawStatusCode()).body(e.getResponseBodyAsString());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PreAuthorize("hasAuthority('SUPER_ADMIN')")
+    @PostMapping("/{id}/auditoriums")
+    public ResponseEntity<?> createAuditorium(@PathVariable Long CinemaId, @RequestBody AuditoriumDTO body) {
+        try {
+            auditoriumService.createAuditorium(body, CinemaId);
+            return ResponseEntity.status(201).body("Create");
+        } catch (UsernameNotFoundException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

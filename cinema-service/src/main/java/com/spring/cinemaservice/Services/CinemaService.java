@@ -49,7 +49,7 @@ public class CinemaService {
         // Create auditoriums
         if (cinemaRequest.getAuditoriumList() != null) {
             for (AuditoriumDTO auditoriumDTO : cinemaRequest.getAuditoriumList()) {
-                auditoriumService.createAuditorium(auditoriumDTO, savedCinema);
+                auditoriumService.createAuditorium(auditoriumDTO, savedCinema.getId());
             }
         }
     }

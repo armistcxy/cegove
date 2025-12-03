@@ -41,12 +41,12 @@ public class AuthService {
             user = reposistory.findByPhone(request.getUsername());
         }
 
-        if (!user.get().getProvider().equals(Provider.SELF)) {
-            throw new NotAuthorizeException("Please login with " + user.get().getProvider() + " account");
-        }
-
         if (!user.isPresent()) {
             throw new UsernameNotFoundException("User not found with email/phone: " + request.getUsername());
+        }
+
+        if (!user.get().getProvider().equals(Provider.SELF)) {
+            throw new NotAuthorizeException("Please login with " + user.get().getProvider() + " account");
         }
 
         if (!passwordEncoder.matches(request.getPassword(), user.get().getPassword())) {
