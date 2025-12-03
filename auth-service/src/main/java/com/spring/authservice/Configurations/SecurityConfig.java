@@ -1,5 +1,6 @@
 package com.spring.authservice.Configurations;
 
+import com.spring.authservice.OAuth2.OAuth2FailureHandler;
 import com.spring.authservice.OAuth2.OAuth2Service;
 import com.spring.authservice.OAuth2.OAuth2SuccessHandler;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +24,9 @@ public class SecurityConfig {
     @Autowired
     private OAuth2SuccessHandler oAuth2SuccessHandler;
 
+    @Autowired
+    private OAuth2FailureHandler oAuth2FailureHandler;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http.csrf(AbstractHttpConfigurer::disable)
@@ -33,6 +37,7 @@ public class SecurityConfig {
                 .oauth2Login(oauth ->
                         oauth.userInfoEndpoint(userInfo -> userInfo.userService(oAuth2Service))
                         .successHandler(oAuth2SuccessHandler)
+                        .failureHandler(oAuth2FailureHandler)
                 )
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))

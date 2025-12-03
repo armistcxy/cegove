@@ -9,6 +9,7 @@ import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserServ
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 
@@ -29,8 +30,9 @@ public class OAuth2Service implements OAuth2UserService<OAuth2UserRequest, OAuth
         String email = oAuth2User.getAttribute("email");
         Optional<User> userOptional = reposistory.findByEmail(email);
 
+        User user;
         if (userOptional.isEmpty()) {
-            User user = new User();
+            user = new User();
             user.setRole(UserRole.USER);
             user.setEmail(email);
 
@@ -42,8 +44,16 @@ public class OAuth2Service implements OAuth2UserService<OAuth2UserRequest, OAuth
                 throw new OAuth2AuthenticationException("Login with " + providerId + " is not supported");
             }
 
-            reposistory.save(user);
+        } else {
+            user = userOptional.get();
+            if (!user.getProvider().equals(Provider.GOOGLE)) {
+                throw new OAuth2AuthenticationException(new OAuth2Error("invalid_provider"),
+                        "Tài khoản này đã được đăng ký bằng " + user.getProvider() +
+                                ". Vui lòng đăng nhập bằng phương thức đó.");
+            }
+
         }
+        reposistory.save(user);
 
         return oAuth2User;
     }
