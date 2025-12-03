@@ -13,37 +13,70 @@ import sjora from '../../assets/sjora_240x201.jpg';
 import waffle from '../../assets/waffle_240-x-201.jpg';
 import photoTicket from '../../assets/phototicket---496x247_1.jpg';
 import "./HomePage.module.css";
-import { movieList as initialMovieList } from "./HomePageLogic.ts";
+import MovieGrid from "../../components/MovieGrid";
 
 export default function HomePage() {
-  const [movies] = useState(initialMovieList);
-  // Slider refs & indices
+  // Slider refs & indices (kept only what's needed)
   const menuNeRef = useRef<HTMLDivElement | null>(null);
-  const postersRef = useRef<HTMLDivElement | null>(null);
   const abvRef = useRef<HTMLUListElement | null>(null);
+  const autoSlideRef = useRef<NodeJS.Timeout | null>(null);
 
   const [slideIndex, setSlideIndex] = useState(0);
-  const [movieIndex, setMovieIndex] = useState(0);
   const [abvIndex, setAbvIndex] = useState(0);
+  const [isAutoSliding, setIsAutoSliding] = useState(true);
 
   // constants
-  const SLIDE_WIDTH = 980;
-  const MOVIE_SPACE = 246;
-  const ABV_SPACE = 247;
+  const getSlideWidth = () => {
+    return window.innerWidth > 1200 ? 980 : window.innerWidth;
+  };
+  const ABV_SPACE = 247; // 240px width + 7px margin
+  const SLIDE_COUNT = 5; // Total number of slides
+
+  // Auto-slide functionality
+  const startAutoSlide = () => {
+    if (autoSlideRef.current) {
+      clearInterval(autoSlideRef.current);
+    }
+    autoSlideRef.current = setInterval(() => {
+      if (isAutoSliding) {
+        setSlideIndex(prev => prev + 1);
+      }
+    }, 4000); // Change slide every 4 seconds
+  };
+
+  const stopAutoSlide = () => {
+    if (autoSlideRef.current) {
+      clearInterval(autoSlideRef.current);
+      autoSlideRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    startAutoSlide();
+    return () => stopAutoSlide();
+  }, [isAutoSliding]);
 
   useEffect(() => {
     if (menuNeRef.current) {
-      menuNeRef.current.style.transition = "transform 0.4s";
-      menuNeRef.current.style.transform = `translateX(${ -slideIndex * SLIDE_WIDTH }px)`;
+      const slideWidth = getSlideWidth();
+      
+      if (slideIndex === SLIDE_COUNT) {
+        menuNeRef.current.style.transition = "none";
+        setSlideIndex(0);
+        menuNeRef.current.style.transform = `translateX(0px)`;
+        
+        setTimeout(() => {
+          if (menuNeRef.current) {
+            menuNeRef.current.style.transition = "transform 0.8s ease-in-out";
+          }
+        }, 50);
+      } else {
+        // Normal smooth transition
+        menuNeRef.current.style.transition = "transform 0.8s ease-in-out";
+        menuNeRef.current.style.transform = `translateX(-${slideIndex * slideWidth}px)`;
+      }
     }
   }, [slideIndex]);
-
-  useEffect(() => {
-    if (postersRef.current) {
-      postersRef.current.style.transition = "transform 1s";
-      postersRef.current.style.transform = `translateX(${ -movieIndex * MOVIE_SPACE }px)`;
-    }
-  }, [movieIndex]);
 
   useEffect(() => {
     if (abvRef.current) {
@@ -53,52 +86,28 @@ export default function HomePage() {
   }, [abvIndex]);
 
   function handleNextSlide() {
-    const list = menuNeRef.current?.querySelectorAll('li') ?? [];
-    if (slideIndex >= list.length - 1) return;
     setSlideIndex(prev => prev + 1);
+    
+    setIsAutoSliding(false);
+    setTimeout(() => setIsAutoSliding(true), 5000);
   }
 
   function handlePrevSlide() {
-    if (slideIndex <= 0) return;
     setSlideIndex(prev => prev - 1);
-  }
-
-  function handleNextMovie() {
-    const list = postersRef.current?.querySelectorAll('.poster-movie') ?? [];
-    // allow sliding until last visible
-    if (movieIndex >= Math.max(0, list.length - 4)) return;
-    const nextIndex = movieIndex + 1;
-    setMovieIndex(nextIndex);
     
-    // Show/hide navigation buttons
-    const prevBtn = document.getElementById('prev-movie');
-    const nextBtn = document.getElementById('next-movie');
-    if (prevBtn) prevBtn.style.display = 'block';
-    if (nextBtn && nextIndex >= Math.max(0, list.length - 4)) nextBtn.style.display = 'none';
-  }
-
-  function handlePrevMovie() {
-    if (movieIndex <= 0) return;
-    const prevIndex = movieIndex - 1;
-    setMovieIndex(prevIndex);
-    
-    // Show/hide navigation buttons
-    const prevBtn = document.getElementById('prev-movie');
-    const nextBtn = document.getElementById('next-movie');
-    if (nextBtn) nextBtn.style.display = 'block';
-    if (prevBtn && prevIndex <= 0) prevBtn.style.display = 'none';
+    setIsAutoSliding(false);
+    setTimeout(() => setIsAutoSliding(true), 5000);
   }
 
   function handleNextAbv() {
   const list = abvRef.current?.querySelectorAll('li') ?? [];
-  const visibleCount = 4; // số ảnh hiển thị cùng lúc
+  const visibleCount = 4; 
 
-  if (abvIndex >= list.length - visibleCount) return; // dừng khi ảnh cuối đã hiển thị
+  if (abvIndex >= list.length - visibleCount) return; 
 
   const nextIndex = abvIndex + 1;
   setAbvIndex(nextIndex);
 
-  // Show/hide navigation buttons
   const prevBtn = document.getElementById('prev-adv');
   const nextBtn = document.getElementById('next-adv');
 
@@ -112,7 +121,6 @@ export default function HomePage() {
     const prevIndex = abvIndex - 1;
     setAbvIndex(prevIndex);
     
-    // Show/hide navigation buttons
     const prevBtn = document.getElementById('prev-adv');
     const nextBtn = document.getElementById('next-adv');
     if (nextBtn) nextBtn.style.display = 'block';
@@ -123,7 +131,11 @@ export default function HomePage() {
     <div className="HomePage">
       {/* SLIDER */}
       <div className="slide">
-        <div className="slide-quang-cao parent">
+        <div 
+          className="slide-quang-cao parent"
+          onMouseEnter={() => setIsAutoSliding(false)}
+          onMouseLeave={() => setIsAutoSliding(true)}
+        >
           <div className="menu-ne" ref={menuNeRef}>
             <ul className="slide-container">
               <li><img src={slide5} alt="" /></li>
@@ -131,6 +143,8 @@ export default function HomePage() {
               <li><img src={slide2} alt="" /></li>
               <li><img src={slide3} alt="" /></li>
               <li><img src={slide4} alt="" /></li>
+              {/* Duplicate first slide for smooth infinite loop */}
+              <li><img src={slide5} alt="" /></li>
             </ul>
           </div>
           <button className="next child-abs hover-effect" onClick={handleNextSlide}>
@@ -185,37 +199,13 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* MOVIES */}
-      <div className="container-movie">
-        <div className="menu-movie parent">
-          <div className="slide-movie" ref={postersRef}>
-            {movies.map(movie => (
-              <div key={movie.id} className="poster-movie parent hover-effect">
-                <div className={`rating-${movie.rating} child-abs`}></div>
-                <img src={movie.img} alt={movie.name} className="poster-off-movie" />
-                <div className="infor-buyticket child-abs hover-effect movie-banner">
-                  <div className="infor-movie">
-                    <div className="name-movie">{movie.name}</div>
-                    <div className="gr-button">
-                      <a href="#" className="xem-chi-tiet">Xem chi tiết</a>
-                      <a href="#" className="buy-ticket">
-                        <div className="icon-call"></div>
-                        Mua vé
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <button id="next-movie" className="child-abs next" onClick={handleNextMovie}>
-            <i className="fas fa-chevron-right" style={{ fontSize: 24, color: "white" }}></i>
-          </button>
-          <button id="prev-movie" className="child-abs prev" onClick={handlePrevMovie} style={{display: 'none'}}>
-            <i className="fas fa-chevron-left" style={{ fontSize: 24, color: "white" }}></i>
-          </button>
-        </div>
-      </div>
+      {/* MOVIES - New Grid Component */}
+      <MovieGrid 
+        title=""
+        limit={8}
+        showTitle={false}
+        gridColumns={4}
+      />
 
       {/* FOOTER */}
       <div className="footer-content">

@@ -278,27 +278,42 @@ body, html{
     background: url(/assets/bg_c_bricks.png) repeat-x;
     display: flex;
     justify-content: center;
+    width: 100%;
+    max-width: 100vw;
+    overflow: hidden;
 }
 .menu-ne{
     display: block;
     margin: 0 auto;
-    width: var(--width);
-    transform: translateX(-980px);
+    width: calc(var(--width) * 6); /* 6 slides including duplicate */
+    transform: translateX(0px); /* Start at first slide */
 }
 .slide-container{
-    width: var(--width);
+    width: calc(var(--width) * 6); /* Total width for all slides including duplicate */
     height: 450px;
     display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 0;
 }
 .slide-quang-cao{
     width: var(--width);
     height: 450px;
     overflow: hidden;
+    position: relative;
+    margin: 0 auto;
 }
 .slide-container li{
-    display: inline;
+    display: flex;
     width: var(--width);
     height: 450px;
+    flex-shrink: 0;
+}
+.slide-container li img{
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }
 
 /* .slide-quang-cao button{
@@ -540,6 +555,10 @@ button.prev{
 }
 .content-quang-cao{
     overflow: hidden;
+    width: var(--width);
+    max-width: 100%;
+    display: flex;
+    justify-content: center;
 }
 .toggel-tabs{
     list-style: none outside none;
@@ -563,16 +582,20 @@ button.prev{
 .abv-content{
     display: flex;
     height: 201px;
-    width: var(--width);
+    width: calc(247px * 4); /* Chỉ hiển thị 4 items: 240px width + 7px margin = 247px mỗi item */
+    max-width: 100%;
 }
 .abv-content li{
-    display: inline;
+    flex-shrink: 0;
+    width: 240px;
+    height: 201px;
     margin-right: 7px;
 }
 .abv-content img{
-    display: flex;
-    height: 201px;
-    width: 240px;
+    display: block;
+    height: 100%;
+    width: 100%;
+    object-fit: cover;
 }
 #next-adv{
     top : 75px;
@@ -689,5 +712,83 @@ button.prev{
     color: rgb(90, 90, 90);    
     font-size: 110%;
     word-spacing: 1px;
+}
+
+/* Responsive Design for Slider */
+@media (max-width: 1200px) {
+    :root {
+        --width: 100%;
+    }
+    
+    .slide {
+        height: 350px;
+    }
+    
+    .slide-container {
+        height: 350px;
+    }
+    
+    .slide-quang-cao {
+        width: 100%;
+        height: 350px;
+    }
+    
+    .slide-container li {
+        width: 100vw;
+        height: 350px;
+    }
+    
+    .menu-ne {
+        width: calc(100vw * 6);
+    }
+}
+
+@media (max-width: 768px) {
+    .slide {
+        height: 250px;
+    }
+    
+    .slide-container {
+        height: 250px;
+    }
+    
+    .slide-quang-cao {
+        height: 250px;
+    }
+    
+    .slide-container li {
+        height: 250px;
+    }
+    
+    button.next, button.prev {
+        top: 50%;
+        transform: translateY(-50%);
+    }
+    
+    .slide-quang-cao button i {
+        font-size: 32px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .slide {
+        height: 200px;
+    }
+    
+    .slide-container {
+        height: 200px;
+    }
+    
+    .slide-quang-cao {
+        height: 200px;
+    }
+    
+    .slide-container li {
+        height: 200px;
+    }
+    
+    .slide-quang-cao button i {
+        font-size: 24px !important;
+    }
 }
 
