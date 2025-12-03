@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: booking-service
+  labels:
+    app: booking-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: booking-service
+  template:
+    metadata:
+      labels:
+        app: booking-service
+    spec:
+      containers:
+        - name: booking-service
+          image: zzzsleepzzz/booking-service
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+          env:
+            - name: ENV
+              value: "dev"
+            - name: CONSUL_ADDR
+              valueFrom:
+                secretKeyRef:
+                  name: consul-credentials
+                  key: CONSUL_ADDR
+            - name: CONSUL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: consul-credentials
+                  key: CONSUL_USER
+            - name: CONSUL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: consul-credentials
+                  key: CONSUL_PASSWORD
+
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"

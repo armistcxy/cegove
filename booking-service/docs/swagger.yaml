@@ -1,0 +1,403 @@
+basePath: /api
+definitions:
+  domain.Booking:
+    properties:
+      created_at:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      seat_ids:
+        items:
+          type: string
+        type: array
+      showtime_id:
+        type: string
+      status:
+        $ref: '#/definitions/domain.BookingStatus'
+      tickets:
+        items:
+          $ref: '#/definitions/domain.Ticket'
+        type: array
+      total_price:
+        type: number
+      user_id:
+        type: string
+    type: object
+  domain.BookingStatus:
+    enum:
+    - 0
+    - 1
+    - 2
+    - 3
+    type: integer
+    x-enum-varnames:
+    - BookingStatusPending
+    - BookingStatusConfirmed
+    - BookingStatusCancelled
+    - BookingStatusFailed
+  domain.PaymentWebhookRequest:
+    properties:
+      booking_id:
+        type: string
+      payment_status:
+        description: '"SUCCESS" or "FAILED"'
+        type: string
+      transaction_id:
+        type: string
+    type: object
+  domain.SeatMetadata:
+    properties:
+      color_hex:
+        type: string
+      display_name:
+        type: string
+      type_code:
+        type: string
+    type: object
+  domain.SeatPosition:
+    properties:
+      grid_x:
+        type: integer
+      grid_y:
+        type: integer
+      number:
+        type: integer
+      row:
+        type: string
+    type: object
+  domain.SeatPricing:
+    properties:
+      amount:
+        type: number
+      currency:
+        type: string
+    type: object
+  domain.SeatStatus:
+    enum:
+    - 0
+    - 1
+    - 2
+    type: integer
+    x-enum-varnames:
+    - SeatStatusAvailable
+    - SeatStatusLocked
+    - SeatStatusSold
+  domain.SeatV2Response:
+    properties:
+      id:
+        type: string
+      label:
+        type: string
+      metadata:
+        $ref: '#/definitions/domain.SeatMetadata'
+      position:
+        $ref: '#/definitions/domain.SeatPosition'
+      pricing:
+        $ref: '#/definitions/domain.SeatPricing'
+      status_text:
+        type: string
+    type: object
+  domain.Showtime:
+    properties:
+      base_price:
+        type: number
+      end_time:
+        type: string
+      id:
+        type: string
+      movie_id:
+        type: string
+      screen_id:
+        type: string
+      start_time:
+        type: string
+      status:
+        type: integer
+    type: object
+  domain.ShowtimeSeat:
+    properties:
+      booking_id:
+        type: string
+      price:
+        type: number
+      seat_id:
+        type: string
+      showtime_id:
+        type: string
+      status:
+        $ref: '#/definitions/domain.SeatStatus'
+    type: object
+  domain.Ticket:
+    properties:
+      booking_id:
+        type: string
+      cinema_name:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      movie_title:
+        type: string
+      price:
+        type: number
+      qr_code:
+        type: string
+      screen_name:
+        type: string
+      seat_number:
+        type: integer
+      seat_row:
+        type: string
+      showtime:
+        type: string
+      showtime_id:
+        type: string
+      status:
+        $ref: '#/definitions/domain.TicketStatus'
+    type: object
+  domain.TicketStatus:
+    enum:
+    - 0
+    - 1
+    - 2
+    type: integer
+    x-enum-varnames:
+    - TicketStatusActive
+    - TicketStatusUsed
+    - TicketStatusCancelled
+  handler.createBookingRequest:
+    properties:
+      seat_ids:
+        example:
+        - seat1
+        - seat2
+        items:
+          type: string
+        type: array
+      showtime_id:
+        example: showtime123
+        type: string
+      user_id:
+        example: user123
+        type: string
+    type: object
+  handler.scanTicketRequest:
+    properties:
+      code:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@example.com
+    name: API Support
+  description: This is the booking service API.
+  title: Booking Service API
+  version: "1.0"
+paths:
+  /bookings:
+    get:
+      description: |-
+        Get a list of all bookings
+        Get a list of all bookings
+      produces:
+      - application/json
+      - application/json
+      responses:
+        "200":
+          description: List of bookings retrieved successfully
+          schema:
+            items:
+              $ref: '#/definitions/domain.Booking'
+            type: array
+      summary: List all bookings
+      tags:
+      - bookings
+      - bookings
+    post:
+      consumes:
+      - application/json
+      description: Create a new booking for a user and showtime with selected seats
+      parameters:
+      - description: Booking creation request
+        in: body
+        name: booking
+        required: true
+        schema:
+          $ref: '#/definitions/handler.createBookingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Booking created successfully
+          schema:
+            $ref: '#/definitions/domain.Booking'
+      summary: Create a new booking
+      tags:
+      - bookings
+  /bookings/{booking_id}:
+    get:
+      description: |-
+        Get detailed information about a specific booking
+        Get detailed information about a specific booking
+      parameters:
+      - description: Booking ID
+        in: path
+        name: booking_id
+        required: true
+        type: string
+      - description: Booking ID
+        in: path
+        name: booking_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      - application/json
+      responses:
+        "200":
+          description: Booking information retrieved successfully
+          schema:
+            $ref: '#/definitions/domain.Booking'
+      summary: Get booking information
+      tags:
+      - bookings
+      - bookings
+  /bookings/webhooks/payment:
+    post:
+      consumes:
+      - application/json
+      description: Receive payment status updates from Payment Service
+      parameters:
+      - description: Payment Status
+        in: body
+        name: payment
+        required: true
+        schema:
+          $ref: '#/definitions/domain.PaymentWebhookRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'status: received'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Invalid payload
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Handle Payment Webhook
+      tags:
+      - bookings
+  /showtimes:
+    get:
+      description: Get a list of all available showtimes
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of showtimes retrieved successfully
+          schema:
+            items:
+              $ref: '#/definitions/domain.Showtime'
+            type: array
+      summary: List all showtimes
+      tags:
+      - showtimes
+  /showtimes/{showtime_id}/seats:
+    get:
+      description: Get a list of seats for a specific showtime
+      parameters:
+      - description: Showtime ID
+        in: path
+        name: showtime_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of showtime seats retrieved successfully
+          schema:
+            items:
+              $ref: '#/definitions/domain.ShowtimeSeat'
+            type: array
+      summary: Get showtime seats
+      tags:
+      - showtimes
+  /tickets/scan:
+    post:
+      consumes:
+      - application/json
+      description: Validate and mark a ticket as used using its QR code
+      parameters:
+      - description: Scan ticket request
+        in: body
+        name: scan
+        required: true
+        schema:
+          $ref: '#/definitions/handler.scanTicketRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Ticket scanned successfully
+          schema:
+            $ref: '#/definitions/domain.Ticket'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Ticket not found or already used
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Scan ticket
+      tags:
+      - tickets
+  /v2/showtimes/{showtime_id}/seats:
+    get:
+      description: Get seats with computed labels and visual metadata suitable for
+        frontend rendering
+      parameters:
+      - description: Showtime ID
+        in: path
+        name: showtime_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.SeatV2Response'
+            type: array
+      summary: Get showtime seats V2 (Rich Data)
+      tags:
+      - showtimes
+swagger: "2.0"
