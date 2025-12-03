@@ -1,0 +1,22 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+pydantic
+pydantic-settings
+alembic
+python-dotenv
+pandas
+python-multipart
+PyJWT
+python-consul
+
+torch
+transformers
+underthesea
+pandas
+numpy
+
+# Background jobs
+celery
+redis
