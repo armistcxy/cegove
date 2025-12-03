@@ -1,6 +1,6 @@
 # comment-service/app/services/comment_service.py
 from sqlalchemy.orm import Session
-from sqlalchemy import func, desc, and_, case
+from sqlalchemy import func, desc, and_
 from typing import List, Optional, Tuple, Dict
 from datetime import datetime, timedelta
 
@@ -37,6 +37,13 @@ class CommentService:
         from app.services.sentiment_service import SentimentService
         sentiment_service = SentimentService()
         sentiment_service.mark_target_as_stale(
+            db, comment.target_type, comment.target_id
+        )
+        
+        # Mark AI insight as stale
+        from app.services.ai_insight_service import AIInsightService
+        ai_service = AIInsightService()
+        ai_service.mark_insight_as_stale(
             db, comment.target_type, comment.target_id
         )
         

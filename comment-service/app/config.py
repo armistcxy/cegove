@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     MAX_COMMENT_LENGTH: int = 2000
     AUTO_FLAG_THRESHOLD: int = 3  # Number of reports before auto-flagging
     
+    GEMINI_API_KEY: str = "gemini-api-key"
     class Config:
         env_file = ".env"
         case_sensitive = True

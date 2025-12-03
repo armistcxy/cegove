@@ -42,14 +42,6 @@ class TargetSentimentScore(BaseModel):
         from_attributes = True
 
 
-class SentimentDistribution(BaseModel):
-    """Sentiment distribution visualization data"""
-    positive_percentage: float
-    neutral_percentage: float
-    negative_percentage: float
-    score_histogram: List[int] = Field(..., description="Count for each score 0-5")
-
-
 class TextProcessRequest(BaseModel):
     """Request to test text processing"""
     text: str = Field(..., min_length=1, max_length=2000)
@@ -71,3 +63,77 @@ class BatchSentimentResponse(BaseModel):
     """Response from batch sentiment analysis"""
     results: List[SentimentPrediction]
     total_processed: int
+
+
+# ==================== AI INSIGHTS SCHEMAS ====================
+
+class AIInsightResponse(BaseModel):
+    """AI-generated insights about a target"""
+    target_type: Literal["movie", "theater"]
+    target_id: int
+    
+    # AI insights
+    summary: str = Field(..., description="2-3 câu tóm tắt tổng quan")
+    positive_aspects: List[str] = Field(..., description="Những điểm được khen nhiều")
+    negative_aspects: List[str] = Field(..., description="Những điểm bị chê nhiều")
+    recommendations: str = Field(..., description="Gợi ý cho người xem")
+    
+    # Metadata
+    based_on_comments: int
+    model_used: str
+    generated_at: datetime
+    is_stale: bool
+    
+    class Config:
+        from_attributes = True
+
+
+class CombinedInsightResponse(BaseModel):
+    """Combined sentiment score + AI insights"""
+    # Sentiment data
+    sentiment_score: TargetSentimentScore
+    
+    # AI insights
+    ai_insight: Optional[AIInsightResponse] = None
+    
+    class Config:
+        from_attributes = True
+
+
+# ==================== TEST AI INSIGHTS ====================
+
+class TestAIInsightRequest(BaseModel):
+    """Request to test AI insights with custom comments"""
+    comments: List[str] = Field(
+        ..., 
+        min_length=3, 
+        max_length=100,
+        description="Danh sách các bình luận để phân tích (tối thiểu 3, tối đa 100)"
+    )
+    context: Optional[str] = Field(
+        None,
+        description="Ngữ cảnh: 'movie' hoặc 'theater' (tùy chọn, để tùy chỉnh prompt)"
+    )
+
+
+class TestAIInsightResponse(BaseModel):
+    """Response from test AI insights"""
+    # Input
+    total_comments_analyzed: int
+    
+    # Sentiment analysis
+    sentiment_distribution: dict = Field(
+        ...,
+        description="Phân bố sentiment: {positive: int, neutral: int, negative: int}"
+    )
+    average_sentiment_score: float = Field(..., ge=0, le=5)
+    
+    # AI insights
+    summary: str = Field(..., description="Tóm tắt tổng quan")
+    positive_aspects: List[str] = Field(..., description="Xu hướng khen")
+    negative_aspects: List[str] = Field(..., description="Xu hướng chê")
+    recommendations: str = Field(..., description="Gợi ý cho người xem")
+    
+    # Metadata
+    model_used: str
+    processing_time_seconds: float

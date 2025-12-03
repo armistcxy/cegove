@@ -20,3 +20,5 @@ numpy
 # Background jobs
 celery
 redis
+
+google-generativeai
