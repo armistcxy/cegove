@@ -1,0 +1,46 @@
+# Ignore
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Virtual environment
+.venv/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Local database
+*.db
+*.sqlite3
+
+# Env files (will be passed at runtime)
+.env
+.env.local
+.env.example
+
+# Docs
+*.md
+LICENSE
+
+# Tests
+tests/
+pytest.ini
+.coverage
+htmlcov/
