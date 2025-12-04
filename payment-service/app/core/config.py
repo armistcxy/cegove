@@ -9,9 +9,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str = ""
     VNPAY_TMN_CODE: str = ""
     VNPAY_HASH_SECRET: str = ""
-    VNPAY_PAYMENT_URL: str = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
-    VNPAY_RETURN_URL: str = "http://localhost:8000/static/demo.html"
-    VNPAY_IPN_URL: str = "http://localhost:8000/api/v1/webhooks/vnpay/ipn"
+    VNPAY_PAYMENT_URL: str = ""
+    VNPAY_RETURN_URL: str = ""
+    VNPAY_IPN_URL: str = ""
 
     # Pydantic settings format
     model_config = SettingsConfigDict(

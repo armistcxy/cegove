@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VNPay Payment Flow Test</title>
+    <title>VNPay Payment Response</title>
     <style>
         * {
             margin: 0;
@@ -12,7 +12,7 @@
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #ffffff;
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -23,13 +23,13 @@
             background: white;
             border-radius: 12px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            max-width: 600px;
+            max-width: 700px;
             width: 100%;
             padding: 40px;
         }
         h1 {
             color: #333;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
             font-size: 28px;
         }
         .subtitle {
@@ -37,31 +37,64 @@
             margin-bottom: 30px;
             font-size: 14px;
         }
-        .form-group {
-            margin-bottom: 20px;
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 30px;
         }
-        label {
-            display: block;
+        .status-badge.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status-badge.failed {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status-badge.pending {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .transactions-section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .transaction-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .transaction-row:last-child {
+            border-bottom: none;
+        }
+        .transaction-label {
+            font-weight: 600;
             color: #555;
-            font-weight: 500;
-            margin-bottom: 8px;
-            font-size: 14px;
+            width: 40%;
+            word-break: break-word;
         }
-        input {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 6px;
-            font-size: 14px;
-            transition: border-color 0.3s;
+        .transaction-value {
+            color: #333;
+            text-align: right;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
         }
-        input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        .button-group {
+            display: flex;
+            gap: 10px;
         }
         button {
-            width: 100%;
+            flex: 1;
             padding: 14px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -71,6 +104,7 @@
             font-weight: 600;
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
+            text-decoration: none;
         }
         button:hover {
             transform: translateY(-2px);
@@ -79,258 +113,120 @@
         button:active {
             transform: translateY(0);
         }
-        .status-section {
-            margin-top: 40px;
-            padding-top: 30px;
-            border-top: 2px solid #f0f0f0;
-        }
-        .status-title {
-            color: #333;
-            font-weight: 600;
-            margin-bottom: 15px;
-            font-size: 16px;
-        }
-        .status-item {
-            padding: 12px;
-            margin-bottom: 10px;
-            border-radius: 6px;
-            background: #f5f5f5;
-            border-left: 4px solid #ddd;
-            font-size: 13px;
-            color: #666;
-        }
-        .status-item.active {
-            background: #e8f5e9;
-            border-left-color: #4caf50;
-            color: #2e7d32;
-            font-weight: 500;
-        }
-        .status-item.completed {
-            background: #e3f2fd;
-            border-left-color: #2196f3;
-            color: #1565c0;
-            font-weight: 500;
-        }
-        .status-item.error {
-            background: #ffebee;
-            border-left-color: #f44336;
-            color: #c62828;
-            font-weight: 500;
-        }
-        .info-box {
-            background: #f0f7ff;
-            border: 1px solid #b3d9ff;
-            border-radius: 6px;
-            padding: 12px;
-            margin-bottom: 20px;
-            font-size: 13px;
-            color: #0066cc;
-            line-height: 1.5;
-        }
-        .payment-id {
-            background: #f0f0f0;
-            padding: 8px 12px;
-            border-radius: 4px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            margin-top: 8px;
-            word-break: break-all;
-        }
-        .spinner {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border: 2px solid #f0f0f0;
-            border-top: 2px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 8px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .api-base {
-            font-size: 12px;
+        .no-data {
             color: #999;
-            padding: 10px;
-            background: #fafafa;
-            border-radius: 4px;
-            margin-bottom: 20px;
-            font-family: monospace;
-            word-break: break-all;
+            text-align: center;
+            padding: 40px 20px;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🏦 VNPay Payment Flow</h1>
-        <p class="subtitle">Test the complete payment flow</p>
+    <div class="container" id="mainContainer">
+        <h1>💳 Payment Response</h1>
+        <p class="subtitle">VNPay Transaction Details</p>
 
-        <div class="api-base">
-            API Base: <span id="apiBase">http://localhost:8000</span>
+        <div id="statusBadge"></div>
+
+        <div class="transactions-section" id="transactionsSection">
+            <div class="no-data">No payment data received</div>
         </div>
 
-        <div class="info-box">
-            <strong>ℹ️ How it works:</strong><br>
-            1. Enter booking ID and amount<br>
-            2. Create payment (generates payment URL)<br>
-            3. You'll be redirected to VNPay<br>
-            4. After payment, check status to see if IPN updated DB
-        </div>
-
-        <form id="paymentForm">
-            <div class="form-group">
-                <label for="bookingId">Booking ID *</label>
-                <input type="number" id="bookingId" placeholder="e.g., 123" required>
-            </div>
-
-            <div class="form-group">
-                <label for="amount">Amount (VND) *</label>
-                <input type="number" id="amount" placeholder="e.g., 100000" required>
-            </div>
-
-            <div class="form-group">
-                <label for="provider">Payment Provider *</label>
-                <input type="text" id="provider" placeholder="e.g., vnpay" value="vnpay" required>
-            </div>
-
-            <button type="submit">Create Payment & Go to VNPay</button>
-        </form>
-
-        <div class="status-section">
-            <div class="status-title">Payment Flow Status</div>
-            <div id="statusContainer"></div>
+        <div class="button-group">
+            <button onclick="window.location.href='/docs'">📚 View API Docs</button>
         </div>
     </div>
 
     <script>
-        const API_BASE = "http://localhost:8000";
-        let currentPaymentId = null;
-        let statusCheckInterval = null;
-
-        document.getElementById("apiBase").textContent = API_BASE;
-
-        // Get payment ID from URL params (after VNPay redirect)
         const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has("payment_id")) {
-            currentPaymentId = urlParams.get("payment_id");
-            addStatus("VNPay Redirect", `Returned with payment_id: ${currentPaymentId}`, "completed");
-            startStatusChecking();
+        
+        // Check if we have VNPay response parameters
+        if (urlParams.has("vnp_ResponseCode")) {
+            displayPaymentResponse();
+        } else {
+            displayNoData();
         }
 
-        function addStatus(step, message, type = "active") {
-            const container = document.getElementById("statusContainer");
-            const item = document.createElement("div");
-            item.className = `status-item ${type}`;
-            
-            let icon = "⏳";
-            if (type === "completed") icon = "✅";
-            if (type === "error") icon = "❌";
-            if (type === "active") icon = `<span class="spinner"></span>`;
+        function displayPaymentResponse() {
+            const params = {};
+            urlParams.forEach((value, key) => {
+                params[key] = value;
+            });
 
-            item.innerHTML = `${icon} <strong>${step}:</strong> ${message}`;
-            container.appendChild(item);
-        }
+            const responseCode = params.vnp_ResponseCode;
+            const statusBadgeDiv = document.getElementById("statusBadge");
+            const transactionsSection = document.getElementById("transactionsSection");
 
-        function clearStatus() {
-            document.getElementById("statusContainer").innerHTML = "";
-        }
+            // Determine status
+            let statusClass = "pending";
+            let statusText = "Pending";
+            let statusIcon = "⏳";
 
-        document.getElementById("paymentForm").addEventListener("submit", async (e) => {
-            e.preventDefault();
-            clearStatus();
-            currentPaymentId = null;
-
-            const bookingId = document.getElementById("bookingId").value;
-            const amount = document.getElementById("amount").value;
-            const provider = document.getElementById("provider").value;
-
-            try {
-                addStatus("Step 1", "Creating payment...", "active");
-
-                const response = await fetch(`${API_BASE}/api/v1/payments`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        booking_id: parseInt(bookingId),
-                        amount: parseFloat(amount),
-                        provider: provider,
-                        client_ip: "127.0.0.1"
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`API Error: ${response.status}`);
-                }
-
-                const data = await response.json();
-                currentPaymentId = data.payment.id;
-
-                addStatus("Step 1", `Payment created (ID: ${currentPaymentId})`, "completed");
-                addStatus("Step 2", `Redirecting to VNPay...`, "active");
-
-                // Add payment ID to return URL
-                const returnUrl = new URL(window.location.href);
-                returnUrl.searchParams.set("payment_id", currentPaymentId);
-
-                setTimeout(() => {
-                    window.location.href = data.url;
-                }, 1500);
-
-            } catch (error) {
-                addStatus("Error", error.message, "error");
+            if (responseCode === "00") {
+                statusClass = "success";
+                statusText = "Success";
+                statusIcon = "✅";
+            } else if (responseCode === "24") {
+                statusClass = "failed";
+                statusText = "Cancelled by Customer";
+                statusIcon = "❌";
+            } else {
+                statusClass = "failed";
+                statusText = "Failed";
+                statusIcon = "❌";
             }
-        });
 
-        async function checkPaymentStatus() {
-            if (!currentPaymentId) return;
+            statusBadgeDiv.innerHTML = `<div class="status-badge ${statusClass}">${statusIcon} ${statusText}</div>`;
 
-            try {
-                const response = await fetch(`${API_BASE}/api/v1/payments/${currentPaymentId}`);
-                
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch payment status`);
+            // Build transaction details
+            const displayParams = [
+                { label: "Transaction ID (TxnRef)", key: "vnp_TxnRef" },
+                { label: "Response Code", key: "vnp_ResponseCode" },
+                { label: "Amount", key: "vnp_Amount", format: "amount" },
+                { label: "Bank Code", key: "vnp_BankCode" },
+                { label: "Card Type", key: "vnp_CardType" },
+                { label: "TMN Code", key: "vnp_TmnCode" },
+                { label: "Pay Date", key: "vnp_PayDate", format: "date" },
+                { label: "Transaction No", key: "vnp_TransactionNo" },
+                { label: "Transaction Status", key: "vnp_TransactionStatus" },
+                { label: "Order Info", key: "vnp_OrderInfo" },
+                { label: "Secure Hash", key: "vnp_SecureHash", format: "hash" },
+            ];
+
+            let html = "";
+            displayParams.forEach(param => {
+                if (params[param.key]) {
+                    let value = params[param.key];
+                    
+                    if (param.format === "amount") {
+                        const amount = (parseInt(value) / 100).toLocaleString('vi-VN');
+                        value = `${amount} VND`;
+                    } else if (param.format === "date") {
+                        const dateStr = value;
+                        const year = dateStr.substring(0, 4);
+                        const month = dateStr.substring(4, 6);
+                        const day = dateStr.substring(6, 8);
+                        const hour = dateStr.substring(8, 10);
+                        const minute = dateStr.substring(10, 12);
+                        const second = dateStr.substring(12, 14);
+                        value = `${day}/${month}/${year} ${hour}:${minute}:${second}`;
+                    }
+                    
+                    html += `
+                        <div class="transaction-row">
+                            <div class="transaction-label">${param.label}</div>
+                            <div class="transaction-value">${value}</div>
+                        </div>
+                    `;
                 }
+            });
 
-                const data = await response.json();
-                const status = data.status;
-
-                if (status === "pending") {
-                    addStatus("Step 4", `⏳ Waiting for IPN callback...`, "active");
-                } else if (status === "success") {
-                    addStatus("Step 4", `IPN received and processed!`, "completed");
-                    addStatus("Step 5", `✅ Payment successful`, "completed");
-                    stopStatusChecking();
-                } else if (status === "failed") {
-                    addStatus("Step 4", `❌ Payment failed`, "error");
-                    stopStatusChecking();
-                }
-            } catch (error) {
-                console.error("Status check error:", error);
-            }
+            transactionsSection.innerHTML = html || '<div class="no-data">No transaction details available</div>';
         }
 
-        function startStatusChecking() {
-            addStatus("Step 3", "Monitoring payment status (checking every 2s)...", "active");
-            checkPaymentStatus();
-            statusCheckInterval = setInterval(checkPaymentStatus, 2000);
+        function displayNoData() {
+            document.getElementById("statusBadge").innerHTML = '<div class="status-badge pending">⏳ Waiting for Payment</div>';
+            document.getElementById("transactionsSection").innerHTML = '<div class="no-data">No payment response received yet. Complete a payment to see details here.</div>';
         }
-
-        function stopStatusChecking() {
-            if (statusCheckInterval) {
-                clearInterval(statusCheckInterval);
-                statusCheckInterval = null;
-            }
-        }
-
-        // Auto-stop checking after 5 minutes
-        setTimeout(() => {
-            stopStatusChecking();
-            addStatus("Timeout", "Payment check stopped after 5 minutes", "error");
-        }, 5 * 60 * 1000);
     </script>
 </body>
 </html>
