@@ -1,0 +1,130 @@
+syntax = "proto3";
+
+package notification;
+option go_package = "github.com/armistcxy/cegove/notification-service/api;notification";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+import "notification.proto";
+import "google/api/annotations.proto";
+
+// Requests and responses for NotificationService
+
+message GetTemplateRequest {
+  int64 id = 1;
+}
+
+message DeleteRequest {
+  int64 id = 1;
+}
+
+message ListTemplatesResponse {
+  repeated NotificationTemplate templates = 1;
+}
+
+message ScheduleNotificationRequest {
+  int64 template_id = 1;
+  repeated string recipients = 2;
+  map<string, google.protobuf.Value> dynamic_data = 3;
+  google.protobuf.Timestamp schedule_at = 4;
+}
+
+message ListDueScheduledRequest {
+  google.protobuf.Timestamp now = 1;
+}
+
+message ListScheduledNotificationsResponse {
+  repeated ScheduledNotification notifications = 1;
+}
+
+message MarkScheduledRequest {
+  int64 id = 1;
+  google.protobuf.Timestamp sent_at = 2;
+}
+
+message SendNotificationRequest {
+  repeated string to = 1;
+  string subject = 2;
+  string body = 3;
+}
+
+message SendNotificationResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message SendBatchNotificationRequest {
+  repeated SendNotificationRequest notifications = 1;
+}
+
+message SendBatchNotificationResponse {
+  repeated SendNotificationResponse results = 1;
+}
+
+service NotificationService {
+  rpc CreateTemplate(NotificationTemplate) returns (NotificationTemplate) {
+    option (google.api.http) = {
+      post: "/v1/templates"
+      body: "*"
+    };
+  }
+  rpc GetTemplate(GetTemplateRequest) returns (NotificationTemplate) {
+    option (google.api.http) = {
+      get: "/v1/templates/{id}"
+    };
+  }
+  rpc ListTemplates(google.protobuf.Empty) returns (ListTemplatesResponse) {
+    option (google.api.http) = {
+      get: "/v1/templates"
+    };
+  }
+  rpc UpdateTemplate(NotificationTemplate) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      put: "/v1/templates/{id}"
+      body: "*"
+    };
+  }
+  rpc DeleteTemplate(DeleteRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      delete: "/v1/templates/{id}"
+    };
+  }
+
+  rpc ScheduleNotification(ScheduleNotificationRequest) returns (ScheduledNotification) {
+    option (google.api.http) = {
+      post: "/v1/notifications/schedule"
+      body: "*"
+    };
+  }
+  rpc ListDueScheduled(ListDueScheduledRequest) returns (ListScheduledNotificationsResponse) {
+    option (google.api.http) = {
+      get: "/v1/notifications/due"
+    };
+  }
+  rpc MarkScheduledSent(MarkScheduledRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      patch: "/v1/notifications/{id}/sent"
+      body: "*"
+    };
+  }
+
+  rpc SendNotification(SendNotificationRequest) returns (SendNotificationResponse) {
+    option (google.api.http) = {
+      post: "/v1/notifications/send"
+      body: "*"
+    };
+  }
+  rpc SendBatchNotification(SendBatchNotificationRequest) returns (SendBatchNotificationResponse) {
+    option (google.api.http) = {
+      post: "/v1/notifications/send/batch"
+      body: "*"
+    };
+  }
+  rpc SendSMS(SendSMSRequest) returns (SendSMSResponse) {
+    option (google.api.http) = {
+      post: "/v1/notifications/sms/send"
+      body: "*"
+    };
+  }
+}
