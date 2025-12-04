@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package notification;
+option go_package = "github.com/armistcxy/cegove/notification-service/api;notification";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+// NotificationTemplate represents a stored notification template.
+message NotificationTemplate {
+  int64 id = 1;
+  string name = 2;
+  string notification_type = 3;
+  string channel = 4;
+  string subject_template = 5;
+  string html_body_template = 6;
+  string sms_body_template = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+// ScheduledNotification represents a notification scheduled for later sending.
+message ScheduledNotification {
+  int64 id = 1;
+  int64 template_id = 2;
+  repeated string recipients = 3;
+  map<string, google.protobuf.Value> dynamic_data = 4;
+  google.protobuf.Timestamp schedule_at = 5;
+  bool is_sent = 6;
+  google.protobuf.Timestamp sent_at = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+message SendSMSRequest {
+  string to = 1; 
+  string body = 2;
+}
+
+message SendSMSResponse {
+  bool success = 1;
+  string message = 2;
+}
