@@ -6,15 +6,14 @@ from app.services.payment_service import PaymentService
 router = APIRouter(prefix="/api/v1/webhooks/vnpay", tags=["VNPAY Webhook"])
 service = PaymentService()
 
-@router.post("/ipn")
+@router.get("/ipn")
 async def vnpay_ipn(request: Request, db: AsyncSession = Depends(get_db)):
     params = dict(request.query_params)
-    ok = await service.handle_ipn(db, params)
+    print(f"IPN received with params: {params}")
+    resp_code, message = await service.handle_ipn(db, params)
+    print(f"IPN response: {resp_code} - {message}")
 
-    if ok:
-        return {"RspCode": "00", "Message": "Success"}
-    else:
-        return {"RspCode": "97", "Message": "Failure"}
+    return {"RspCode": resp_code, "Message": message}
 
 @router.get("/return")
 async def vnpay_return(request: Request):
