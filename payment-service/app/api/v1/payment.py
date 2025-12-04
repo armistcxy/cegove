@@ -21,3 +21,15 @@ async def get_payment(payment_id: int, db: AsyncSession = Depends(get_db)):
 @router.get("/", tags=["Payments"])
 async def list_payments(page: int = 1, per_page: int = 20, db: AsyncSession = Depends(get_db)):
     return await service.list_payments(db, page, per_page)
+
+@router.post("/{payment_id}/query", tags=["Payments"])
+async def query_payment_status(payment_id: int, db: AsyncSession = Depends(get_db)):
+    """Query VNPay for payment status and update database"""
+    payment, message = await service.query_and_update_payment(db, payment_id)
+    if not payment:
+        raise HTTPException(404, message)
+    return {
+        "payment": payment,
+        "message": message
+    }
+

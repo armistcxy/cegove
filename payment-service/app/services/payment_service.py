@@ -2,13 +2,16 @@ from app.repositories.payment_repository import PaymentRepository
 from app.schema.payment import PaymentCreate, PaymentInitResponse, PaymentOut
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.payment_providers.provider_factory import PaymentProviderFactory
+from app.core.config import settings
+import httpx
+import asyncio
 
 class PaymentService:
     def __init__(self):
         self.repo = PaymentRepository()
+        self.booking_webhook_url = settings.BOOKING_WEBHOOK_URL
     
     async def create_payment(self, db: AsyncSession, data: PaymentCreate):
-        print("=" * 100)
         payment = await self.repo.create_payment(db, data)
 
 
@@ -31,6 +34,93 @@ class PaymentService:
     
     async def list_payments(self, db: AsyncSession, page: int, per_page: int):
         return await self.repo.get_payment_list(db, page, per_page)
+    
+    async def query_and_update_payment(self, db: AsyncSession, payment_id: int):
+        """Query VNPay for payment status and update database"""
+        payment = await self.repo.get_payment_by_id(db, payment_id)
+        if not payment:
+            return None, "Payment not found"
+        
+        # Don't query if already successful
+        if payment.status == "success":
+            return payment, "Already successful"
+        
+        provider = PaymentProviderFactory.get_provider(payment.provider)
+        
+        # Get transaction date from payment record
+        transaction_date = payment.transaction_time.strftime("%Y%m%d%H%M%S")
+        
+        # Query VNPay
+        result = await provider.query_payment(payment.id, transaction_date)
+        
+        if not result or result.get("vnp_ResponseCode") != "00":
+            return payment, f"Query failed: {result.get('vnp_Message', 'Unknown error')}"
+        
+        # Check transaction status
+        transaction_status = result.get("vnp_TransactionStatus")
+        
+        if transaction_status == "00":
+            payment.status = "success"
+            payment_status = "SUCCESS"
+        else:
+            payment.status = "failed"
+            payment_status = "FAILED"
+        
+        await db.commit()
+        
+        print("=" * 100)
+        print(f"💳 PAYMENT QUERIED & UPDATED")
+        print(f"   Payment ID: {payment.id}")
+        print(f"   Booking ID: {payment.booking_id}")
+        print(f"   Status: {payment_status}")
+        print(f"   Transaction Status: {transaction_status}")
+        print(f"   Amount: {payment.amount} VND")
+        print("=" * 100)
+        
+        # Notify booking service
+        asyncio.create_task(
+            self.notify_booking_service(
+                booking_id=payment.booking_id,
+                payment_status=payment_status,
+                transaction_id=payment.id
+            )
+        )
+        
+        return payment, "Updated successfully"
+    
+    async def notify_booking_service(self, booking_id: int, payment_status: str, transaction_id: int):
+        """Send webhook to booking service about payment status"""
+        payload = {
+            "booking_id": str(booking_id),
+            "payment_status": payment_status,  # "SUCCESS" or "FAILED"
+            "transaction_id": str(transaction_id)
+        }
+        
+        print("=" * 100)
+        print(f"   WEBHOOK TO BOOKING SERVICE")
+        print(f"   URL: {self.booking_webhook_url}")
+        print(f"   Payload: {payload}")
+        
+        try:
+            async with httpx.AsyncClient(timeout=10.0, verify=False) as client:
+                response = await client.post(
+                    self.booking_webhook_url,
+                    json=payload,
+                    headers={"Content-Type": "application/json"}
+                )
+                
+                if response.status_code == 200:
+                    print(f"   Status: SUCCESS (200)")
+                    print(f"   Response: {response.text}")
+                else:
+                    print(f"   Status: FAILED ({response.status_code})")
+                    print(f"   Response: {response.text}")
+                    
+        except Exception as e:
+            print(f"   Status: ERROR")
+            print(f"   Error: {e}")
+        
+        print("=" * 100)
     
     async def handle_ipn(self, db, params: dict):
         payment_id_guess = params.get("vnp_TxnRef") \
@@ -67,10 +157,33 @@ class PaymentService:
         # 6) Update payment status
         if provider.is_success(params):
             payment.status = "success"
+            payment_status = "SUCCESS"
         else:
             payment.status = "failed"
+            payment_status = "FAILED"
 
         await db.commit()
+
+        print("=" * 100)
+        print(f"   PAYMENT PROCESSED")
+        print(f"   Payment ID: {payment.id}")
+        print(f"   Booking ID: {payment.booking_id}")
+        print(f"   Status: {payment_status}")
+        print(f"   Amount: {payment.amount} VND")
+        print(f"   Provider: {payment.provider}")
+        print(f"   Sending webhook with data:")
+        print(f"      - booking_id: {payment.booking_id}")
+        print(f"      - payment_status: {payment_status}")
+        print(f"      - transaction_id: {payment.id}")
+        print("=" * 100)
+
+        asyncio.create_task(
+            self.notify_booking_service(
+                booking_id=payment.booking_id,
+                payment_status=payment_status,
+                transaction_id=payment.id
+            )
+        )
 
         return "00", "Confirm Success"
 

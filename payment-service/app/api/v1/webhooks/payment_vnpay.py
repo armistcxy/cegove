@@ -16,9 +16,19 @@ async def vnpay_ipn(request: Request, db: AsyncSession = Depends(get_db)):
     return {"RspCode": resp_code, "Message": message}
 
 @router.get("/return")
-async def vnpay_return(request: Request):
+async def vnpay_return(request: Request, db: AsyncSession = Depends(get_db)):
     params = dict(request.query_params)
-    if params.get("vnp_ResponseCode") == "00":
-        return {"message": "Payment success. Waiting for confirmation."}
-    else:
-        return {"message": "Payment failed."}
+    print(f"Return URL called with params: {params}")
+    
+    # If payment failed/cancelled, update the status
+    if params.get("vnp_ResponseCode") != "00":
+        txn_ref = params.get("vnp_TxnRef")
+        if txn_ref:
+            resp_code, message = await service.handle_ipn(db, params)
+            print(f"Return URL - Payment updated: {resp_code} - {message}")
+    
+    # Redirect to demo page with all params
+    from fastapi.responses import RedirectResponse
+    query_string = request.url.query
+    return RedirectResponse(url=f"/static/demo.html?{query_string}")
+

@@ -5,6 +5,7 @@ from app.core.config import settings
 import urllib
 import hmac
 import hashlib
+import httpx
 from datetime import datetime, timezone, timedelta
 
 class VNPayProvider(PaymentProvider):
@@ -14,6 +15,7 @@ class VNPayProvider(PaymentProvider):
         self.payment_url = settings.VNPAY_PAYMENT_URL
         self.return_url = settings.VNPAY_RETURN_URL
         self.ipn_url = settings.VNPAY_IPN_URL
+        self.query_url = settings.VNPAY_QUERY_URL
     
     def extract_payment_id(self, params: dict) -> int:
         return int(params["vnp_TxnRef"])
@@ -81,4 +83,66 @@ class VNPayProvider(PaymentProvider):
         print("=" * 80)
         
         return payment_url
+
+    async def query_payment(self, payment_id: int, transaction_date: str, request_id: str = None) -> dict:
+        """
+        Query VNPay to check payment status
+        transaction_date format: YYYYMMDDHHmmss (e.g., "20231204151134")
+        """
+        vn_tz = timezone(timedelta(hours=7))
+        create_date = datetime.now(vn_tz).strftime("%Y%m%d%H%M%S")
+        
+        # Generate unique request ID if not provided
+        if not request_id:
+            request_id = create_date + str(payment_id)
+        
+        # Build hash data according to VNPay spec
+        hash_data = "|".join([
+            request_id,
+            "2.1.0",
+            "querydr",
+            self.tmn_code,
+            str(payment_id),
+            transaction_date,
+            create_date,
+            "127.0.0.1",
+            f"Query payment {payment_id}"
+        ])
+        
+        secure_hash = hmac.new(
+            self.secret_key.encode(),
+            hash_data.encode(),
+            hashlib.sha256
+        ).hexdigest()
+        
+        payload = {
+            "vnp_RequestId": request_id,
+            "vnp_Version": "2.1.0",
+            "vnp_Command": "querydr",
+            "vnp_TmnCode": self.tmn_code,
+            "vnp_TxnRef": str(payment_id),
+            "vnp_OrderInfo": f"Query payment {payment_id}",
+            "vnp_TransactionDate": transaction_date,
+            "vnp_CreateDate": create_date,
+            "vnp_IpAddr": "127.0.0.1",
+            "vnp_SecureHash": secure_hash
+        }
+        
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    self.query_url,
+                    json=payload,
+                    headers={"Content-Type": "application/json"}
+                )
+                result = response.json()
+                
+                print("=" * 80)
+                print(f"VNPay Query Response: {result}")
+                print("=" * 80)
+                
+                return result
+        except Exception as e:
+            print(f"Error querying VNPay: {e}")
+            return {}
 
