@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VNPay Payment Response</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 700px;
+            width: 100%;
+            padding: 40px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 5px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+        .status-badge.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status-badge.failed {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status-badge.pending {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .transactions-section {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .transaction-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .transaction-row:last-child {
+            border-bottom: none;
+        }
+        .transaction-label {
+            font-weight: 600;
+            color: #555;
+            width: 40%;
+            word-break: break-word;
+        }
+        .transaction-value {
+            color: #333;
+            text-align: right;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            flex: 1;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-decoration: none;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .no-data {
+            color: #999;
+            text-align: center;
+            padding: 40px 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="mainContainer">
+        <h1>💳 Payment Response</h1>
+        <p class="subtitle">VNPay Transaction Details</p>
+
+        <div id="statusBadge"></div>
+
+        <div class="transactions-section" id="transactionsSection">
+            <div class="no-data">No payment data received</div>
+        </div>
+
+        <div class="button-group">
+            <button onclick="window.location.href='/docs'">📚 View API Docs</button>
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        // Check if we have VNPay response parameters
+        if (urlParams.has("vnp_ResponseCode")) {
+            displayPaymentResponse();
+        } else {
+            displayNoData();
+        }
+
+        function displayPaymentResponse() {
+            const params = {};
+            urlParams.forEach((value, key) => {
+                params[key] = value;
+            });
+
+            const responseCode = params.vnp_ResponseCode;
+            const statusBadgeDiv = document.getElementById("statusBadge");
+            const transactionsSection = document.getElementById("transactionsSection");
+
+            // Determine status
+            let statusClass = "pending";
+            let statusText = "Pending";
+            let statusIcon = "⏳";
+
+            if (responseCode === "00") {
+                statusClass = "success";
+                statusText = "Success";
+                statusIcon = "✅";
+            } else if (responseCode === "24") {
+                statusClass = "failed";
+                statusText = "Cancelled by Customer";
+                statusIcon = "❌";
+            } else {
+                statusClass = "failed";
+                statusText = "Failed";
+                statusIcon = "❌";
+            }
+
+            statusBadgeDiv.innerHTML = `<div class="status-badge ${statusClass}">${statusIcon} ${statusText}</div>`;
+
+            // Build transaction details
+            const displayParams = [
+                { label: "Transaction ID (TxnRef)", key: "vnp_TxnRef" },
+                { label: "Response Code", key: "vnp_ResponseCode" },
+                { label: "Amount", key: "vnp_Amount", format: "amount" },
+                { label: "Bank Code", key: "vnp_BankCode" },
+                { label: "Card Type", key: "vnp_CardType" },
+                { label: "TMN Code", key: "vnp_TmnCode" },
+                { label: "Pay Date", key: "vnp_PayDate", format: "date" },
+                { label: "Transaction No", key: "vnp_TransactionNo" },
+                { label: "Transaction Status", key: "vnp_TransactionStatus" },
+                { label: "Order Info", key: "vnp_OrderInfo" },
+                { label: "Secure Hash", key: "vnp_SecureHash", format: "hash" },
+            ];
+
+            let html = "";
+            displayParams.forEach(param => {
+                if (params[param.key]) {
+                    let value = params[param.key];
+                    
+                    if (param.format === "amount") {
+                        const amount = (parseInt(value) / 100).toLocaleString('vi-VN');
+                        value = `${amount} VND`;
+                    } else if (param.format === "date") {
+                        const dateStr = value;
+                        const year = dateStr.substring(0, 4);
+                        const month = dateStr.substring(4, 6);
+                        const day = dateStr.substring(6, 8);
+                        const hour = dateStr.substring(8, 10);
+                        const minute = dateStr.substring(10, 12);
+                        const second = dateStr.substring(12, 14);
+                        value = `${day}/${month}/${year} ${hour}:${minute}:${second}`;
+                    }
+                    
+                    html += `
+                        <div class="transaction-row">
+                            <div class="transaction-label">${param.label}</div>
+                            <div class="transaction-value">${value}</div>
+                        </div>
+                    `;
+                }
+            });
+
+            transactionsSection.innerHTML = html || '<div class="no-data">No transaction details available</div>';
+        }
+
+        function displayNoData() {
+            document.getElementById("statusBadge").innerHTML = '<div class="status-badge pending">⏳ Waiting for Payment</div>';
+            document.getElementById("transactionsSection").innerHTML = '<div class="no-data">No payment response received yet. Complete a payment to see details here.</div>';
+        }
+    </script>
+</body>
+</html>
