@@ -66,4 +66,11 @@ public class CinemaService {
                 .map(Cinema::convertToDTO)
                 .toList();
     }
+
+    public List<CinemaResponse> getCinemasByCity(String city) {
+        List<Cinema> cinemas = reposistory.findByCityIgnoreCase(city);
+        return cinemas.stream()
+                .map(Cinema::convertToDTO)
+                .toList();
+    }
 }
