@@ -11,3 +11,12 @@ export async function getUserProfile(token: string) {
         }
     });
 }
+
+export async function updateUserProfile(token: string, formData: FormData) {
+    return await api.put('/profile', formData, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+        }
+    });
+}
