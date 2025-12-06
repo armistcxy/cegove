@@ -1,6 +1,7 @@
 package com.spring.userservice.Models;
 
 import com.spring.userservice.DTOs.UserDTO;
+import com.spring.userservice.DTOs.UserPartDTO;
 import com.spring.userservice.Enums.Gender;
 import com.spring.userservice.Enums.Provider;
 import com.spring.userservice.Enums.UserRole;
@@ -118,5 +119,14 @@ public class User implements UserDetails {
                 .city(getCity())
                 .img(getImg())
                 .createdAt(getCreatedAt()).build();
+    }
+
+    public UserPartDTO convertToPartDTO() {
+        return UserPartDTO.builder()
+                .id(getId())
+                .fullName(getFullName())
+                .email(getEmail())
+                .img(getImg())
+                .build();
     }
 }

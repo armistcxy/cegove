@@ -8,6 +8,7 @@ import com.spring.userservice.Exceptions.UserAlreadyExistedException;
 import com.spring.userservice.Services.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -24,6 +25,7 @@ public class UserController {
     private UserService service;
 
     @GetMapping("/profile")
+    @PreAuthorize("hasAnyAuthority('USER', 'LOCAL_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<?> getProfile() {
         try {
             return ResponseEntity.ok(service.profile());
@@ -46,6 +48,7 @@ public class UserController {
     }
 
     @PutMapping("/profile")
+    @PreAuthorize("hasAnyAuthority('USER', 'LOCAL_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<?> updateProfile(@ModelAttribute UserDTO userDTO) {
         try {
             service.updateProfile(userDTO);
@@ -64,6 +67,7 @@ public class UserController {
     }
 
     @PutMapping("/password")
+    @PreAuthorize("hasAnyAuthority('USER', 'LOCAL_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<?> changePassword(@RequestBody ChangePasswordForm form) {
         try {
             service.changePassword(form);
@@ -80,6 +84,7 @@ public class UserController {
     }
 
     @GetMapping("/booking-history")
+    @PreAuthorize("hasAnyAuthority('USER', 'LOCAL_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<?> getBookingHistory() {
         try {
             return ResponseEntity.ok(service.bookingHistory());
