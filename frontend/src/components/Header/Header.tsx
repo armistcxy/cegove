@@ -14,14 +14,14 @@ export default function Header() {
       <div className="header-mini">
           {isLoggedIn ? (
               <ul className="flex items-center gap-6">
-                  <li className="flex items-center gap-2">
+                  {/* <li className="flex items-center gap-2">
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                       </svg>
                       <Link to="/promotions" className="hover:text-red-600 transition">
                           TIN MỚI & ƯU ĐÃI
                       </Link>
-                  </li>
+                  </li> */}
                   <li className="flex items-center gap-2">
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
@@ -74,29 +74,29 @@ export default function Header() {
             <li className="hover-effect">
               phim
               <ul className="child-menu">
-                <li><Link to="/movie" className="hover-red">Phim đang chiếu</Link></li>
-                <li><Link to="/NotAvailable" className="hover-red">Phim sắp chiếu</Link></li>
+                <li><Link to="/movie" className="hover-red">Danh sách phim</Link></li>
+                <li><Link to="/NotAvailable" className="hover-red">Dành cho bạn</Link></li>
               </ul> 
             </li>
             <li className="hover-effect">
               rạp cgv
               <ul className="child-menu">
-                <li><Link to="/NotAvailable" className="hover-red">Tất cả các rạp</Link></li>
-                <li><Link to="/NotAvailable" className="hover-red">Rạp đặc biệt</Link></li>
-                <li><Link to="/NotAvailable" className="hover-red">Rạp sắp mở</Link></li>
+                <li><Link to="/cinema" className="hover-red">Tất cả các rạp</Link></li>
+                {/* <li><Link to="/NotAvailable" className="hover-red">Rạp đặc biệt</Link></li>
+                <li><Link to="/NotAvailable" className="hover-red">Rạp sắp mở</Link></li> */}
               </ul>
             </li> 
             <li className="hover-effect">
               thành viên
               <ul className="child-menu">
                 <li><Link to="/profile" className="hover-red">Tài khoản CGV</Link></li>
-                <li><Link to="/NotAvailable" className="hover-red">Quyền lợi</Link></li>
+                {/* <li><Link to="/NotAvailable" className="hover-red">Quyền lợi</Link></li> */}
               </ul>
             </li>
           </ul>
 
           <div className="search-buy-infor">
-            <Link to="/NotAvailable" className="mua-ve"><img src={muaVeNgay} alt="" /></Link>
+            <Link to="/Movie" className="mua-ve"><img src={muaVeNgay} alt="" /></Link>
           </div>
         </div>
       </div>

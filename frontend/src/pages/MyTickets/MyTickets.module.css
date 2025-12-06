@@ -1,0 +1,376 @@
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  min-height: 100vh;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.header h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #e50914;
+  margin-bottom: 10px;
+}
+
+.header p {
+  font-size: 1.1rem;
+  color: #666;
+}
+
+/* Loading State */
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #e50914;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading p {
+  margin-top: 20px;
+  color: #666;
+  font-size: 1.1rem;
+}
+
+/* Empty State */
+.empty {
+  text-align: center;
+  padding: 80px 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.emptyIcon {
+  font-size: 5rem;
+  margin-bottom: 20px;
+}
+
+.empty h2 {
+  font-size: 1.8rem;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.empty p {
+  font-size: 1.1rem;
+  color: #666;
+  margin-bottom: 30px;
+}
+
+.browseButton {
+  display: inline-block;
+  padding: 12px 30px;
+  background: #e50914;
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(229, 9, 20, 0.3);
+}
+
+.browseButton:hover {
+  background: #c40812;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(229, 9, 20, 0.5);
+}
+
+/* Sections */
+.section {
+  margin-bottom: 50px;
+}
+
+.sectionTitle {
+  font-size: 1.8rem;
+  color: #333;
+  margin-bottom: 25px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sectionIcon {
+  font-size: 2rem;
+}
+
+/* Ticket Grid */
+.ticketGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 25px;
+}
+
+/* Ticket Card */
+.ticketCard {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 25px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.ticketCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5px;
+  height: 100%;
+  background: #e50914;
+}
+
+.ticketCard.upcoming::before {
+  background: #e50914;
+}
+
+.ticketCard.past::before {
+  background: #e50914;
+}
+
+.ticketCard:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.ticketCard.past {
+  opacity: 0.8;
+}
+
+/* Ticket Header */
+.ticketHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px dashed #e0e0e0;
+}
+
+.movieTitle {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #333;
+  line-height: 1.3;
+  flex: 1;
+  margin-right: 10px;
+}
+
+.movieTitle.clickable {
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.movieTitle.clickable:hover {
+  color: #e50914;
+  text-decoration: underline;
+}
+
+.detailButton {
+  width: 100%;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #e50914 0%, #b20710 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 16px;
+}
+
+.detailButton:hover {
+  background: linear-gradient(135deg, #ff0a16 0%, #e50914 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(229, 9, 20, 0.4);
+}
+
+.ticketActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.ticketActions .detailButton {
+  flex: 1;
+  margin-top: 0;
+}
+
+.cancelButton {
+  flex: 1;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cancelButton:hover {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+}
+
+.statusBadge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.upcoming .statusBadge {
+  background: #ffe5e5;
+  color: #e50914;
+}
+
+.past .statusBadge {
+  background: #fff0f0;
+  color: #e50914;
+}
+
+/* Ticket Info */
+.ticketInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.infoRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  color: #e50914;
+  margin-top: 2px;
+}
+
+.cinema {
+  font-weight: 600;
+  color: #333;
+  font-size: 1rem;
+  margin-bottom: 4px;
+}
+
+.address {
+  font-size: 0.9rem;
+  color: #666;
+  line-height: 1.4;
+}
+
+.datetime {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.date {
+  font-weight: 600;
+  color: #333;
+  font-size: 1rem;
+}
+
+.time {
+  font-size: 0.95rem;
+  color: #e50914;
+  font-weight: 600;
+}
+
+.bookingDate {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .container {
+    padding: 20px 15px;
+  }
+
+  .header h1 {
+    font-size: 2rem;
+  }
+
+  .header p {
+    font-size: 1rem;
+  }
+
+  .ticketGrid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .sectionTitle {
+    font-size: 1.5rem;
+  }
+
+  .movieTitle {
+    font-size: 1.1rem;
+  }
+
+  .emptyIcon {
+    font-size: 4rem;
+  }
+
+  .empty h2 {
+    font-size: 1.5rem;
+  }
+
+  .empty p {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .ticketCard {
+    padding: 20px;
+  }
+
+  .header h1 {
+    font-size: 1.8rem;
+  }
+
+  .sectionTitle {
+    font-size: 1.3rem;
+  }
+
+  .movieTitle {
+    font-size: 1rem;
+  }
+}

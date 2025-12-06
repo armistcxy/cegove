@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import type { Movie } from "../Movies/MovieLogic.ts";
 import { fetchMovieDetail } from "./MovieDetailLogic.ts";
+import BookingPopup from "../../components/BookingPopup/BookingPopup.tsx";
 import styles from "./MovieDetail.module.css";
 
 export default function MovieDetail() {
@@ -10,6 +11,7 @@ export default function MovieDetail() {
   const [movie, setMovie] = useState<Movie | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isBookingPopupOpen, setIsBookingPopupOpen] = useState(false);
 
   useEffect(() => {
     if (!id) {
@@ -37,7 +39,10 @@ export default function MovieDetail() {
   if (loading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Loading movie details...</div>
+        <div className={styles.loading}>
+          <div className={styles.spinner}></div>
+          <p>Đang tải thông tin phim...</p>
+        </div>
       </div>
     );
   }
@@ -46,13 +51,13 @@ export default function MovieDetail() {
     return (
       <div className={styles.container}>
         <div className={styles.error}>
-          <h2>Error</h2>
+          <h2>Lỗi</h2>
           <p>{error}</p>
           <button 
             className={styles.backButton}
             onClick={() => navigate('/movie')}
           >
-            Back to Movies
+            ← Quay lại danh sách phim
           </button>
         </div>
       </div>
@@ -63,12 +68,12 @@ export default function MovieDetail() {
     return (
       <div className={styles.container}>
         <div className={styles.error}>
-          <h2>Movie not found</h2>
+          <h2>Không tìm thấy phim</h2>
           <button 
             className={styles.backButton}
             onClick={() => navigate('/movie')}
           >
-            Back to Movies
+            ← Quay lại danh sách phim
           </button>
         </div>
       </div>
@@ -81,7 +86,7 @@ export default function MovieDetail() {
         className={styles.backButton}
         onClick={() => navigate('/movie')}
       >
-        ← Back to Movies
+        ← Quay lại danh sách phim
       </button>
       
       <div className={styles.movieDetail}>
@@ -98,40 +103,40 @@ export default function MovieDetail() {
           
           <div className={styles.metadata}>
             <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>Year:</span>
+              <span className={styles.metaLabel}>Năm</span>
               <span className={styles.metaValue}>{movie.released_year}</span>
             </div>
             <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>Runtime:</span>
+              <span className={styles.metaLabel}>Thời lượng</span>
               <span className={styles.metaValue}>{movie.runtime}</span>
             </div>
             <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>Certificate:</span>
+              <span className={styles.metaLabel}>Phân loại</span>
               <span className={styles.metaValue}>{movie.certificate}</span>
             </div>
             <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>IMDb Rating:</span>
+              <span className={styles.metaLabel}>Đánh giá IMDb</span>
               <span className={styles.metaValue}>⭐ {movie.imdb_rating}/10</span>
             </div>
           </div>
           
           <div className={styles.section}>
-            <h3 className={styles.sectionTitle}>Genre</h3>
+            <h3 className={styles.sectionTitle}>Thể loại</h3>
             <p className={styles.genre}>{movie.genre}</p>
           </div>
           
           <div className={styles.section}>
-            <h3 className={styles.sectionTitle}>Overview</h3>
+            <h3 className={styles.sectionTitle}>Tóm tắt</h3>
             <p className={styles.overview}>{movie.overview}</p>
           </div>
           
           <div className={styles.section}>
-            <h3 className={styles.sectionTitle}>Director</h3>
+            <h3 className={styles.sectionTitle}>Đạo diễn</h3>
             <p className={styles.director}>{movie.director}</p>
           </div>
           
           <div className={styles.section}>
-            <h3 className={styles.sectionTitle}>Cast</h3>
+            <h3 className={styles.sectionTitle}>Diễn viên</h3>
             <div className={styles.cast}>
               {[movie.star1, movie.star2, movie.star3, movie.star4]
                 .filter(star => star && star.trim() !== '')
@@ -145,15 +150,26 @@ export default function MovieDetail() {
           </div>
           
           <div className={styles.actions}>
-            <button className={styles.buyButton}>
-              Buy Ticket
+            <button 
+              className={styles.buyButton}
+              onClick={() => setIsBookingPopupOpen(true)}
+            >
+              Mua vé
             </button>
             <button className={styles.watchlistButton}>
-              Add to Watchlist
+              Thêm vào danh sách
             </button>
           </div>
         </div>
       </div>
+
+      {/* Booking Popup */}
+      <BookingPopup 
+        isOpen={isBookingPopupOpen}
+        onClose={() => setIsBookingPopupOpen(false)}
+        movieTitle={movie.series_title}
+        movieId={movie.id}
+      />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import {logout} from "../pages/Auth/Utils/ApiFunction.ts";
 interface UserContextType {
     isLoggedIn: boolean;
     userProfile: any;
+    isLoading: boolean;
     setUserProfile: (user: any) => void;
     setIsLoggedIn: (status: boolean) => void;
     refreshUserProfile: () => Promise<void>;
@@ -17,9 +18,11 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [userProfile, setUserProfile] = useState<any>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
     const refreshUserProfile = async () => {
         const token = localStorage.getItem("access-token");
+        setIsLoading(true);
         if (token) {
             try {
                 const response = await getUserProfile(token);
@@ -31,6 +34,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setUserProfile(null);
             }
         }
+        setIsLoading(false);
     };
 
     const handleLogout = () => {
@@ -48,6 +52,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         <UserContext.Provider value={{
             isLoggedIn,
             userProfile,
+            isLoading,
             setUserProfile,
             setIsLoggedIn,
             refreshUserProfile,

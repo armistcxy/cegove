@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import type { Movie, MoviesResponse } from "./MovieLogic";
-import { fetchMovies } from "./MovieLogic";
+import type { Movie, MoviesResponse, MovieFilters } from "./MovieLogic";
+import { fetchMovies, fetchGenres } from "./MovieLogic";
 import styles from "./Movie.module.css";
 
 export default function Movies() {
@@ -12,10 +12,26 @@ export default function Movies() {
   const [hasMorePages, setHasMorePages] = useState(true);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadedMovieIds, setLoadedMovieIds] = useState<Set<number>>(new Set());
+  
+  // Filter states
+  const [genres, setGenres] = useState<string[]>([]);
+  const [selectedGenre, setSelectedGenre] = useState<string>("");
+  const [minRating, setMinRating] = useState<number | undefined>(undefined);
+  const [maxRating, setMaxRating] = useState<number | undefined>(undefined);
+  const [showFilters, setShowFilters] = useState(false);
+  
   const navigate = useNavigate();
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadingRef = useRef<HTMLDivElement | null>(null);
   const isLoadingRef = useRef(false);
+
+  const getActiveFilters = useCallback((): MovieFilters => {
+    const filters: MovieFilters = {};
+    if (selectedGenre) filters.genre = selectedGenre;
+    if (minRating !== undefined) filters.min_imdb_rating = minRating;
+    if (maxRating !== undefined) filters.max_imdb_rating = maxRating;
+    return filters;
+  }, [selectedGenre, minRating, maxRating]);
 
   const loadMovies = useCallback(async (page: number, isInitial: boolean = false) => {
     // Prevent multiple simultaneous requests
@@ -31,7 +47,8 @@ export default function Movies() {
     setError(null);
     
     try {
-      const response: MoviesResponse = await fetchMovies(page, 24);
+      const filters = getActiveFilters();
+      const response: MoviesResponse = await fetchMovies(page, 24, filters);
       console.log('Fetched movies:', response.items.length, 'total_pages:', response.total_pages);
       
       if (isInitial) {
@@ -68,7 +85,7 @@ export default function Movies() {
       isLoadingRef.current = false;
       console.log('Loading completed');
     }
-  }, []);
+  }, [getActiveFilters]);
 
   const loadMoreMovies = useCallback(() => {
     if (!isLoadingRef.current && hasMorePages && !loading) {
@@ -76,6 +93,32 @@ export default function Movies() {
       loadMovies(currentPage + 1);
     }
   }, [currentPage, hasMorePages, loading, loadMovies]);
+
+  // Load genres on component mount
+  useEffect(() => {
+    const loadGenres = async () => {
+      const genreList = await fetchGenres();
+      setGenres(genreList);
+    };
+    loadGenres();
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    loadMovies(1, true);
+  }, []);
+
+  // Reload movies when filters change
+  useEffect(() => {
+    if (selectedGenre || minRating !== undefined || maxRating !== undefined) {
+      setMovies([]);
+      setLoadedMovieIds(new Set());
+      setCurrentPage(1);
+      setHasMorePages(true);
+      setInitialLoading(true);
+      loadMovies(1, true);
+    }
+  }, [selectedGenre, minRating, maxRating]);
 
   useEffect(() => {
     if (!loadingRef.current || !hasMorePages || loading) return;
@@ -105,12 +148,18 @@ export default function Movies() {
       console.log('Cleaning up intersection observer');
       observer.disconnect();
     };
-  }, [loadMoreMovies, hasMorePages, loading]); 
+  }, [loadMoreMovies, hasMorePages, loading]);
 
+  const handleApplyFilters = () => {
+    // Filters will be applied automatically by the useEffect
+    setShowFilters(false);
+  };
 
-  useEffect(() => {
-    loadMovies(1, true);
-  }, []); 
+  const handleResetFilters = () => {
+    setSelectedGenre("");
+    setMinRating(undefined);
+    setMaxRating(undefined);
+  };
 
   const handleDetailClick = (movieId: number) => {
     navigate(`/MovieDetail/${movieId}`);
@@ -132,6 +181,8 @@ export default function Movies() {
       loadMovies(currentPage + 1);
     }
   };
+
+  const hasActiveFilters = selectedGenre || minRating !== undefined || maxRating !== undefined;
 
   if (initialLoading) {
     return (
@@ -161,7 +212,92 @@ export default function Movies() {
 
   return (
     <div className={styles.moviesSection}>
-      <h2>Phim Đang Chiếu</h2>
+      <div className={styles.header}>
+        <h2>Phim Đang Chiếu</h2>
+        <button 
+          className={styles.filterToggle}
+          onClick={() => setShowFilters(!showFilters)}
+        >
+          {showFilters ? '✕ Đóng bộ lọc' : '🔍 Bộ lọc'} 
+          {hasActiveFilters && <span className={styles.filterBadge}>●</span>}
+        </button>
+      </div>
+
+      {showFilters && (
+        <div className={styles.filterPanel}>
+          <div className={styles.filterGroup}>
+            <label htmlFor="genre">Thể loại:</label>
+            <select 
+              id="genre"
+              value={selectedGenre} 
+              onChange={(e) => setSelectedGenre(e.target.value)}
+              className={styles.filterSelect}
+            >
+              <option value="">Tất cả thể loại</option>
+              {genres.map((genre) => (
+                <option key={genre} value={genre}>
+                  {genre}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className={styles.filterGroup}>
+            <label htmlFor="minRating">Điểm IMDb tối thiểu:</label>
+            <input
+              id="minRating"
+              type="number"
+              min="0"
+              max="10"
+              step="0.1"
+              value={minRating ?? ''}
+              onChange={(e) => setMinRating(e.target.value ? parseFloat(e.target.value) : undefined)}
+              placeholder="0.0"
+              className={styles.filterInput}
+            />
+          </div>
+
+          <div className={styles.filterGroup}>
+            <label htmlFor="maxRating">Điểm IMDb tối đa:</label>
+            <input
+              id="maxRating"
+              type="number"
+              min="0"
+              max="10"
+              step="0.1"
+              value={maxRating ?? ''}
+              onChange={(e) => setMaxRating(e.target.value ? parseFloat(e.target.value) : undefined)}
+              placeholder="10.0"
+              className={styles.filterInput}
+            />
+          </div>
+
+          <div className={styles.filterActions}>
+            <button 
+              className={styles.btnReset}
+              onClick={handleResetFilters}
+              disabled={!hasActiveFilters}
+            >
+              Đặt lại
+            </button>
+            <button 
+              className={styles.btnApply}
+              onClick={handleApplyFilters}
+            >
+              Áp dụng
+            </button>
+          </div>
+        </div>
+      )}
+
+      {hasActiveFilters && (
+        <div className={styles.activeFilters}>
+          <span>Bộ lọc đang áp dụng:</span>
+          {selectedGenre && <span className={styles.filterTag}>Thể loại: {selectedGenre}</span>}
+          {minRating !== undefined && <span className={styles.filterTag}>IMDb ≥ {minRating}</span>}
+          {maxRating !== undefined && <span className={styles.filterTag}>IMDb ≤ {maxRating}</span>}
+        </div>
+      )}
       
       <div className={styles.moviesGrid}>
         {movies.map((m, index) => (

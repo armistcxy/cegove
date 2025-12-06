@@ -26,9 +26,31 @@ export interface MoviesResponse {
 
 const BASE_API_URL = "https://movies.cegove.cloud/api/v1/movies/";
 
-export async function fetchMovies(page: number = 1, pageSize: number = 24): Promise<MoviesResponse> {
+export interface MovieFilters {
+  genre?: string;
+  min_imdb_rating?: number;
+  max_imdb_rating?: number;
+}
+
+export async function fetchMovies(
+  page: number = 1, 
+  pageSize: number = 24, 
+  filters?: MovieFilters
+): Promise<MoviesResponse> {
   try {
-    const API_URL = `${BASE_API_URL}?page=${page}&page_size=${pageSize}&sort_order=desc`;
+    let API_URL = `${BASE_API_URL}?page=${page}&page_size=${pageSize}&sort_order=desc`;
+    
+    // Add filters to URL if provided
+    if (filters?.genre) {
+      API_URL += `&genre=${encodeURIComponent(filters.genre)}`;
+    }
+    if (filters?.min_imdb_rating !== undefined) {
+      API_URL += `&min_imdb_rating=${filters.min_imdb_rating}`;
+    }
+    if (filters?.max_imdb_rating !== undefined) {
+      API_URL += `&max_imdb_rating=${filters.max_imdb_rating}`;
+    }
+    
     const res = await fetch(API_URL);
     const json = await res.json();
     return {
@@ -47,5 +69,17 @@ export async function fetchMovies(page: number = 1, pageSize: number = 24): Prom
       page_size: pageSize,
       total_pages: 0
     };
+  }
+}
+
+export async function fetchGenres(): Promise<string[]> {
+  try {
+    const API_URL = `${BASE_API_URL}genres/`;
+    const res = await fetch(API_URL);
+    const json = await res.json();
+    return json.genres ?? [];
+  } catch (error) {
+    console.error("Fetch genres failed:", error);
+    return [];
   }
 }
