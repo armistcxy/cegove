@@ -1,7 +1,12 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+<<<<<<< HEAD
 import type { Movie, MoviesResponse, MovieFilters } from "./MovieLogic";
 import { fetchMovies, fetchGenres } from "./MovieLogic";
+=======
+import type { Movie, MoviesResponse } from "./MovieLogic";
+import { fetchMovies } from "./MovieLogic";
+>>>>>>> ffff5c7e4928bd7430e9badf811cef7403b39d71
 import styles from "./Movie.module.css";
 
 export default function Movies() {
@@ -12,6 +17,7 @@ export default function Movies() {
   const [hasMorePages, setHasMorePages] = useState(true);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadedMovieIds, setLoadedMovieIds] = useState<Set<number>>(new Set());
+<<<<<<< HEAD
   
   // Filter states
   const [genres, setGenres] = useState<string[]>([]);
@@ -20,11 +26,14 @@ export default function Movies() {
   const [maxRating, setMaxRating] = useState<number | undefined>(undefined);
   const [showFilters, setShowFilters] = useState(false);
   
+=======
+>>>>>>> ffff5c7e4928bd7430e9badf811cef7403b39d71
   const navigate = useNavigate();
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadingRef = useRef<HTMLDivElement | null>(null);
   const isLoadingRef = useRef(false);
 
+<<<<<<< HEAD
   const getActiveFilters = useCallback((): MovieFilters => {
     const filters: MovieFilters = {};
     if (selectedGenre) filters.genre = selectedGenre;
@@ -33,6 +42,8 @@ export default function Movies() {
     return filters;
   }, [selectedGenre, minRating, maxRating]);
 
+=======
+>>>>>>> ffff5c7e4928bd7430e9badf811cef7403b39d71
   const loadMovies = useCallback(async (page: number, isInitial: boolean = false) => {
     // Prevent multiple simultaneous requests
     if (isLoadingRef.current) {
@@ -47,8 +58,12 @@ export default function Movies() {
     setError(null);
     
     try {
+<<<<<<< HEAD
       const filters = getActiveFilters();
       const response: MoviesResponse = await fetchMovies(page, 24, filters);
+=======
+      const response: MoviesResponse = await fetchMovies(page, 24);
+>>>>>>> ffff5c7e4928bd7430e9badf811cef7403b39d71
       console.log('Fetched movies:', response.items.length, 'total_pages:', response.total_pages);
       
       if (isInitial) {
@@ -85,7 +100,11 @@ export default function Movies() {
       isLoadingRef.current = false;
       console.log('Loading completed');
     }
+<<<<<<< HEAD
   }, [getActiveFilters]);
+=======
+  }, []);
+>>>>>>> ffff5c7e4928bd7430e9badf811cef7403b39d71
 
   const loadMoreMovies = useCallback(() => {
     if (!isLoadingRef.current && hasMorePages && !loading) {
@@ -94,6 +113,7 @@ export default function Movies() {
     }
   }, [currentPage, hasMorePages, loading, loadMovies]);
 
+<<<<<<< HEAD
   // Load genres on component mount
   useEffect(() => {
     const loadGenres = async () => {
@@ -120,6 +140,8 @@ export default function Movies() {
     }
   }, [selectedGenre, minRating, maxRating]);
 
+=======
+>>>>>>> ffff5c7e4928bd7430e9badf811cef7403b39d71
   useEffect(() => {
     if (!loadingRef.current || !hasMorePages || loading) return;
 
@@ -148,6 +170,7 @@ export default function Movies() {
       console.log('Cleaning up intersection observer');
       observer.disconnect();
     };
+<<<<<<< HEAD
   }, [loadMoreMovies, hasMorePages, loading]);
 
   const handleApplyFilters = () => {
@@ -160,6 +183,14 @@ export default function Movies() {
     setMinRating(undefined);
     setMaxRating(undefined);
   };
+=======
+  }, [loadMoreMovies, hasMorePages, loading]); 
+
+
+  useEffect(() => {
+    loadMovies(1, true);
+  }, []); 
+>>>>>>> ffff5c7e4928bd7430e9badf811cef7403b39d71
 
   const handleDetailClick = (movieId: number) => {
     navigate(`/MovieDetail/${movieId}`);
@@ -182,8 +213,11 @@ export default function Movies() {
     }
   };
 
+<<<<<<< HEAD
   const hasActiveFilters = selectedGenre || minRating !== undefined || maxRating !== undefined;
 
+=======
+>>>>>>> ffff5c7e4928bd7430e9badf811cef7403b39d71
   if (initialLoading) {
     return (
       <div className={styles.moviesSection}>
@@ -212,6 +246,7 @@ export default function Movies() {
 
   return (
     <div className={styles.moviesSection}>
+<<<<<<< HEAD
       <div className={styles.header}>
         <h2>Phim Đang Chiếu</h2>
         <button 
@@ -298,6 +333,9 @@ export default function Movies() {
           {maxRating !== undefined && <span className={styles.filterTag}>IMDb ≤ {maxRating}</span>}
         </div>
       )}
+=======
+      <h2>Phim Đang Chiếu</h2>
+>>>>>>> ffff5c7e4928bd7430e9badf811cef7403b39d71
       
       <div className={styles.moviesGrid}>
         {movies.map((m, index) => (

@@ -21,8 +21,13 @@ export default function Header() {
             <li className="hover-effect">
               phim
               <ul className="child-menu">
+<<<<<<< HEAD
                 <li><Link to="/movie" className="hover-red">Danh sách phim</Link></li>
                 <li><Link to="/NotAvailable" className="hover-red">Dành cho bạn</Link></li>
+=======
+                <li><Link to="/movie" className="hover-red">Phim đang chiếu</Link></li>
+                <li><Link to="/NotAvailable" className="hover-red">Phim sắp chiếu</Link></li>
+>>>>>>> ffff5c7e4928bd7430e9badf811cef7403b39d71
               </ul> 
             </li>
             <li className="hover-effect">

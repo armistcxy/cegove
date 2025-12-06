@@ -26,6 +26,7 @@
   background: linear-gradient(90deg, #e50914 0%, #ff6b6b 100%);
 }
 
+<<<<<<< HEAD
 /* Header and Filter Toggle */
 .header {
   display: flex;
@@ -187,6 +188,8 @@
   gap: 5px;
 }
 
+=======
+>>>>>>> ffff5c7e4928bd7430e9badf811cef7403b39d71
 .moviesGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));

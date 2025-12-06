@@ -26,6 +26,7 @@ export interface MoviesResponse {
 
 const BASE_API_URL = "https://movies.cegove.cloud/api/v1/movies/";
 
+<<<<<<< HEAD
 export interface MovieFilters {
   genre?: string;
   min_imdb_rating?: number;
@@ -51,6 +52,11 @@ export async function fetchMovies(
       API_URL += `&max_imdb_rating=${filters.max_imdb_rating}`;
     }
     
+=======
+export async function fetchMovies(page: number = 1, pageSize: number = 24): Promise<MoviesResponse> {
+  try {
+    const API_URL = `${BASE_API_URL}?page=${page}&page_size=${pageSize}&sort_order=desc`;
+>>>>>>> ffff5c7e4928bd7430e9badf811cef7403b39d71
     const res = await fetch(API_URL);
     const json = await res.json();
     return {
@@ -71,6 +77,7 @@ export async function fetchMovies(
     };
   }
 }
+<<<<<<< HEAD
 
 export async function fetchGenres(): Promise<string[]> {
   try {
@@ -83,3 +90,5 @@ export async function fetchGenres(): Promise<string[]> {
     return [];
   }
 }
+=======
+>>>>>>> ffff5c7e4928bd7430e9badf811cef7403b39d71
