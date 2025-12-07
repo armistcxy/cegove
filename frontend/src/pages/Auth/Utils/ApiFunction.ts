@@ -6,7 +6,20 @@ export const api = axios.create({
 });
 
 export async function register(registrationData:RegistrationForm) {
-    return await api.post('/register', registrationData);
+    const form = new FormData();
+    form.append('fullName', registrationData.fullName);
+    form.append('email', registrationData.email);
+    form.append('phone', registrationData.phone);
+    form.append('password', registrationData.password);
+    form.append('dob', registrationData.dob);
+    form.append('address', registrationData.address);
+    form.append('district', registrationData.district);
+    form.append('city', registrationData.city);
+    form.append('gender', registrationData.gender);
+    if (registrationData.img) {
+        form.append('img', registrationData.img);
+    }
+    return await api.post('/register', form);
 }
 
 export async function login(loginData:LoginForm) {
