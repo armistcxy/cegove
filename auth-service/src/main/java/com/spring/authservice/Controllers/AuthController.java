@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 @RestController
 @RequestMapping("/auth")
@@ -32,6 +33,8 @@ public class AuthController {
             return ResponseEntity.ok("User registered successfully");
         } catch (UserAlreadyExistedException e) {
             return ResponseEntity.status(409).body(e.getMessage());
+        } catch (WebClientResponseException e) {
+            return ResponseEntity.status(e.getRawStatusCode()).body(e.getResponseBodyAsString());
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -74,6 +77,20 @@ public class AuthController {
             return ResponseEntity.ok("Logout successfully");
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Logout failed: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/reset-password-otp")
+    public ResponseEntity<?> sendOtp(@RequestBody VerifyOtpRequest request) {
+        try {
+            service.sendMailResetPassword(request.getEmail());
+            return ResponseEntity.ok("OTP sent successfully");
+        } catch (UsernameNotFoundException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        } catch (WebClientResponseException e) {
+            return ResponseEntity.status(e.getRawStatusCode()).body(e.getResponseBodyAsString());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
