@@ -18,6 +18,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 public class AuthService {
@@ -32,6 +33,9 @@ public class AuthService {
 
     @Autowired
     private ImageUploadClient imageUploadClient;
+
+    @Autowired
+    private MailSenderClient mailSenderClient;
 
     private PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -92,6 +96,19 @@ public class AuthService {
             long expiration = jwtService.getExpirationTime(token);
             redisService.blacklistToken(token, expiration);
         }
+    }
+
+    public void sendMailResetPassword(String email) {
+        Optional<User> user = reposistory.findByEmail(email);
+        if (!user.isPresent()) {
+            throw new UsernameNotFoundException("User not found with email: " + email);
+        }
+
+        String otp = ThreadLocalRandom.current().nextInt(100000, 1000000) + "";
+        redisService.storeOtp(email, otp);
+
+        // Send OTP email
+        mailSenderClient.sendPasswordResetOTP(email, otp);
     }
 
     public boolean verifyOtp(VerifyOtpRequest request) {
