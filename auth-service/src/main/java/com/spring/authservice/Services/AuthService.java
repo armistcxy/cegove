@@ -108,7 +108,17 @@ public class AuthService {
         redisService.storeOtp(email, otp);
 
         // Send OTP email
-        mailSenderClient.sendPasswordResetOTP(email, otp);
+        mailSenderClient.sendPasswordResetOTP(email, otp)
+                .subscribe(
+                        success -> {
+                            if (success) {
+                                System.out.println("OTP email sent successfully to: " + email);
+                            } else {
+                                System.err.println("Failed to send OTP email to: " + email);
+                            }
+                        },
+                        error -> System.err.println("Error sending OTP: " + error.getMessage())
+                );
     }
 
     public boolean verifyOtp(VerifyOtpRequest request) {

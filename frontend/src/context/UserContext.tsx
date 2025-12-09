@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getUserProfile } from '../pages/User/Utils/ApiFunction';
 import {logout} from "../pages/Auth/Utils/ApiFunction.ts";
+import Loading from "../components/Loading/Loading.tsx";
 
 interface UserContextType {
     isLoggedIn: boolean;
@@ -15,6 +16,7 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const [isAppReady, setIsAppReady] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [userProfile, setUserProfile] = useState<any>(null);
 
@@ -31,10 +33,12 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setUserProfile(null);
             }
         }
+
+        setIsAppReady(true);
     };
 
-    const handleLogout = () => {
-        logout(localStorage.getItem("access-token") || "");
+    const handleLogout = async () => {
+        await logout(localStorage.getItem("access-token") || "");
         localStorage.removeItem("access-token");
         setIsLoggedIn(false);
         setUserProfile(null);
@@ -43,6 +47,10 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     useEffect(() => {
         refreshUserProfile();
     }, []);
+
+    if (!isAppReady) {
+        return (<Loading />);
+    }
 
     return (
         <UserContext.Provider value={{

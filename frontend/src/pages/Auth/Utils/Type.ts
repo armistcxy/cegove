@@ -25,6 +25,6 @@ export interface ChangePasswordForm {
     email: string;
     otp: string;
     newPassword: string;
-    confirmNewPassword: string;
+    confirmPassword: string;
 }
 

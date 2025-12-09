@@ -123,7 +123,7 @@ const ForgotPassword = () => {
                 email: email,
                 otp: verificationCode,
                 newPassword: newPassword,
-                confirmNewPassword: confirmPassword
+                confirmPassword: confirmPassword
             });
 
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -140,6 +140,67 @@ const ForgotPassword = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    // Improved OTP input handlers
+    const handleOtpChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+        const value = e.target.value.replace(/\D/g, '');
+        const newCode = verificationCode.split('');
+
+        // Chỉ lấy ký tự cuối cùng nếu người dùng nhập nhiều ký tự
+        newCode[index] = value.slice(-1);
+        setVerificationCode(newCode.join(''));
+
+        // Auto focus next input nếu có giá trị
+        if (value && index < 5) {
+            document.getElementById(`code-${index + 1}`)?.focus();
+        }
+    };
+
+    const handleOtpKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+        if (e.key === 'Backspace') {
+            e.preventDefault();
+            const newCode = verificationCode.split('');
+
+            if (verificationCode[index]) {
+                // Nếu ô hiện tại có giá trị, xóa nó
+                newCode[index] = '';
+                setVerificationCode(newCode.join(''));
+            } else if (index > 0) {
+                // Nếu ô hiện tại trống, xóa ô bên trái và focus vào đó
+                newCode[index - 1] = '';
+                setVerificationCode(newCode.join(''));
+                document.getElementById(`code-${index - 1}`)?.focus();
+            }
+        } else if (e.key === 'Delete') {
+            e.preventDefault();
+            const newCode = verificationCode.split('');
+            newCode[index] = '';
+            setVerificationCode(newCode.join(''));
+        } else if (e.key === 'ArrowLeft' && index > 0) {
+            e.preventDefault();
+            document.getElementById(`code-${index - 1}`)?.focus();
+        } else if (e.key === 'ArrowRight' && index < 5) {
+            e.preventDefault();
+            document.getElementById(`code-${index + 1}`)?.focus();
+        }
+    };
+
+    const handleOtpFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+        // Tự động select toàn bộ nội dung khi focus
+        e.target.select();
+    };
+
+    const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+        e.preventDefault();
+        const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+        setVerificationCode(pastedData.padEnd(6, ''));
+
+        // Focus last filled input or last input
+        const nextIndex = Math.min(pastedData.length, 5);
+        setTimeout(() => {
+            document.getElementById(`code-${nextIndex}`)?.focus();
+        }, 0);
     };
 
     return (
@@ -226,36 +287,13 @@ const ForgotPassword = () => {
                                         key={index}
                                         id={`code-${index}`}
                                         type="text"
+                                        inputMode="numeric"
                                         maxLength={1}
                                         value={verificationCode[index] || ''}
-                                        onChange={(e) => {
-                                            const value = e.target.value.replace(/\D/g, '');
-                                            if (value) {
-                                                const newCode = verificationCode.split('');
-                                                newCode[index] = value;
-                                                setVerificationCode(newCode.join(''));
-
-                                                // Auto focus next input
-                                                if (index < 5) {
-                                                    document.getElementById(`code-${index + 1}`)?.focus();
-                                                }
-                                            }
-                                        }}
-                                        onKeyDown={(e) => {
-                                            // Handle backspace
-                                            if (e.key === 'Backspace' && !verificationCode[index] && index > 0) {
-                                                document.getElementById(`code-${index - 1}`)?.focus();
-                                            }
-                                        }}
-                                        onPaste={(e) => {
-                                            e.preventDefault();
-                                            const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
-                                            setVerificationCode(pastedData);
-
-                                            // Focus last filled input or last input
-                                            const nextIndex = Math.min(pastedData.length, 5);
-                                            document.getElementById(`code-${nextIndex}`)?.focus();
-                                        }}
+                                        onChange={(e) => handleOtpChange(e, index)}
+                                        onKeyDown={(e) => handleOtpKeyDown(e, index)}
+                                        onFocus={handleOtpFocus}
+                                        onPaste={handleOtpPaste}
                                         className="w-12 h-14 text-center text-2xl font-bold bg-gray-50 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition"
                                     />
                                 ))}
