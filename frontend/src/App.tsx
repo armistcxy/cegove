@@ -6,6 +6,7 @@ import MovieDetail from './pages/MovieDetails/MovieDetail.tsx';
 import NotAvailable from './pages/NotAvailable/NotAvailable.tsx';
 import AuthPage from "./pages/Auth/AuthPage.tsx";
 import Profile from "./pages/User/Profile.tsx";
+import ForgotPassword from "./pages/Auth/ForgotPassword.tsx";
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
             <Route path="/login" element={<AuthPage />} />
             <Route path="/register" element={<AuthPage />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
           </Routes>
         </main>
       </div>
