@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type {LoginForm, RegistrationForm} from "./Type.ts";
+import type {LoginForm, RegistrationForm, VerifyOtpForm, ChangePasswordForm} from "./Type.ts";
 
 export const api = axios.create({
     baseURL: 'https://auth.cegove.cloud/auth',
@@ -32,4 +32,16 @@ export async function logout(token:string) {
             'Authorization': `Bearer ${token}`
         }
     });
+}
+
+export async function sendOtp(verifyOtpForm: VerifyOtpForm) {
+    return await api.post('/reset-password-otp', verifyOtpForm);
+}
+
+export async function verifyOtp(verifyOtpForm: VerifyOtpForm) {
+    return await api.post('/otp-verify', verifyOtpForm);
+}
+
+export async function resetPassword(changePasswordForm: ChangePasswordForm) {
+    return await api.post('/forgot-password-change', changePasswordForm);
 }
