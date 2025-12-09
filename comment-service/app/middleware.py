@@ -56,8 +56,7 @@ class AuthMiddleware:
         return {
             "user_id": user_id,
             "email": email,
-            "role": role,
-            "name": name
+            "role": role
         }
 
 
