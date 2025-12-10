@@ -56,6 +56,7 @@ public class Cinema {
 
     public CinemaResponse convertToDTO() {
         return CinemaResponse.builder()
+                .id(this.id)
                 .name(this.name)
                 .address(this.address)
                 .district(this.district)

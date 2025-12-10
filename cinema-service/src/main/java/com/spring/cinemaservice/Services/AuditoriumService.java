@@ -1,6 +1,7 @@
 package com.spring.cinemaservice.Services;
 
-import com.spring.cinemaservice.DTOs.AuditoriumDTO;
+import com.spring.cinemaservice.DTOs.AuditoriumRequest;
+import com.spring.cinemaservice.DTOs.AuditoriumResponse;
 import com.spring.cinemaservice.Models.Auditorium;
 import com.spring.cinemaservice.Models.Cinema;
 import com.spring.cinemaservice.Reposistories.AuditoriumReposistory;
@@ -24,10 +25,10 @@ public class AuditoriumService {
     private CinemaReposistory cinemaReposistory;
 
     @Transactional
-    public void createAuditorium(AuditoriumDTO auditoriumDTO, Long cinemaId) {
+    public void createAuditorium(AuditoriumRequest auditoriumRequest, Long cinemaId) {
         Auditorium auditorium = Auditorium.builder()
-                .name(auditoriumDTO.getName())
-                .pattern(auditoriumDTO.getPattern())
+                .name(auditoriumRequest.getName())
+                .pattern(auditoriumRequest.getPattern())
                 .seats(new ArrayList<>())
                 .build();
         Cinema cinema = cinemaReposistory.findById(cinemaId)
@@ -40,8 +41,9 @@ public class AuditoriumService {
         seatService.saveSeats(savedAuditorium);
     }
 
-    public Auditorium getAuditoriumById(Long auditoriumId) {
-        return reposistory.findById(auditoriumId)
+    public AuditoriumResponse getAuditoriumById(Long auditoriumId) {
+        Auditorium auditorium = reposistory.findById(auditoriumId)
                 .orElseThrow(() -> new UsernameNotFoundException("Auditorium not found with id: " + auditoriumId));
+        return auditorium.convertToDTO();
     }
 }
