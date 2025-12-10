@@ -3,19 +3,23 @@ package repository
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/armistcxy/cegove/booking-service/internal/domain"
 
 	"github.com/Masterminds/squirrel"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type ShowtimeRepository interface {
-	ListShowtimes(ctx context.Context, movieID, cinemaID string) ([]domain.Showtime, error)
+	ListShowtimes(ctx context.Context, movieID, cinemaID string, date time.Time) ([]domain.Showtime, error)
 	GetShowtimeSeats(ctx context.Context, showtimeID string) ([]domain.ShowtimeSeat, error)
 
 	InsertShowtimes(ctx context.Context, showtimes []domain.Showtime) error
 	InsertShowtimeSeats(ctx context.Context, showtimeID string, seats []domain.ShowtimeSeat) error
+
+	GetShowtime(ctx context.Context, showtimeID string) (*domain.Showtime, error)
 }
 
 type showtimeRepository struct {
@@ -30,7 +34,7 @@ func NewShowtimeRepository(pool *pgxpool.Pool) ShowtimeRepository {
 	}
 }
 
-func (r *showtimeRepository) ListShowtimes(ctx context.Context, movieID, cinemaID string) ([]domain.Showtime, error) {
+func (r *showtimeRepository) ListShowtimes(ctx context.Context, movieID, cinemaID string, date time.Time) ([]domain.Showtime, error) {
 	builder := r.queryBuilder.Select(
 		"id", "movie_id", "cinema_id", "auditorium_id", "start_time", "end_time", "base_price",
 	).From("showtimes")
@@ -40,6 +44,8 @@ func (r *showtimeRepository) ListShowtimes(ctx context.Context, movieID, cinemaI
 	if cinemaID != "" {
 		builder = builder.Where(squirrel.Eq{"cinema_id": cinemaID})
 	}
+	builder = builder.Where("DATE(start_time) = DATE(?)", date)
+
 	query, args, err := builder.ToSql()
 	if err != nil {
 		return nil, fmt.Errorf("build list showtimes query: %w", err)
@@ -94,6 +100,9 @@ func (r *showtimeRepository) GetShowtimeSeats(ctx context.Context, showtimeID st
 }
 
 func (r *showtimeRepository) InsertShowtimes(ctx context.Context, showtimes []domain.Showtime) error {
+	if len(showtimes) == 0 {
+		return nil
+	}
 	builder := r.queryBuilder.Insert("showtimes").Columns(
 		"id", "movie_id", "cinema_id", "auditorium_id", "start_time", "end_time", "base_price",
 	)
@@ -111,6 +120,9 @@ func (r *showtimeRepository) InsertShowtimes(ctx context.Context, showtimes []do
 }
 
 func (r *showtimeRepository) InsertShowtimeSeats(ctx context.Context, showtimeID string, seats []domain.ShowtimeSeat) error {
+	if len(seats) == 0 {
+		return nil
+	}
 	builder := r.queryBuilder.Insert("showtime_seats").Columns(
 		"seat_id", "showtime_id", "status", "price",
 	)
@@ -125,4 +137,25 @@ func (r *showtimeRepository) InsertShowtimeSeats(ctx context.Context, showtimeID
 		return fmt.Errorf("insert showtime seats: %w", err)
 	}
 	return nil
+}
+
+func (r *showtimeRepository) GetShowtime(ctx context.Context, showtimeID string) (*domain.Showtime, error) {
+	builder := r.queryBuilder.Select(
+		"id", "movie_id", "cinema_id", "auditorium_id", "start_time", "end_time", "base_price",
+	).From("showtimes").Where(squirrel.Eq{"id": showtimeID})
+	query, args, err := builder.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("build get showtime query: %w", err)
+	}
+	row := r.pool.QueryRow(ctx, query, args...)
+	var st domain.Showtime
+	if err := row.Scan(
+		&st.ID, &st.MovieID, &st.CinemaID, &st.AuditoriumID, &st.StartTime, &st.EndTime, &st.BasePrice,
+	); err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("scan showtime: %w", err)
+	}
+	return &st, nil
 }

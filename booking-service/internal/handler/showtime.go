@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/armistcxy/cegove/booking-service/internal/domain"
 	"github.com/armistcxy/cegove/booking-service/internal/repository"
@@ -26,6 +27,22 @@ func NewShowtimeHandler(showtimeRepo repository.ShowtimeRepository, seatRepo rep
 	}
 }
 
+func (h *ShowtimeHandler) HandleGetShowtime(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	showtimeID := r.PathValue("showtime_id")
+	if showtimeID == "" {
+		httphelp.EncodeJSONError(w, r, http.StatusBadRequest, errors.New("missing showtime ID"))
+		return
+	}
+	showtime, err := h.showtimeRepo.GetShowtime(ctx, showtimeID)
+	if err != nil {
+		h.logger.Error("Failed to get showtime", err)
+		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
+		return
+	}
+	httphelp.EncodeJSON(w, r, http.StatusOK, showtime)
+}
+
 // @Summary List all showtimes
 // @Description Get a list of all available showtimes
 // @Tags showtimes
@@ -39,7 +56,18 @@ func (h *ShowtimeHandler) HandleListShowtimes(w http.ResponseWriter, r *http.Req
 	movieID := q.Get("movie_id")
 	cinemaID := q.Get("cinema_id")
 
-	showtimes, err := h.showtimeRepo.ListShowtimes(ctx, movieID, cinemaID)
+	var date = time.Now()
+	dateStr := q.Get("date")
+	if dateStr != "" {
+		var err error
+		date, err = time.Parse("2006-01-02", dateStr)
+		if err != nil {
+			httphelp.EncodeJSONError(w, r, http.StatusBadRequest, err)
+			return
+		}
+	}
+
+	showtimes, err := h.showtimeRepo.ListShowtimes(ctx, movieID, cinemaID, date)
 	if err != nil {
 		h.logger.Error("Failed to list showtimes", err)
 		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
