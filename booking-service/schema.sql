@@ -1,18 +1,8 @@
-CREATE TABLE seats (
-    id VARCHAR(255) PRIMARY KEY,
-    screen_id VARCHAR(255) NOT NULL,
-    row_name VARCHAR(10) NOT NULL,
-    seat_number INT NOT NULL,
-    seat_type SMALLINT NOT NULL
-);
-
-CREATE INDEX idx_seats_on_screen_id ON seats(screen_id);
-
 CREATE TABLE showtimes (
     id VARCHAR(255) PRIMARY KEY,
     movie_id VARCHAR(255) NOT NULL,
     cinema_id VARCHAR(255),
-    screen_id VARCHAR(255) NOT NULL,
+    auditorium_id VARCHAR(255) NOT NULL,
     start_time TIMESTAMPTZ NOT NULL,
     end_time TIMESTAMPTZ NOT NULL,
     base_price DECIMAL(10, 2) NOT NULL,
@@ -50,7 +40,7 @@ CREATE TABLE tickets (
     showtime_id VARCHAR(255) NOT NULL,
     movie_title VARCHAR(255) NOT NULL,
     cinema_name VARCHAR(255) NOT NULL,
-    screen_name VARCHAR(255) NOT NULL,
+    auditorium_name VARCHAR(255) NOT NULL,
     showtime TIMESTAMPTZ NOT NULL,
     seat_row VARCHAR(10) NOT NULL,
     seat_number INT NOT NULL,
