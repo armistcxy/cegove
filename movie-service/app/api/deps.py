@@ -10,7 +10,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 async def require_admin(current_user: dict = Depends(get_current_user)):
     """Dependency yêu cầu role admin"""
-    if current_user["role"] != "admin":
+    if current_user["role"] not in ["SUPER_ADMIN", "LOCAL_ADMIN"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Chỉ admin mới có quyền truy cập"
@@ -19,7 +19,7 @@ async def require_admin(current_user: dict = Depends(get_current_user)):
 
 async def require_user(current_user: dict = Depends(get_current_user)):
     """Dependency yêu cầu role user hoặc cao hơn"""
-    if current_user["role"] not in ["user", "admin"]:
+    if current_user["role"] not in ["USER", "SUPER_ADMIN", "LOCAL_ADMIN"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Yêu cầu role user hoặc admin"

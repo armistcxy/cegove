@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float, Text, BigInteger, Index
-from sqlalchemy.sql import func
+from sqlalchemy.sql import func, text
 from sqlalchemy.types import TIMESTAMP
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from app.database import Base
@@ -36,14 +36,14 @@ class Movie(Base):
 
 
 # Create GIN index for full-text search
-# This will be created via migration or database.py
-Index(
-    'ix_movies_search',
-    func.to_tsvector('english', 
-        func.coalesce(Movie.series_title, '') + ' ' +
-        func.coalesce(Movie.overview, '') + ' ' +
-        func.coalesce(Movie.director, '') + ' ' +
-        func.coalesce(Movie.genre, '')
-    ),
-    postgresql_using='gin'
-)
+# Comment out for now - can be created manually or via migration
+# Index(
+#     'ix_movies_search',
+#     func.to_tsvector('english', 
+#         func.coalesce(Movie.series_title, '') + ' ' +
+#         func.coalesce(Movie.overview, '') + ' ' +
+#         func.coalesce(Movie.director, '') + ' ' +
+#         func.coalesce(Movie.genre, '')
+#     ),
+#     postgresql_using='gin'
+# )

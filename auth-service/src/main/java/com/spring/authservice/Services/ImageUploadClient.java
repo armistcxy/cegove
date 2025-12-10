@@ -11,7 +11,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 @Service
 public class ImageUploadClient {
     private final WebClient webClient = WebClient.builder()
-            .baseUrl("http://localhost:3004")
+            .baseUrl("https://image.cegove.cloud")
             .build();
 
     @Value("${internal.secret.key}")

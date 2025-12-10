@@ -3,6 +3,7 @@ package com.spring.userservice.Services;
 import com.spring.userservice.DTOs.BookingDTO;
 import com.spring.userservice.DTOs.ChangePasswordForm;
 import com.spring.userservice.DTOs.UserDTO;
+import com.spring.userservice.DTOs.UserPartDTO;
 import com.spring.userservice.Enums.Provider;
 import com.spring.userservice.Exceptions.ActionNotAllowedException;
 import com.spring.userservice.Exceptions.InvalidCredentialsException;
@@ -43,10 +44,10 @@ public class UserService {
         return user.convertToDTO();
     }
 
-    public UserDTO getUserProfile(Long userId) {
+    public UserPartDTO getUserProfile(Long userId) {
         User user = repository.findById(userId)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with id: " + userId));
-        return user.convertToDTO();
+        return user.convertToPartDTO();
     }
 
     public void changePassword(ChangePasswordForm changePasswordForm) {

@@ -48,8 +48,7 @@ public class OAuth2Service implements OAuth2UserService<OAuth2UserRequest, OAuth
             user = userOptional.get();
             if (!user.getProvider().equals(Provider.GOOGLE)) {
                 throw new OAuth2AuthenticationException(new OAuth2Error("invalid_provider"),
-                        "Tài khoản này đã được đăng ký bằng " + user.getProvider() +
-                                ". Vui lòng đăng nhập bằng phương thức đó.");
+                        "Tài khoản này đã không được đăng ký bằng Google. Vui lòng đăng nhập bằng phương thức khác.");
             }
 
         }

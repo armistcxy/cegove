@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from "react";
-import {useNavigate} from "react-router-dom";
+import {Link, useNavigate} from "react-router-dom";
 import type {LoginForm, RegistrationForm} from "./Utils/Type.ts";
 import {login, register} from "./Utils/ApiFunction.ts";
 import provinceData from "../../assets/province_data.json"
@@ -30,32 +30,25 @@ const AuthPage = () => {
     const cities = Object.keys(provinceData);
     const districts = registerForm.city ? provinceData[registerForm.city] : [];
 
-    const [activeTab, setActiveTab] = useState<"login" | "register">("login");
+    const activeTab = location.pathname === "/login" ? "login" : "register";
 
     const [error, setError] = useState("");
     const [registerSuccess, setRegisterSuccess] = useState(false);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        if (location.pathname === "/login") {
-            setActiveTab("login");
-        } else {
-            setActiveTab("register");
-        }
-
         const params = new URLSearchParams(location.search);
-        const error = params.get('error');
-        if (error) {
-            setError(error);
+        const urlError = params.get('error');
+        if (urlError && urlError !== error) {
+            setError(urlError);
             setTimeout(() => {
                 setError("");
                 navigate("/login");
             }, 3000)
         }
-    }, [navigate]);
+    }, [error, navigate]);
 
     const handleChangeTab = (tab: "login" | "register") => {
-        setActiveTab(tab);
         navigate(`/${tab}`);
     }
 
@@ -74,6 +67,13 @@ const AuthPage = () => {
             [name]: value,
         }));
     };
+
+    const setSelectedGender = (gender) => {
+        setRegisterForm(prev => ({
+            ...prev,
+            gender: gender,
+        }));
+    }
 
     const setSelectedCity = (city: string) => {
         setRegisterForm(prev => ({
@@ -232,9 +232,9 @@ const AuthPage = () => {
                             </div>
 
                             <div className="text-center mb-6">
-                                <a href="#" className="text-sm text-blue-600 hover:text-blue-700 hover:underline">
+                                <Link to="/forgot-password" className="text-sm text-blue-600 hover:text-blue-700 hover:underline">
                                     Bạn muốn tìm lại mật khẩu?
-                                </a>
+                                </Link>
                             </div>
 
                             <div className="relative mb-6">
@@ -363,7 +363,7 @@ const AuthPage = () => {
                                     id="register-gender"
                                     name="gender"
                                     value={registerForm.gender}
-                                    onChange={handleRegisterChange}
+                                    onChange={(e) => setSelectedGender(e.target.value)}
                                     className="w-full px-4 py-3 bg-blue-50 border border-blue-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
                                     required
                                 >
