@@ -35,6 +35,4 @@ public class Seat {
 
     @Enumerated(value = EnumType.STRING)
     private SeatType seatType;
-
-    private boolean isActive;
 }

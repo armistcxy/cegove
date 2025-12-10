@@ -52,7 +52,6 @@ public enum AuditoriumPattern {
                 list.add(Seat.builder()
                         .seatNumber(row + String.valueOf(i))
                         .seatType(type)
-                        .isActive(false)
                         .build());
             }
         }

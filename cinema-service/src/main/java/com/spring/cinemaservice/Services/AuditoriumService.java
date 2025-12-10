@@ -10,6 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+
 @Service
 public class AuditoriumService {
     @Autowired
@@ -26,6 +28,7 @@ public class AuditoriumService {
         Auditorium auditorium = Auditorium.builder()
                 .name(auditoriumDTO.getName())
                 .pattern(auditoriumDTO.getPattern())
+                .seats(new ArrayList<>())
                 .build();
         Cinema cinema = cinemaReposistory.findById(cinemaId)
                 .orElseThrow(() -> new UsernameNotFoundException("Cinema not found with id: " + cinemaId));
