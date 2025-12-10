@@ -8,17 +8,21 @@ import (
 	"github.com/armistcxy/cegove/booking-service/internal/repository"
 	"github.com/armistcxy/cegove/booking-service/pkg/httphelp"
 	"github.com/armistcxy/cegove/booking-service/pkg/logging"
+	"github.com/google/uuid"
+	"golang.org/x/sync/errgroup"
 )
 
 type ShowtimeHandler struct {
 	logger       *logging.Logger
 	showtimeRepo repository.ShowtimeRepository
+	seatRepo     repository.SeatRepository
 }
 
-func NewShowtimeHandler(showtimeRepo repository.ShowtimeRepository, logger *logging.Logger) *ShowtimeHandler {
+func NewShowtimeHandler(showtimeRepo repository.ShowtimeRepository, seatRepo repository.SeatRepository, logger *logging.Logger) *ShowtimeHandler {
 	return &ShowtimeHandler{
 		logger:       logger,
 		showtimeRepo: showtimeRepo,
+		seatRepo:     seatRepo,
 	}
 }
 
@@ -107,4 +111,99 @@ func (h *ShowtimeHandler) HandleGetShowtimeSeatsV2(w http.ResponseWriter, r *htt
 	}
 
 	httphelp.EncodeJSON(w, r, http.StatusOK, v2Response)
+}
+
+type CreateShowtimesRequest struct {
+	Showtimes []domain.Showtime `json:"showtimes"`
+}
+
+// @Summary Create showtimes
+// @Description Create showtimes
+// @Tags showtimes
+// @Produce json
+// @Param showtimes body CreateShowtimesRequest true "Showtimes creation request"
+// @Success 200 {object} map[string]string "Showtimes created successfully"
+// @Router /showtimes [post]
+func (h *ShowtimeHandler) HandleCreateShowtimes(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	req, err := httphelp.DecodeJSON[CreateShowtimesRequest](r)
+	if err != nil {
+		httphelp.EncodeJSONError(w, r, http.StatusBadRequest, err)
+		return
+	}
+
+	if len(req.Showtimes) == 0 {
+		httphelp.EncodeJSONError(w, r, http.StatusBadRequest, errors.New("no showtimes provided"))
+		return
+	}
+
+	for i := range req.Showtimes {
+		req.Showtimes[i].ID = uuid.New().String()
+		if req.Showtimes[i].StartTime.IsZero() {
+			httphelp.EncodeJSONError(w, r, http.StatusBadRequest, errors.New("start time is required"))
+			return
+		}
+		if req.Showtimes[i].EndTime.IsZero() {
+			httphelp.EncodeJSONError(w, r, http.StatusBadRequest, errors.New("end time is required"))
+			return
+		}
+		if req.Showtimes[i].BasePrice <= 0 {
+			httphelp.EncodeJSONError(w, r, http.StatusBadRequest, errors.New("base price must be greater than 0"))
+			return
+		}
+		if req.Showtimes[i].EndTime.Before(req.Showtimes[i].StartTime) {
+			httphelp.EncodeJSONError(w, r, http.StatusBadRequest, errors.New("end time must be after start time"))
+			return
+		}
+		if req.Showtimes[i].MovieID == "" {
+			httphelp.EncodeJSONError(w, r, http.StatusBadRequest, errors.New("movie ID is required"))
+			return
+		}
+		if req.Showtimes[i].AuditoriumID == "" {
+			httphelp.EncodeJSONError(w, r, http.StatusBadRequest, errors.New("auditorium ID is required"))
+			return
+		}
+		if req.Showtimes[i].CinemaID == "" {
+			httphelp.EncodeJSONError(w, r, http.StatusBadRequest, errors.New("cinema ID is required"))
+			return
+		}
+	}
+
+	err = h.showtimeRepo.InsertShowtimes(ctx, req.Showtimes)
+	if err != nil {
+		h.logger.Error("Failed to insert showtimes", err)
+		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
+		return
+	}
+
+	var errGroup errgroup.Group
+	for _, st := range req.Showtimes {
+		st := st
+		errGroup.Go(func() error {
+			seats, err := h.seatRepo.ListSeats(ctx, st.AuditoriumID)
+			if err != nil {
+				h.logger.Error("Failed to list seats", err)
+				httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
+				return nil
+			}
+
+			showtimeSeats := make([]domain.ShowtimeSeat, len(seats))
+			for i, s := range seats {
+				showtimeSeats[i] = domain.ShowtimeSeat{
+					SeatID:     s.ID,
+					ShowtimeID: st.ID,
+					Status:     domain.SeatStatusAvailable,
+					Price:      st.BasePrice,
+				}
+			}
+			return h.showtimeRepo.InsertShowtimeSeats(ctx, st.ID, showtimeSeats)
+		})
+	}
+	if err := errGroup.Wait(); err != nil {
+		h.logger.Error("Failed to insert showtime seats", err)
+		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
+		return
+	}
+
+	httphelp.EncodeJSON(w, r, http.StatusOK, map[string]string{"status": "success"})
 }
