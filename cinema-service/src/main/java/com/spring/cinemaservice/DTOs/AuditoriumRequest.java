@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class AuditoriumDTO {
+public class AuditoriumRequest {
     private String name;
     private AuditoriumPattern pattern;
 }

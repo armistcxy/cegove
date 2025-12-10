@@ -1,6 +1,6 @@
 package com.spring.cinemaservice.Services;
 
-import com.spring.cinemaservice.DTOs.AuditoriumDTO;
+import com.spring.cinemaservice.DTOs.AuditoriumRequest;
 import com.spring.cinemaservice.DTOs.CinemaRequest;
 import com.spring.cinemaservice.DTOs.CinemaResponse;
 import com.spring.cinemaservice.Models.Cinema;
@@ -48,8 +48,8 @@ public class CinemaService {
 
         // Create auditoriums
         if (cinemaRequest.getAuditoriumList() != null) {
-            for (AuditoriumDTO auditoriumDTO : cinemaRequest.getAuditoriumList()) {
-                auditoriumService.createAuditorium(auditoriumDTO, savedCinema.getId());
+            for (AuditoriumRequest auditoriumRequest : cinemaRequest.getAuditoriumList()) {
+                auditoriumService.createAuditorium(auditoriumRequest, savedCinema.getId());
             }
         }
     }
