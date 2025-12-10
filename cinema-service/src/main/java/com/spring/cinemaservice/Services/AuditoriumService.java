@@ -39,4 +39,9 @@ public class AuditoriumService {
         // Generate seating arrangement based on the auditorium pattern
         seatService.saveSeats(savedAuditorium);
     }
+
+    public Auditorium getAuditoriumById(Long auditoriumId) {
+        return reposistory.findById(auditoriumId)
+                .orElseThrow(() -> new UsernameNotFoundException("Auditorium not found with id: " + auditoriumId));
+    }
 }
