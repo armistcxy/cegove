@@ -29,11 +29,13 @@ func NewBookingRouter(pool *pgxpool.Pool, logger *logging.Logger) *BookingRouter
 	bookingHandler := NewBookingHandler(bookingRepo, logger)
 	// Showtime routes
 	showtimeRepo := repository.NewShowtimeRepository(pool)
-	showtimeHandler := NewShowtimeHandler(showtimeRepo, logger)
+	seatRepo := repository.NewSeatRepository(pool)
+	showtimeHandler := NewShowtimeHandler(showtimeRepo, seatRepo, logger)
 
 	router.RegisterHandlerFunc(http.MethodGet, "/v1/showtimes", showtimeHandler.HandleListShowtimes)
 	router.RegisterHandlerFunc(http.MethodGet, "/v1/showtimes/{showtime_id}/seats", showtimeHandler.HandleGetShowtimeSeats)
 	router.RegisterHandlerFunc(http.MethodGet, "/v2/showtimes/{showtime_id}/seats", showtimeHandler.HandleGetShowtimeSeatsV2)
+	router.RegisterHandlerFunc(http.MethodPost, "/v1/showtimes", showtimeHandler.HandleCreateShowtimes)
 
 	router.RegisterHandlerFunc(http.MethodPost, "/v1/bookings", bookingHandler.HandleCreateBooking)
 	router.RegisterHandlerFunc(http.MethodGet, "/v1/bookings", bookingHandler.HandleListBookings)

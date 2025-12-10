@@ -24,10 +24,10 @@ const (
 type Seat struct {
 	ID     string `json:"id"`
 	Row    string `json:"row"`    // Name of row, could be "A", "B", "C", etc.
-	Number int    `json:"number"` // Number of seat in row, could be 1, 2, 3, etc.
+	Number string `json:"number"` // Number of seat in row, could be 1, 2, 3, etc.
 
-	Type     SeatType `json:"type"`
-	ScreenID string   `json:"screen_id"` // ID of the screen
+	Type         string `json:"type"`
+	AuditoriumID string `json:"auditorium_id"` // ID of the screen
 }
 
 type ShowtimeSeat struct {
@@ -36,17 +36,19 @@ type ShowtimeSeat struct {
 	Status     SeatStatus `json:"status"`
 	Price      float64    `json:"price"`
 	BookingID  string     `json:"booking_id,omitempty"`
+
+	SeatNumber string `json:"seat_number"`
+	SeatType   string `json:"seat_type"`
 }
 
 type Showtime struct {
-	ID        string    `json:"id"`
-	MovieID   string    `json:"movie_id"`
-	CinemaID  string    `json:"cinema_id"`
-	ScreenID  string    `json:"screen_id"`
-	StartTime time.Time `json:"start_time"`
-	EndTime   time.Time `json:"end_time"`
-	BasePrice float64   `json:"base_price"`
-	Status    int       `json:"status"`
+	ID           string    `json:"id"`
+	MovieID      string    `json:"movie_id"`
+	CinemaID     string    `json:"cinema_id"`
+	AuditoriumID string    `json:"auditorium_id"`
+	StartTime    time.Time `json:"start_time"`
+	EndTime      time.Time `json:"end_time"`
+	BasePrice    float64   `json:"base_price"`
 }
 
 type SeatV2Response struct {
