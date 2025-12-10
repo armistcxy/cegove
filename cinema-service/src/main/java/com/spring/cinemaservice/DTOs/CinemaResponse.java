@@ -12,6 +12,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CinemaResponse {
+    private Long id;
     private String name;
     private String address;
     private String district;

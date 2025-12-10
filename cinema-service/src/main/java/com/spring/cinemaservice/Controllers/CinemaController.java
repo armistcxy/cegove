@@ -1,6 +1,6 @@
 package com.spring.cinemaservice.Controllers;
 
-import com.spring.cinemaservice.DTOs.AuditoriumDTO;
+import com.spring.cinemaservice.DTOs.AuditoriumRequest;
 import com.spring.cinemaservice.DTOs.CinemaRequest;
 import com.spring.cinemaservice.DTOs.CinemaResponse;
 import com.spring.cinemaservice.Services.AuditoriumService;
@@ -43,7 +43,7 @@ public class CinemaController {
 
     @PreAuthorize("hasAuthority('SUPER_ADMIN')")
     @PostMapping("/{id}/auditoriums")
-    public ResponseEntity<?> createAuditorium(@PathVariable("id") Long CinemaId, @RequestBody AuditoriumDTO body) {
+    public ResponseEntity<?> createAuditorium(@PathVariable("id") Long CinemaId, @RequestBody AuditoriumRequest body) {
         try {
             auditoriumService.createAuditorium(body, CinemaId);
             return ResponseEntity.status(201).body("Create");

@@ -1,5 +1,6 @@
 package com.spring.cinemaservice.Models;
 
+import com.spring.cinemaservice.DTOs.AuditoriumResponse;
 import com.spring.cinemaservice.Enums.AuditoriumPattern;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
@@ -43,4 +44,12 @@ public class Auditorium {
 
     @OneToMany(mappedBy = "auditorium", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<Seat> seats = new ArrayList<>();
+
+    public AuditoriumResponse convertToDTO() {
+        return AuditoriumResponse.builder()
+                .id(this.id)
+                .name(this.name)
+                .pattern(this.pattern.name())
+                .build();
+    }
 }
