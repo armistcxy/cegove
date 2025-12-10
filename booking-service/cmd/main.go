@@ -16,7 +16,9 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
+	"strings"
 
 	"github.com/armistcxy/cegove/booking-service/internal/handler"
 	"github.com/armistcxy/cegove/booking-service/pkg/config"
@@ -25,6 +27,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/rs/cors"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/viper"
@@ -57,9 +60,16 @@ func main() {
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 		collectors.NewGoCollector(),
 	)
-
 	httpMetrics := httphelp.NewHTTPMetrics(reg, "booking-service")
-	server := httphelp.NewServer(httpMetrics.Middleware)
+
+	// CORS middleware
+	c := cors.New(cors.Options{
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"*"},
+		AllowCredentials: true,
+		AllowOriginFunc:  isAllowedOrigin,
+	})
+	server := httphelp.NewServer(c.Handler, httpMetrics.Middleware)
 	server.Router.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 
 	remoteConfigKeys := []string{
@@ -108,4 +118,13 @@ func main() {
 	if err := server.ListenAndServe(":8080"); err != nil {
 		log.Fatalf("failed to start server: %v", err)
 	}
+}
+
+func isAllowedOrigin(origin string) bool {
+	u, _ := url.Parse(origin)
+	host := u.Host
+	if strings.Contains(host, "localhost") || strings.Contains(host, "cegove.cloud") {
+		return true
+	}
+	return false
 }
