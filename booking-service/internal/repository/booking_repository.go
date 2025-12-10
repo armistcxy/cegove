@@ -2,12 +2,8 @@ package repository
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
-	"strconv"
 	"time"
-
-	"github.com/skip2/go-qrcode"
 
 	"github.com/armistcxy/cegove/booking-service/internal/domain"
 
@@ -57,106 +53,119 @@ func (r *bookingRepository) InsertBooking(ctx context.Context, booking *domain.B
 	booking.ExpiresAt = now.Add(15 * time.Minute)
 
 	// Reserve requested seats: lock them and assign booking ID
-	builder2 := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
-	updateQuery, updateArgs, err := builder2.Update("showtime_seats").
+	builder := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+
+	sQuery, sArgs, err := builder.Update("showtime_seats").
 		Set("status", domain.SeatStatusLocked).
 		Set("booking_id", booking.ID).
-		Where(sq.And{
-			sq.Eq{"showtime_id": booking.ShowtimeID},
-			sq.Eq{"seat_id": booking.SeatIDs},
-			sq.Eq{"status": domain.SeatStatusAvailable},
-		}).
+		Where(sq.Eq{"showtime_id": booking.ShowtimeID}).
+		Where(sq.Eq{"seat_id": booking.SeatIDs}).
 		ToSql()
 	if err != nil {
-		return fmt.Errorf("build reserve seats query: %w", err)
-	}
-	res, err := tx.Exec(ctx, updateQuery, updateArgs...)
-	if err != nil {
-		return fmt.Errorf("reserve seats: %w", err)
-	}
-	if res.RowsAffected() != int64(len(booking.SeatIDs)) {
-		return fmt.Errorf("some seats are no longer available")
+		return err
 	}
 
-	// Calculate total price from reserved seats
-	priceQuery, priceArgs, err := builder2.Select("price").
-		From("showtime_seats").
-		Where(sq.Eq{"showtime_id": booking.ShowtimeID, "booking_id": booking.ID}).
-		ToSql()
-	if err != nil {
-		return fmt.Errorf("build price query: %w", err)
+	if _, err = tx.Exec(ctx, sQuery, sArgs...); err != nil {
+		return err
 	}
-	rows, err := tx.Query(ctx, priceQuery, priceArgs...)
-	if err != nil {
-		return fmt.Errorf("query reserved seats prices: %w", err)
-	}
-	defer rows.Close()
-	var total float64
-	for rows.Next() {
-		var p float64
-		if err := rows.Scan(&p); err != nil {
-			return fmt.Errorf("scan seat price: %w", err)
-		}
-		total += p
-	}
-	booking.TotalPrice = total
 
-	// Prepare tickets for each reserved seat
-	booking.Tickets = make([]domain.Ticket, 0, len(booking.SeatIDs))
+	bQuery, bArgs, err := builder.Insert("bookings").Columns(
+		"id", "user_id", "showtime_id", "total_price", "status", "created_at", "expires_at",
+	).Values(
+		booking.ID, booking.UserID, booking.ShowtimeID, booking.TotalPrice, booking.Status, booking.CreatedAt, booking.ExpiresAt,
+	).ToSql()
+
+	if err != nil {
+		return err
+	}
+
+	if _, err = tx.Exec(ctx, bQuery, bArgs...); err != nil {
+		return err
+	}
+
+	var movieTitle string
+	mQuery, mArgs, err := builder.Select("series_title").From("movies").Join("showtimes ON movies.id = showtimes.movie_id").
+		Where(sq.Eq{"showtimes.id": booking.ShowtimeID}).ToSql()
+	if err != nil {
+		return err
+	}
+
+	row := tx.QueryRow(ctx, mQuery, mArgs...)
+	err = row.Scan(&movieTitle)
+	if err != nil {
+		return err
+	}
+
+	var cinemaName string
+	cQuery, cArgs, err := builder.Select("name").From("cinemas").Join("auditoriums ON cinemas.id = auditoriums.cinema_id").
+		Join("showtimes ON auditoriums.id = showtimes.auditorium_id").
+		Where(sq.Eq{"showtimes.id": booking.ShowtimeID}).ToSql()
+	if err != nil {
+		return err
+	}
+	row = tx.QueryRow(ctx, cQuery, cArgs...)
+	err = row.Scan(&cinemaName)
+	if err != nil {
+		return err
+	}
+
+	var auditoriumName string
+	aQuery, aArgs, err := builder.Select("name").From("auditoriums").Join("showtimes ON auditoriums.id = showtimes.auditorium_id").
+		Where(sq.Eq{"showtimes.id": booking.ShowtimeID}).ToSql()
+	if err != nil {
+		return err
+	}
+	row = tx.QueryRow(ctx, aQuery, aArgs...)
+	err = row.Scan(&auditoriumName)
+	if err != nil {
+		return err
+	}
+
+	tickets := make([]domain.Ticket, 0)
 	for _, seatID := range booking.SeatIDs {
-		// derive row and number from seatID (e.g., "A10")
-		row := string(seatID[0])
-		num, _ := strconv.Atoi(seatID[1:])
-		t := domain.Ticket{
-			ID:         uuid.New().String(),
-			BookingID:  booking.ID,
-			ShowtimeID: booking.ShowtimeID,
-			SeatRow:    row,
-			SeatNumber: num,
-			Price:      0, // will be set by insert based on booking.TotalPrice split if needed
-			Status:     domain.TicketStatusActive,
-			CreatedAt:  now,
+		sQuery, sArgs, err := builder.Select("seat_number", "price").From("showtime_seats").
+			Where(sq.Eq{"seat_id": seatID}).Where(sq.Eq{"showtime_id": booking.ShowtimeID}).ToSql()
+		if err != nil {
+			return err
 		}
-		booking.Tickets = append(booking.Tickets, t)
+		row := tx.QueryRow(ctx, sQuery, sArgs...)
+		var seatNumber int
+		var price float64
+		err = row.Scan(&seatNumber, &price)
+		if err != nil {
+			return err
+		}
+		t := domain.Ticket{
+			ID:             uuid.New().String(),
+			BookingID:      booking.ID,
+			ShowtimeID:     booking.ShowtimeID,
+			MovieTitle:     movieTitle,
+			CinemaName:     cinemaName,
+			AuditoriumName: auditoriumName,
+			SeatNumber:     seatNumber,
+			QRCode:         uuid.New().String(),
+			Price:          price,
+		}
+		tickets = append(tickets, t)
 	}
 
-	// Insert booking record
-	builder := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
-	query, args, err := builder.Insert("bookings").
-		Columns("id", "user_id", "showtime_id", "total_price", "status", "created_at", "expires_at").
-		Values(booking.ID, booking.UserID, booking.ShowtimeID, booking.TotalPrice, booking.Status, booking.CreatedAt, booking.ExpiresAt).
-		ToSql()
+	ticketQuery := builder.Insert("tickets").Columns(
+		"id", "booking_id", "showtime_id", "movie_title", "cinema_name", "auditorium_name",
+		"showtime", "seat_number", "qr_code", "price",
+	)
+
+	for _, t := range tickets {
+		ticketQuery = ticketQuery.Values(
+			t.ID, t.BookingID, t.ShowtimeID, t.MovieTitle, t.CinemaName, t.AuditoriumName,
+			t.Showtime, t.SeatNumber, t.QRCode, t.Price,
+		)
+	}
+	query, args, err := ticketQuery.ToSql()
 	if err != nil {
-		return fmt.Errorf("build insert booking query: %w", err)
+		return err
 	}
 	if _, err = tx.Exec(ctx, query, args...); err != nil {
-		return fmt.Errorf("insert booking: %w", err)
-	}
-
-	// Insert tickets
-	for _, t := range booking.Tickets {
-		if t.ID == "" {
-			t.ID = uuid.New().String()
-		}
-		if t.CreatedAt.IsZero() {
-			t.CreatedAt = now
-		}
-		tQuery, tArgs, err := builder.Insert("tickets").
-			Columns(
-				"id", "booking_id", "showtime_id", "movie_title", "cinema_name", "screen_name",
-				"showtime", "seat_row", "seat_number", "qr_code", "price", "status", "created_at",
-			).
-			Values(
-				t.ID, booking.ID, t.ShowtimeID, t.MovieTitle, t.CinemaName, t.ScreenName,
-				t.Showtime, t.SeatRow, t.SeatNumber, t.QRCode, t.Price, t.Status, t.CreatedAt,
-			).
-			ToSql()
-		if err != nil {
-			return fmt.Errorf("build insert ticket query: %w", err)
-		}
-		if _, err = tx.Exec(ctx, tQuery, tArgs...); err != nil {
-			return fmt.Errorf("insert ticket %s: %w", t.ID, err)
-		}
+		return err
 	}
 
 	if err = tx.Commit(ctx); err != nil {
@@ -217,8 +226,8 @@ func (r *bookingRepository) GetBookingInformation(ctx context.Context, bookingID
 	}
 
 	tQuery, tArgs, err := builder.Select(
-		"id", "booking_id", "showtime_id", "movie_title", "cinema_name", "screen_name",
-		"showtime", "seat_row", "seat_number", "qr_code", "price", "status", "created_at",
+		"id", "booking_id", "showtime_id", "movie_title", "cinema_name", "auditorium_name",
+		"showtime", "seat_number", "qr_code", "price", "status", "created_at",
 	).From("tickets").Where(sq.Eq{"booking_id": bookingID}).OrderBy("created_at").ToSql()
 	if err != nil {
 		return &b, fmt.Errorf("build tickets query: %w", err)
@@ -234,8 +243,8 @@ func (r *bookingRepository) GetBookingInformation(ctx context.Context, bookingID
 	for rows.Next() {
 		var t domain.Ticket
 		if err := rows.Scan(
-			&t.ID, &t.BookingID, &t.ShowtimeID, &t.MovieTitle, &t.CinemaName, &t.ScreenName,
-			&t.Showtime, &t.SeatRow, &t.SeatNumber, &t.QRCode, &t.Price, &t.Status, &t.CreatedAt,
+			&t.ID, &t.BookingID, &t.ShowtimeID, &t.MovieTitle, &t.CinemaName, &t.AuditoriumName,
+			&t.Showtime, &t.SeatNumber, &t.QRCode, &t.Price, &t.Status, &t.CreatedAt,
 		); err != nil {
 			return &b, fmt.Errorf("scan ticket: %w", err)
 		}
@@ -262,120 +271,74 @@ func (r *bookingRepository) ProcessPaymentWebhook(ctx context.Context, req domai
 
 	builder := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
+	// Check if booking exists and is not confirmed
 	query, args, err := builder.Select("status").
 		From("bookings").
-		Where(sq.Eq{"id": req.BookingID}).
-		Suffix("FOR UPDATE").
-		ToSql()
+		Where(sq.Eq{"id": req.BookingID}).ToSql()
 	if err != nil {
-		return fmt.Errorf("build select booking query: %w", err)
+		return fmt.Errorf("build select booking status query: %w", err)
 	}
 
+	row := tx.QueryRow(ctx, query, args...)
 	var currentStatus domain.BookingStatus
-	err = tx.QueryRow(ctx, query, args...).Scan(&currentStatus)
+	err = row.Scan(&currentStatus)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return fmt.Errorf("booking not found: %s", req.BookingID)
 		}
 		return fmt.Errorf("query booking status: %w", err)
 	}
-
-	// Idempotency check
-	// If booking is already Confirmed or Failed, we do nothing and return success
 	if currentStatus == domain.BookingStatusConfirmed || currentStatus == domain.BookingStatusFailed {
-		return nil
+		return fmt.Errorf("booking already processed")
 	}
 
-	// Update booking status
+	// if payment status is success, change ticket status to active and booking status to confirmed
 	if req.PaymentStatus == "SUCCESS" {
-		// Pending -> Confirmed
-		uQuery, uArgs, err := builder.Update("bookings").
+		tQuery, tArgs, err := builder.Update("tickets").
+			Set("status", domain.TicketStatusActive).
+			Where(sq.Eq{"booking_id": req.BookingID}).
+			ToSql()
+		if err != nil {
+			return fmt.Errorf("build update ticket status query: %w", err)
+		}
+		if _, err := tx.Exec(ctx, tQuery, tArgs...); err != nil {
+			return fmt.Errorf("update ticket status: %w", err)
+		}
+
+		bQuery, bArgs, err := builder.Update("bookings").
 			Set("status", domain.BookingStatusConfirmed).
 			Where(sq.Eq{"id": req.BookingID}).
 			ToSql()
 		if err != nil {
-			return err
+			return fmt.Errorf("build update booking status query: %w", err)
 		}
-		if _, err := tx.Exec(ctx, uQuery, uArgs...); err != nil {
-			return fmt.Errorf("update booking confirmed: %w", err)
+		if _, err := tx.Exec(ctx, bQuery, bArgs...); err != nil {
+			return fmt.Errorf("update booking status: %w", err)
 		}
+	}
 
-		// Locked -> Sold
-		sQuery, sArgs, err := builder.Update("showtime_seats").
-			Set("status", domain.SeatStatusSold).
-			Where(sq.Eq{"booking_id": req.BookingID}).
-			ToSql()
-		if err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, sQuery, sArgs...); err != nil {
-			return fmt.Errorf("update seats sold: %w", err)
-		}
-
-		// Generate and update QR codes for tickets
-		rows, err := tx.Query(ctx, "SELECT id FROM tickets WHERE booking_id=$1", req.BookingID)
-		if err != nil {
-			return fmt.Errorf("query tickets for QR generation: %w", err)
-		}
-		defer rows.Close()
-		for rows.Next() {
-			var ticketID string
-			if err := rows.Scan(&ticketID); err != nil {
-				return fmt.Errorf("scan ticket id: %w", err)
-			}
-			png, err := qrcode.Encode(ticketID, qrcode.Medium, 256)
-			if err != nil {
-				return fmt.Errorf("generate QR code: %w", err)
-			}
-			qrB64 := base64.StdEncoding.EncodeToString(png)
-			uQrQuery, uQrArgs, err := builder.Update("tickets").
-				Set("qr_code", qrB64).
-				Where(sq.Eq{"id": ticketID}).
-				ToSql()
-			if err != nil {
-				return fmt.Errorf("build update qr query: %w", err)
-			}
-			if _, err := tx.Exec(ctx, uQrQuery, uQrArgs...); err != nil {
-				return fmt.Errorf("update ticket qr code: %w", err)
-			}
-		}
-
-	} else {
-		// Pending -> Failed
-		uQuery, uArgs, err := builder.Update("bookings").
-			Set("status", domain.BookingStatusFailed).
-			Where(sq.Eq{"id": req.BookingID}).
-			ToSql()
-		if err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, uQuery, uArgs...); err != nil {
-			return fmt.Errorf("update booking failed: %w", err)
-		}
-
-		// Locked -> Available
-		sQuery, sArgs, err := builder.Update("showtime_seats").
-			Set("status", domain.SeatStatusAvailable).
-			Set("booking_id", nil). // Clear the relationship
-			Where(sq.Eq{"booking_id": req.BookingID}).
-			ToSql()
-		if err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, sQuery, sArgs...); err != nil {
-			return fmt.Errorf("release seats: %w", err)
-		}
-
-		// cancel ticket
+	// if payment status is failed, change ticket status to cancelled and booking status to failed
+	if req.PaymentStatus == "FAILED" {
 		tQuery, tArgs, err := builder.Update("tickets").
 			Set("status", domain.TicketStatusCancelled).
 			Where(sq.Eq{"booking_id": req.BookingID}).
 			ToSql()
 		if err != nil {
-			return err
+			return fmt.Errorf("build update ticket status query: %w", err)
 		}
 		if _, err := tx.Exec(ctx, tQuery, tArgs...); err != nil {
-			return fmt.Errorf("cancel tickets: %w", err)
+			return fmt.Errorf("update ticket status: %w", err)
+		}
+
+		bQuery, bArgs, err := builder.Update("bookings").
+			Set("status", domain.BookingStatusFailed).
+			Where(sq.Eq{"id": req.BookingID}).
+			ToSql()
+		if err != nil {
+			return fmt.Errorf("build update booking status query: %w", err)
+		}
+		if _, err := tx.Exec(ctx, bQuery, bArgs...); err != nil {
+			return fmt.Errorf("update booking status: %w", err)
 		}
 	}
 
@@ -399,8 +362,8 @@ func (r *bookingRepository) ScanTicket(ctx context.Context, code string) (*domai
 
 	builder := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 	query, args, err := builder.Select(
-		"id", "booking_id", "showtime_id", "movie_title", "cinema_name", "screen_name",
-		"showtime", "seat_row", "seat_number", "qr_code", "price", "status", "created_at",
+		"id", "booking_id", "showtime_id", "movie_title", "cinema_name", "auditorium_name",
+		"showtime", "seat_number", "qr_code", "price", "status", "created_at",
 	).From("tickets").Where(sq.Eq{"qr_code": code}).Suffix("FOR UPDATE").ToSql()
 	if err != nil {
 		return nil, fmt.Errorf("build select ticket query: %w", err)
@@ -409,8 +372,8 @@ func (r *bookingRepository) ScanTicket(ctx context.Context, code string) (*domai
 	var t domain.Ticket
 	row := tx.QueryRow(ctx, query, args...)
 	if err := row.Scan(
-		&t.ID, &t.BookingID, &t.ShowtimeID, &t.MovieTitle, &t.CinemaName, &t.ScreenName,
-		&t.Showtime, &t.SeatRow, &t.SeatNumber, &t.QRCode, &t.Price, &t.Status, &t.CreatedAt,
+		&t.ID, &t.BookingID, &t.ShowtimeID, &t.MovieTitle, &t.CinemaName, &t.AuditoriumName,
+		&t.Showtime, &t.SeatNumber, &t.QRCode, &t.Price, &t.Status, &t.CreatedAt,
 	); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil
