@@ -1,10 +1,19 @@
 import styles from './Admin.module.css';
+import { useEffect, useState } from 'react';
+import { fetchTotalMovies, fetchTotalCinemas } from './DashboardLogic';
 
 export default function Dashboard() {
+  const [totalMovies, setTotalMovies] = useState<number | null>(null);
+  const [totalCinemas, setTotalCinemas] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetchTotalMovies().then(setTotalMovies);
+    fetchTotalCinemas().then(setTotalCinemas);
+  }, []);
+
   return (
     <div className={styles.pageContainer}>
       <h1 className={styles.pageTitle}>Dashboard</h1>
-      
       <div className={styles.statsGrid}>
         <div className={styles.statCard}>
           <div className={styles.statIcon}>
@@ -26,7 +35,7 @@ export default function Dashboard() {
           </div>
           <div className={styles.statInfo}>
             <h3>Total Movies</h3>
-            <p className={styles.statNumber}>856</p>
+            <p className={styles.statNumber}>{totalMovies !== null ? totalMovies : '...'}</p>
           </div>
         </div>
 
@@ -38,7 +47,7 @@ export default function Dashboard() {
           </div>
           <div className={styles.statInfo}>
             <h3>Total Cinemas</h3>
-            <p className={styles.statNumber}>42</p>
+            <p className={styles.statNumber}>{totalCinemas !== null ? totalCinemas : '...'}</p>
           </div>
         </div>
 

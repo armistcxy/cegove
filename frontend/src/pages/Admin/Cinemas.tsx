@@ -147,14 +147,14 @@ export default function Cinemas() {
                             onClick={() => handleEdit(cinema.id)}
                             title="Chỉnh sửa"
                           >
-                            ✏️
+                            Sửa
                           </button>
                           <button 
                             className={styles.btnDelete}
                             onClick={() => handleDelete(cinema.id)}
                             title="Xóa"
                           >
-                            🗑️
+                            Xóa
                           </button>
                         </div>
                       </td>

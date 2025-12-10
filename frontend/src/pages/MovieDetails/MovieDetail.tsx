@@ -1,17 +1,21 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import type { Movie } from "../Movies/MovieLogic.ts";
-import { fetchMovieDetail } from "./MovieDetailLogic.ts";
+import { fetchMovieDetail, fetchSimilarMovies } from "./MovieDetailLogic.ts";
 import BookingPopup from "../../components/BookingPopup/BookingPopup.tsx";
+import RelatedMoviesSlider from "../../components/RelatedMoviesSlider/RelatedMoviesSlider.tsx";
 import styles from "./MovieDetail.module.css";
 
 export default function MovieDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [movie, setMovie] = useState<Movie | null>(null);
+  const [similarMovies, setSimilarMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isBookingPopupOpen, setIsBookingPopupOpen] = useState(false);
+  const [selectedMovieTitle, setSelectedMovieTitle] = useState<string>("");
+  const [selectedMovieId, setSelectedMovieId] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     if (!id) {
@@ -20,20 +24,28 @@ export default function MovieDetail() {
       return;
     }
 
-    fetchMovieDetail(id)
-      .then((data) => {
-        if (data) {
-          setMovie(data);
+    const loadData = async () => {
+      try {
+        const [movieData, similarData] = await Promise.all([
+          fetchMovieDetail(id),
+          fetchSimilarMovies(id, 20)
+        ]);
+
+        if (movieData) {
+          setMovie(movieData);
         } else {
           setError("Movie not found");
         }
-      })
-      .catch(() => {
+
+        setSimilarMovies(similarData);
+      } catch (err) {
         setError("Failed to load movie details");
-      })
-      .finally(() => {
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+
+    loadData();
   }, [id]);
 
   if (loading) {
@@ -167,8 +179,18 @@ export default function MovieDetail() {
       <BookingPopup 
         isOpen={isBookingPopupOpen}
         onClose={() => setIsBookingPopupOpen(false)}
-        movieTitle={movie.series_title}
-        movieId={movie.id}
+        movieTitle={selectedMovieTitle}
+        movieId={selectedMovieId}
+      />
+
+      {/* Related Movies Slider */}
+      <RelatedMoviesSlider 
+        movies={similarMovies}
+        onBuyClick={(title, movieId) => {
+          setSelectedMovieTitle(title);
+          setSelectedMovieId(movieId);
+          setIsBookingPopupOpen(true);
+        }}
       />
     </div>
   );

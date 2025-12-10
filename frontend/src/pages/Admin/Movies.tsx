@@ -15,8 +15,7 @@ export default function Movies() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedGenre, setSelectedGenre] = useState('');
-  const [selectedYear, setSelectedYear] = useState('');
+  // Đã bỏ filter thể loại và năm
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
@@ -25,17 +24,13 @@ export default function Movies() {
 
     return () => clearTimeout(delayDebounceFn);
   }, [currentPage, searchTerm]);
-
   const fetchMovies = async () => {
     setLoading(true);
     try {
       let url = `https://movies.cegove.cloud/api/v1/movies/?page=${currentPage}&page_size=20&sort_order=desc`;
-      
-      // Add search parameter if searchTerm exists
       if (searchTerm.trim()) {
         url += `&search=${encodeURIComponent(searchTerm)}`;
       }
-      
       const response = await fetch(url);
       const data = await response.json();
       setMovies(data.items || []);
@@ -60,15 +55,8 @@ export default function Movies() {
   };
 
   // Get unique genres and years for filters (client-side only)
-  const genres = [...new Set(movies.map(m => m.genre).filter(g => g))].sort();
-  const years = [...new Set(movies.map(m => m.released_year).filter(y => y))].sort().reverse();
-
-  // Filter movies based on genre and year only (search is handled by API)
-  const filteredMovies = movies.filter(movie => {
-    const matchesGenre = !selectedGenre || movie.genre === selectedGenre;
-    const matchesYear = !selectedYear || movie.released_year === selectedYear;
-    return matchesGenre && matchesYear;
-  });
+  // Bỏ filter thể loại và năm
+  const filteredMovies = movies;
 
   return (
     <div className={styles.pageContainer}>
@@ -77,7 +65,7 @@ export default function Movies() {
         <button className={styles.btnPrimary}>+ Thêm phim mới</button>
       </div>
 
-      {/* Filter Section */}
+      {/* Filter Section chỉ còn search */}
       <div className={styles.filterSection}>
         <input
           type="text"
@@ -89,26 +77,6 @@ export default function Movies() {
           }}
           className={styles.searchInput}
         />
-        <select
-          value={selectedGenre}
-          onChange={(e) => setSelectedGenre(e.target.value)}
-          className={styles.filterSelect}
-        >
-          <option value="">Tất cả thể loại</option>
-          {genres.map(genre => (
-            <option key={genre} value={genre}>{genre}</option>
-          ))}
-        </select>
-        <select
-          value={selectedYear}
-          onChange={(e) => setSelectedYear(e.target.value)}
-          className={styles.filterSelect}
-        >
-          <option value="">Tất cả năm</option>
-          {years.map(year => (
-            <option key={year} value={year}>{year}</option>
-          ))}
-        </select>
       </div>
 
       {loading ? (
@@ -163,13 +131,13 @@ export default function Movies() {
                             className={styles.btnEdit}
                             onClick={() => handleEdit(movie.id)}
                           >
-                            ✏️
+                            Sửa
                           </button>
                           <button 
                             className={styles.btnDelete}
                             onClick={() => handleDelete(movie.id)}
                           >
-                            🗑️
+                            Xóa
                           </button>
                         </div>
                       </td>

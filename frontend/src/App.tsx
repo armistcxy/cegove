@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute.tsx';
 import AdminLayout from './layouts/AdminLayout.tsx';
 import HomePage from './pages/Home/HomePage.tsx';
 import Movies from './pages/Movies/Movie.tsx';
+import MoviesForYou from './pages/MoviesForYou/MoviesForYou.tsx';
 import MovieDetail from './pages/MovieDetails/MovieDetail.tsx';
 import Cinema from './pages/Cinemas/Cinema.tsx';
 import MyTickets from './pages/MyTickets/MyTickets.tsx';
@@ -44,6 +45,7 @@ function AppContent() {
                   <Route path="/" element={<Navigate to="/homepage" replace />} />
                   <Route path="/homepage" element={<HomePage />} />
                   <Route path="/movie" element={<Movies />} />
+                  <Route path="/movies-for-you" element={<MoviesForYou />} />
                   <Route path="/cinema" element={<Cinema />} />
                   <Route path="/my-tickets" element={<MyTickets />} />
                   <Route path="/MovieDetail/:id" element={<MovieDetail />} />
