@@ -70,6 +70,26 @@ def get_movies(
         has_prev=page > 1
     )
 
+@router.get("/search", response_model=List[MovieResponse])
+def search_movies(
+    q: str = Query(..., min_length=1, description="Search query"),
+    limit: int = Query(10, ge=1, le=50, description="Maximum number of results"),
+    db: Session = Depends(get_db)
+    # Không yêu cầu authentication - Public endpoint
+):
+    """
+    Simple search movies by title, director, or overview
+    
+    **Public endpoint** - No authentication required
+    
+    - **q**: Search query (required)
+    - **limit**: Maximum number of results to return (max 50, default 10)
+    
+    Returns a list of movies matching the search query.
+    For more advanced search with pagination, use the GET / endpoint with search parameter.
+    """
+    movies = MovieService.search_movies(db, q, limit)
+    return movies
 
 @router.get("/{movie_id}", response_model=MovieResponse)
 def get_movie(
@@ -245,3 +265,5 @@ def get_meta_score_distribution(
     Returns count of movies in ranges: 0-10, 10-20, ..., 90-100
     """
     return MovieService.get_meta_score_distribution(db)
+
+
