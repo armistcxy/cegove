@@ -1,0 +1,266 @@
+.sliderContainer {
+  margin-top: 60px;
+  padding: 0 0 40px 0;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 30px;
+  color: #333;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  position: relative;
+  padding-bottom: 15px;
+}
+
+.title::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 80px;
+  height: 4px;
+  background: linear-gradient(90deg, #e50914 0%, #ff6b6b 100%);
+}
+
+.sliderWrapper {
+  position: relative;
+  width: 100%;
+}
+
+.slider {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  padding: 10px 0;
+  scrollbar-width: thin;
+  scrollbar-color: #e50914 #f0f0f0;
+}
+
+.slider::-webkit-scrollbar {
+  height: 8px;
+}
+
+.slider::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+.slider::-webkit-scrollbar-thumb {
+  background: #e50914;
+  border-radius: 4px;
+}
+
+.slider::-webkit-scrollbar-thumb:hover {
+  background: #b20710;
+}
+
+.movieCard {
+  flex: 0 0 180px;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.movieCard:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.poster {
+  width: 100%;
+  height: 260px;
+  object-fit: cover;
+  display: block;
+}
+
+.movieInfo {
+  padding: 12px;
+}
+
+.movieTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 6px 0;
+  line-height: 1.3;
+  height: 34px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.rating {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.movieButtons {
+  display: flex;
+  gap: 6px;
+}
+
+.btnBuy,
+.btnDetail {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btnBuy {
+  background: linear-gradient(135deg, #e50914 0%, #b20710 100%);
+  color: white;
+}
+
+.btnBuy:hover {
+  background: linear-gradient(135deg, #ff0a16 0%, #e50914 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(229, 9, 20, 0.3);
+}
+
+.btnDetail {
+  background: white;
+  color: #e50914;
+  border: 2px solid #e50914;
+}
+
+.btnDetail:hover {
+  background: #e50914;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(229, 9, 20, 0.3);
+}
+
+.navButton {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(229, 9, 20, 0.9);
+  color: white;
+  border: none;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  font-size: 32px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  line-height: 1;
+  padding: 0;
+}
+
+.navButton:hover {
+  background: rgba(229, 9, 20, 1);
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.navButton:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.navButtonLeft {
+  left: -25px;
+}
+
+.navButtonRight {
+  right: -25px;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .movieCard {
+    flex: 0 0 160px;
+  }
+  
+  .poster {
+    height: 230px;
+  }
+}
+
+@media (max-width: 768px) {
+  .title {
+    font-size: 22px;
+  }
+  
+  .movieCard {
+    flex: 0 0 140px;
+  }
+  
+  .poster {
+    height: 200px;
+  }
+  
+  .movieTitle {
+    font-size: 12px;
+    height: 32px;
+  }
+  
+  .navButton {
+    width: 40px;
+    height: 40px;
+    font-size: 24px;
+  }
+  
+  .navButtonLeft {
+    left: -10px;
+  }
+  
+  .navButtonRight {
+    right: -10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sliderContainer {
+    margin-top: 40px;
+  }
+  
+  .movieCard {
+    flex: 0 0 120px;
+  }
+  
+  .poster {
+    height: 170px;
+  }
+  
+  .movieInfo {
+    padding: 8px;
+  }
+  
+  .movieTitle {
+    font-size: 11px;
+    height: 30px;
+  }
+  
+  .btnBuy,
+  .btnDetail {
+    padding: 6px 8px;
+    font-size: 10px;
+  }
+  
+  .navButton {
+    width: 35px;
+    height: 35px;
+    font-size: 20px;
+  }
+}

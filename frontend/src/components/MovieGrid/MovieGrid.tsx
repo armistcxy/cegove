@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Movie } from "../../pages/Movies/MovieLogic";
 import { fetchMovies } from "../../pages/Movies/MovieLogic";
+import BookingPopup from "../BookingPopup/BookingPopup.tsx";
 import styles from "./MovieGrid.module.css";
 
 interface MovieGridProps {
@@ -20,6 +21,8 @@ export default function MovieGrid({
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isBookingPopupOpen, setIsBookingPopupOpen] = useState(false);
+  const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -43,8 +46,9 @@ export default function MovieGrid({
     navigate(`/MovieDetail/${movieId}`);
   };
 
-  const handleBuyClick = () => {
-    navigate('/NotAvailable');
+  const handleBuyClick = (movie: Movie) => {
+    setSelectedMovie(movie);
+    setIsBookingPopupOpen(true);
   };
 
   if (loading) {
@@ -90,7 +94,7 @@ export default function MovieGrid({
               <div className={styles.movieButtons}>
                 <button 
                   className={styles.btnBuy}
-                  onClick={handleBuyClick}
+                  onClick={() => handleBuyClick(movie)}
                 >
                   Mua vé
                 </button>
@@ -105,6 +109,19 @@ export default function MovieGrid({
           </div>
         ))}
       </div>
+
+      {/* Booking Popup */}
+      {selectedMovie && (
+        <BookingPopup 
+          isOpen={isBookingPopupOpen}
+          onClose={() => {
+            setIsBookingPopupOpen(false);
+            setSelectedMovie(null);
+          }}
+          movieTitle={selectedMovie.series_title}
+          movieId={selectedMovie.id}
+        />
+      )}
     </div>
   );
 }
