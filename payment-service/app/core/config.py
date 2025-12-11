@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     VNPAY_PAYMENT_URL: str = ""
     VNPAY_RETURN_URL: str = ""
     VNPAY_IPN_URL: str = ""
+    VNPAY_QUERY_URL: str = "https://sandbox.vnpayment.vn/merchant_webapi/api/transaction"
+    BOOKING_WEBHOOK_URL: str = "https://booking.cegove.cloud/api/v1/bookings/webhooks/payment"
 
     # Pydantic settings format
     model_config = SettingsConfigDict(
