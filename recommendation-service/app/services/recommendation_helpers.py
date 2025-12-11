@@ -1,6 +1,7 @@
 from typing import List, Set, Tuple
 from sqlalchemy.orm import Session
 from app.models.movie import Movie
+from app.models.user_behavior import UserBehavior
 from app.schemas.recommendation import MovieRecommendation
 
 
@@ -82,42 +83,42 @@ def movie_to_recommendation(
 
 def get_user_watched_movies(db: Session, user_id: int) -> Tuple[List, Set[int]]:
     """
-    Get user's watched movies and their IDs
+    Get user's watched movies and their IDs from UserBehavior
     
     Returns:
-        Tuple of (user_ratings_list, watched_movie_ids_set)
+        Tuple of (user_behaviors_list, watched_movie_ids_set)
     """
-    from app.models.rating import Rating
-    user_ratings = db.query(Rating).filter(Rating.user_id == user_id).all()
-    watched_movie_ids = {r.movie_id for r in user_ratings}
-    return user_ratings, watched_movie_ids
+    user_behaviors = db.query(UserBehavior).filter(UserBehavior.user_id == user_id).all()
+    watched_movie_ids = {b.movie_id for b in user_behaviors}
+    return user_behaviors, watched_movie_ids
 
 
 def get_content_based_from_user_history(
     db: Session,
-    user_ratings: List,
+    user_behaviors: List,
     watched_movie_ids: Set[int],
     top_n: int,
     rec_service,
     num_source_movies: int = 5
 ) -> List[Tuple]:
     """
-    Get content-based recommendations from user's top rated movies
+    Get content-based recommendations from user's top scored movies
     
     Returns:
         List of tuples (movie, similarity, reason, source_title)
     """
-    if not user_ratings:
+    if not user_behaviors:
         return []
     
-    top_rated = sorted(user_ratings, key=lambda x: x.rating, reverse=True)[:num_source_movies]
+    # Sort by score (higher score = better)
+    top_scored = sorted(user_behaviors, key=lambda x: x.score, reverse=True)[:num_source_movies]
     content_based_results = []
     seen_movie_ids = set()
     
-    for rating in top_rated:
+    for behavior in top_scored:
         source_movie, similar_movies = rec_service.get_similar_movies_content_based(
             db=db,
-            movie_id=rating.movie_id,
+            movie_id=behavior.movie_id,
             limit=top_n * 2
         )
         
