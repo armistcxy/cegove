@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 
 class PaymentBase(BaseModel):
-    booking_id: int
+    booking_id: str
     provider: str
     amount: Decimal
     # status: str
@@ -15,7 +15,7 @@ class PaymentCreate(PaymentBase):
 
 class PaymentOut(BaseModel):
     id: int
-    booking_id: int
+    booking_id: str
     provider: str
     amount: Decimal
     status: str
@@ -30,7 +30,7 @@ class PaymentInitResponse(BaseModel):
 
 
 class PaymentUpdate(BaseModel):
-    booking_id: Optional[int] = None
+    booking_id: Optional[str] = None
     provider: Optional[str] = None
     amount: Optional[Decimal] = None
     status: Optional[str] = None
