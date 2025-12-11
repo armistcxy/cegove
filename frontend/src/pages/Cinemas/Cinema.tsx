@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { fetchCinemas, fetchCities } from './CinemaLogic';
 import styles from './Cinema.module.css';
 
@@ -13,6 +14,7 @@ interface Cinema {
 }
 
 export default function Cinema() {
+  const navigate = useNavigate();
   const [allCinemas, setAllCinemas] = useState<Cinema[]>([]);
   const [filteredCinemas, setFilteredCinemas] = useState<Cinema[]>([]);
   const [cities, setCities] = useState<string[]>([]);
@@ -138,7 +140,10 @@ export default function Cinema() {
                     <p>{cinema.email}</p>
                   </div>
                 </div>
-                <button className={styles.detailBtn}>
+                <button
+                  className={styles.detailBtn}
+                  onClick={() => navigate(`/CinemaDetails/${cinema.id}`)}
+                >
                   Xem chi tiết
                 </button>
               </div>
