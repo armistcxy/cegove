@@ -1,0 +1,128 @@
+.commentList {
+  margin-top: 32px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  padding: 24px;
+}
+
+.commentItem {
+  display: flex;
+  align-items: flex-start;
+  border-bottom: 1px solid #eee;
+  padding: 16px 0;
+}
+
+.commentItem:last-child {
+  border-bottom: none;
+}
+
+.avatarWrap {
+  margin-right: 16px;
+}
+
+.avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #f2f2f2;
+  border: 2px solid #ef4444;
+  box-shadow: 0 2px 8px rgba(239,68,68,0.08);
+}
+
+.contentWrap {
+  flex: 1;
+}
+
+.username {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.content {
+  color: #444;
+  margin-bottom: 6px;
+}
+
+
+.date {
+  font-size: 12px;
+  color: #999;
+}
+
+.actionsRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.iconBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+.iconBtn:hover {
+  background: #f3f4f6;
+}
+
+.menuWrap {
+  position: relative;
+  display: inline-block;
+}
+.menuBtn {
+  background: none;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+.menuBtn:hover {
+  background: #f3f4f6;
+}
+.menuDropdown {
+  position: absolute;
+  top: 28px;
+  right: 0;
+  background: #fff;
+  border: 1px solid #eee;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  border-radius: 8px;
+  min-width: 120px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+}
+.menuDropdown button {
+  background: none;
+  border: none;
+  padding: 10px 16px;
+  text-align: left;
+  cursor: pointer;
+  font-size: 15px;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  transition: background 0.2s;
+}
+.menuDropdown button:last-child {
+  border-bottom: none;
+}
+.menuDropdown button:hover {
+  background: #f3f4f6;
+}
+
+.empty {
+  text-align: center;
+  color: #aaa;
+  padding: 24px 0;
+}

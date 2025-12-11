@@ -4,6 +4,9 @@ import type { Movie } from "../Movies/MovieLogic.ts";
 import { fetchMovieDetail, fetchSimilarMovies } from "./MovieDetailLogic.ts";
 import BookingPopup from "../../components/BookingPopup/BookingPopup.tsx";
 import RelatedMoviesSlider from "../../components/RelatedMoviesSlider/RelatedMoviesSlider.tsx";
+import CommentList from "../../components/CommentList/CommentList";
+import type { Comment } from "../../components/CommentList/CommentList.types";
+import CommentForm from "../../components/CommentList/CommentForm";
 import styles from "./MovieDetail.module.css";
 
 export default function MovieDetail() {
@@ -16,6 +19,12 @@ export default function MovieDetail() {
   const [isBookingPopupOpen, setIsBookingPopupOpen] = useState(false);
   const [selectedMovieTitle, setSelectedMovieTitle] = useState<string>("");
   const [selectedMovieId, setSelectedMovieId] = useState<number | undefined>(undefined);
+  // Comment state
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentLoading, setCommentLoading] = useState(false);
+  const [commentError, setCommentError] = useState<string | null>(null);
+  const [commentFormLoading, setCommentFormLoading] = useState(false);
+  const [userAvatars, setUserAvatars] = useState<{[userId: number]: string}>({});
 
   useEffect(() => {
     if (!id) {
@@ -47,6 +56,144 @@ export default function MovieDetail() {
 
     loadData();
   }, [id]);
+
+  // Load comments
+  useEffect(() => {
+    if (!id) return;
+    setCommentLoading(true);
+    setCommentError(null);
+    const commentToken = localStorage.getItem('access-token');
+    fetch(`https://comment-service-pf4q4c6zkq-pd.a.run.app/api/v1/comments/target/movie/${id}?page=1&page_size=20&sort_by=recent`, {
+      headers: commentToken ? {
+        'Authorization': `Bearer ${commentToken}`,
+        'accept': 'application/json'
+      } : {
+        'accept': 'application/json'
+      }
+    })
+      .then(res => res.json())
+      .then(async data => {
+        console.log('Comment API response:', data);
+        setComments(data?.items || []);
+        // Tích hợp lấy avatar và fullName cho từng user
+        const avatarMap: {[userId: number]: {img: string, fullName: string}} = {};
+        const uniqueUserIds = Array.from(new Set((data?.items || []).map((c: any) => c.user_id)));
+        await Promise.all(uniqueUserIds.map(async (userId) => {
+          if (!userId) return;
+          try {
+            const res = await fetch(`https://user.cegove.cloud/users/${userId}/profile`);
+            if (res.ok) {
+              const profile = await res.json();
+              avatarMap[userId] = {
+                img: profile.img || '',
+                fullName: profile.fullName || ''
+              };
+            } else {
+              avatarMap[userId] = {
+                img: '',
+                fullName: ''
+              };
+            }
+          } catch {
+            avatarMap[userId] = {
+              img: '',
+              fullName: ''
+            };
+          }
+        }));
+        // Gán fullName vào từng comment
+        const commentsWithFullName = (data?.items || []).map((c: any) => ({
+          ...c,
+          like_count: c.like_count ?? 0,
+          dislike_count: c.dislike_count ?? 0,
+          fullName: avatarMap[c.user_id]?.fullName || c.user_name || c.user_email || 'Người dùng'
+        }));
+        setComments(commentsWithFullName);
+        setUserAvatars(Object.fromEntries(Object.entries(avatarMap).map(([k, v]) => [k, v.img])));
+      })
+      .catch(() => setCommentError("Không thể tải bình luận."))
+      .finally(() => setCommentLoading(false));
+  }, [id]);
+
+  // Hàm gửi bình luận mới
+  const handleAddComment = async (content: string) => {
+    if (!id) return;
+    setCommentFormLoading(true);
+    setCommentError(null);
+    try {
+      // Lấy token từ localStorage hoặc context
+      const token = localStorage.getItem('access-token');
+      if (!token) {
+        setCommentError('Bạn cần đăng nhập để bình luận.');
+        setCommentFormLoading(false);
+        return;
+      }
+      const res = await fetch('https://comment-service-pf4q4c6zkq-pd.a.run.app/api/v1/comments/', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          target_type: 'movie',
+          target_id: Number(id),
+          content,
+        })
+      });
+      if (!res.ok) {
+        throw new Error('Gửi bình luận thất bại');
+      }
+      // Reload comments và gán lại fullName như khi load ban đầu
+      const reloadToken = localStorage.getItem('access-token');
+      fetch(`https://comment-service-pf4q4c6zkq-pd.a.run.app/api/v1/comments/target/movie/${id}?page=1&page_size=20&sort_by=recent`, {
+        headers: reloadToken ? {
+          'Authorization': `Bearer ${reloadToken}`,
+          'accept': 'application/json'
+        } : {
+          'accept': 'application/json'
+        }
+      })
+        .then(res => res.json())
+        .then(async data => {
+          const avatarMap = {};
+          const uniqueUserIds = Array.from(new Set((data?.items || []).map((c) => c.user_id)));
+          await Promise.all(uniqueUserIds.map(async (userId) => {
+            if (!userId) return;
+            try {
+              const res = await fetch(`https://user.cegove.cloud/users/${userId}/profile`);
+              if (res.ok) {
+                const profile = await res.json();
+                avatarMap[userId] = {
+                  img: profile.img || '',
+                  fullName: profile.fullName || ''
+                };
+              } else {
+                avatarMap[userId] = {
+                  img: '',
+                  fullName: ''
+                };
+              }
+            } catch {
+              avatarMap[userId] = {
+                img: '',
+                fullName: ''
+              };
+            }
+          }));
+          const commentsWithFullName = (data?.items || []).map((c) => ({
+            ...c,
+            fullName: avatarMap[c.user_id]?.fullName || c.user_name || c.user_email || 'Người dùng'
+          }));
+          setComments(commentsWithFullName);
+          setUserAvatars(Object.fromEntries(Object.entries(avatarMap).map(([k, v]) => [k, v.img])));
+        });
+    } catch (err) {
+      setCommentError('Gửi bình luận thất bại');
+    } finally {
+      setCommentFormLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -192,6 +339,63 @@ export default function MovieDetail() {
           setIsBookingPopupOpen(true);
         }}
       />
+
+      {/* Comment Section */}
+      <div style={{ marginTop: 32 }}>
+        <h3 style={{ fontSize: '1.3rem', fontWeight: 600, marginBottom: 12 }}>Bình luận</h3>
+        <CommentForm onSubmit={handleAddComment} loading={commentFormLoading} />
+        {commentError && <div style={{ color: '#d32f2f', marginBottom: 12 }}>{commentError}</div>}
+        <CommentList comments={comments} userAvatars={userAvatars} reloadComments={() => {
+          // Gọi lại API lấy comment
+          setCommentLoading(true);
+          setCommentError(null);
+          const commentToken = localStorage.getItem('access-token');
+          fetch(`https://comment-service-pf4q4c6zkq-pd.a.run.app/api/v1/comments/target/movie/${id}?page=1&page_size=20&sort_by=recent`, {
+            headers: commentToken ? {
+              'Authorization': `Bearer ${commentToken}`,
+              'accept': 'application/json'
+            } : {
+              'accept': 'application/json'
+            }
+          })
+            .then(res => res.json())
+            .then(async data => {
+              const avatarMap = {};
+              const uniqueUserIds = Array.from(new Set((data?.items || []).map((c) => c.user_id)));
+              await Promise.all(uniqueUserIds.map(async (userId) => {
+                if (!userId) return;
+                try {
+                  const res = await fetch(`https://user.cegove.cloud/users/${userId}/profile`);
+                  if (res.ok) {
+                    const profile = await res.json();
+                    avatarMap[userId] = {
+                      img: profile.img || '',
+                      fullName: profile.fullName || ''
+                    };
+                  } else {
+                    avatarMap[userId] = {
+                      img: '',
+                      fullName: ''
+                    };
+                  }
+                } catch {
+                  avatarMap[userId] = {
+                    img: '',
+                    fullName: ''
+                  };
+                }
+              }));
+              const commentsWithFullName = (data?.items || []).map((c) => ({
+                ...c,
+                fullName: avatarMap[c.user_id]?.fullName || c.user_name || c.user_email || 'Người dùng'
+              }));
+              setComments(commentsWithFullName);
+              setUserAvatars(Object.fromEntries(Object.entries(avatarMap).map(([k, v]) => [k, v.img])));
+            })
+            .catch(() => setCommentError("Không thể tải bình luận."))
+            .finally(() => setCommentLoading(false));
+        }} />
+      </div>
     </div>
   );
 }
