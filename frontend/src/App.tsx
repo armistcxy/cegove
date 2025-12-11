@@ -11,6 +11,7 @@ import CinemaDetails from './pages/Cinemas/CinemaDetails.tsx';
 import MyTickets from './pages/MyTickets/MyTickets.tsx';
 import NotAvailable from './pages/NotAvailable/NotAvailable.tsx';
 import AuthPage from "./pages/Auth/AuthPage.tsx";
+import ForgotPassword from "./pages/Auth/ForgotPassword.tsx";
 import Profile from "./pages/User/Profile.tsx";
 import Dashboard from './pages/Admin/Dashboard.tsx';
 import AdminUsers from './pages/Admin/Users.tsx';
@@ -60,6 +61,7 @@ function AppContent() {
                   <Route path="/NotAvailable" element={<NotAvailable />} />
                   <Route path="/login" element={<AuthPage />} />
                   <Route path="/register" element={<AuthPage />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/booking/:showtimeId" element={<BookingPageWrapper />} />
                   <Route path="/payment-result" element={<PaymentResult />} />
