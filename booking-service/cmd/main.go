@@ -46,6 +46,8 @@ func main() {
 		consulPass = os.Getenv("CONSUL_PASSWORD")
 	)
 
+	log.Printf("Just for testing")
+
 	consulLoader, err := config.NewConsulConfigLoader(config.ConsulLoaderConfig{
 		ConsulAddr: consulAddr,
 		User:       consulUser,
