@@ -17,6 +17,7 @@ import AdminMovies from './pages/Admin/Movies.tsx';
 import AdminCinemas from './pages/Admin/Cinemas.tsx';
 import AdminAbout from './pages/Admin/About.tsx';
 import BookingPage from "./pages/Booking/BookingPage.tsx";
+import PaymentResult from "./pages/PaymentResult.tsx";
 
 function BookingPageWrapper() {
     const { showtimeId } = useParams();
@@ -59,6 +60,7 @@ function AppContent() {
                   <Route path="/register" element={<AuthPage />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/booking/:showtimeId" element={<BookingPageWrapper />} />
+                  <Route path="/payment-result" element={<PaymentResult />} />
                 </Routes>
               </main>
             </>

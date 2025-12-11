@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.session import get_db
 from app.services.payment_service import PaymentService
@@ -18,7 +19,7 @@ async def vnpay_ipn(request: Request, db: AsyncSession = Depends(get_db)):
 @router.get("/return")
 async def vnpay_return(request: Request):
     params = dict(request.query_params)
-    if params.get("vnp_ResponseCode") == "00":
-        return {"message": "Payment success. Waiting for confirmation."}
-    else:
-        return {"message": "Payment failed."}
+    # Redirect to frontend payment result page with all query parameters
+    query_string = str(request.query_params)
+    frontend_url = f"https://cegove.cloud/payment-result?{query_string}"
+    return RedirectResponse(url=frontend_url)

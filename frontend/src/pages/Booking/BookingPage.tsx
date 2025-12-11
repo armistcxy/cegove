@@ -4,8 +4,11 @@ import {type Auditorium, type Cinema, fetchAuditorium, fetchCinemaById} from "..
 import {fetchMovieDetail} from "../MovieDetails/MovieDetailLogic.ts";
 import type {Showtime} from "./Utils/Type.ts";
 import type {Movie} from "../Movies/MovieLogic.ts";
+import {useUser} from "../../context/UserContext.tsx";
+import axios from "axios";
 
 const BookingPage = ({ showtimeId }) => {
+    const { userProfile } = useUser();
     const [step, setStep] = useState<1 | 2>(1);
 
     const [showtime, setShowtime] = useState<Showtime | null>(null);
@@ -16,6 +19,7 @@ const BookingPage = ({ showtimeId }) => {
     const [selectedSeats, setSelectedSeats] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [paymentProcessing, setPaymentProcessing] = useState(false);
 
     // Fetch showtime and related data
     useEffect(() => {
@@ -480,11 +484,63 @@ const BookingPage = ({ showtimeId }) => {
                         </button>
                         <button
                             onClick={async () => {
-                                alert("Chức năng thanh toán chưa được triển khai.");
+                                if (!userProfile?.id) {
+                                    alert("Vui lòng đăng nhập để tiếp tục thanh toán");
+                                    return;
+                                }
+
+                                try {
+                                    setPaymentProcessing(true);
+
+                                    // Get selected seat IDs and convert to strings
+                                    const seatIds = selectedSeats.map(seatId => {
+                                        const seat = seats.find(s => s.id === seatId);
+                                        return seat?.seat_id ? String(seat.seat_id) : null;
+                                    }).filter(Boolean);
+
+                                    const bookingData = {
+                                        user_id: String(userProfile.id),
+                                        showtime_id: String(showtimeId),
+                                        seat_ids: seatIds
+                                    };
+
+                                    console.log("Creating booking with data:", bookingData);
+
+                                    // Create booking
+                                    const bookingResponse = await axios.post(
+                                        "https://booking.cegove.cloud/api/v1/bookings",
+                                        bookingData
+                                    );
+
+                                    const { payment } = bookingResponse.data;
+
+                                    // Redirect to payment URL
+                                    if (payment?.url) {
+                                        window.location.href = payment.url;
+                                    } else {
+                                        throw new Error("Không nhận được URL thanh toán");
+                                    }
+                                } catch (err) {
+                                    console.error("Payment error:", err);
+                                    console.error("Error response:", err.response?.data);
+
+                                    let errorMessage = "Có lỗi xảy ra khi xử lý thanh toán";
+                                    if (err.response?.data?.detail) {
+                                        errorMessage += ": " + err.response.data.detail;
+                                    } else if (err.response?.data?.message) {
+                                        errorMessage += ": " + err.response.data.message;
+                                    } else if (err.message) {
+                                        errorMessage += ": " + err.message;
+                                    }
+
+                                    alert(errorMessage);
+                                    setPaymentProcessing(false);
+                                }
                             }}
-                            className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-lg font-bold transition"
+                            disabled={paymentProcessing}
+                            className="bg-red-600 hover:bg-red-700 disabled:bg-gray-500 text-white px-8 py-3 rounded-lg font-bold transition"
                         >
-                            Thanh toán
+                            {paymentProcessing ? "Đang xử lý..." : "Thanh toán"}
                         </button>
                     </div>
                 </div>

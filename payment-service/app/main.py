@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from app.api.v1.payment import router as payment_router_v1
 from app.api.v1.webhooks.payment_vnpay import router as payment_vnpay_webhook_router_v1
@@ -26,6 +27,21 @@ async def startup():
 # Include v1 routers
 app.include_router(payment_router_v1)
 app.include_router(payment_vnpay_webhook_router_v1)
+
+# Backward compatibility routes - redirect old VNPay webhook URLs to new ones
+@app.get("/vnpay/return")
+async def vnpay_return_redirect(request: Request):
+    """Redirect old VNPay return URL to new endpoint"""
+    query_string = str(request.query_params)
+    frontend_url = f"https://cegove.cloud/payment-result?{query_string}"
+    return RedirectResponse(url=frontend_url)
+
+@app.get("/vnpay/ipn")
+async def vnpay_ipn_redirect(request: Request):
+    """Redirect old VNPay IPN URL to new endpoint"""
+    query_string = str(request.query_params)
+    new_url = f"/api/v1/webhooks/vnpay/ipn?{query_string}"
+    return RedirectResponse(url=new_url)
 
 # Mount static files
 static_dir = os.path.join(os.path.dirname(__file__), "static")
