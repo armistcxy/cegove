@@ -12,7 +12,7 @@ class Payment(Base):
     __tablename__ = "payments"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    booking_id = Column(BigInteger, nullable=False)
+    booking_id = Column(String(255), nullable=False)
 
     provider = Column(String(50), nullable=False)      # VNPay, MoMo, Stripe
     amount = Column(Numeric(10, 2), nullable=False)

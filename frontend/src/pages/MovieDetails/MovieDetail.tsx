@@ -1,0 +1,401 @@
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import type { Movie } from "../Movies/MovieLogic.ts";
+import { fetchMovieDetail, fetchSimilarMovies } from "./MovieDetailLogic.ts";
+import BookingPopup from "../../components/BookingPopup/BookingPopup.tsx";
+import RelatedMoviesSlider from "../../components/RelatedMoviesSlider/RelatedMoviesSlider.tsx";
+import CommentList from "../../components/CommentList/CommentList";
+import type { Comment } from "../../components/CommentList/CommentList.types";
+import CommentForm from "../../components/CommentList/CommentForm";
+import styles from "./MovieDetail.module.css";
+
+export default function MovieDetail() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [movie, setMovie] = useState<Movie | null>(null);
+  const [similarMovies, setSimilarMovies] = useState<Movie[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isBookingPopupOpen, setIsBookingPopupOpen] = useState(false);
+  const [selectedMovieTitle, setSelectedMovieTitle] = useState<string>("");
+  const [selectedMovieId, setSelectedMovieId] = useState<number | undefined>(undefined);
+  // Comment state
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentLoading, setCommentLoading] = useState(false);
+  const [commentError, setCommentError] = useState<string | null>(null);
+  const [commentFormLoading, setCommentFormLoading] = useState(false);
+  const [userAvatars, setUserAvatars] = useState<{[userId: number]: string}>({});
+
+  useEffect(() => {
+    if (!id) {
+      setError("Movie ID not found");
+      setLoading(false);
+      return;
+    }
+
+    const loadData = async () => {
+      try {
+        const [movieData, similarData] = await Promise.all([
+          fetchMovieDetail(id),
+          fetchSimilarMovies(id, 20)
+        ]);
+
+        if (movieData) {
+          setMovie(movieData);
+        } else {
+          setError("Movie not found");
+        }
+
+        setSimilarMovies(similarData);
+      } catch (err) {
+        setError("Failed to load movie details");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [id]);
+
+  // Load comments
+  useEffect(() => {
+    if (!id) return;
+    setCommentLoading(true);
+    setCommentError(null);
+    const commentToken = localStorage.getItem('access-token');
+    fetch(`https://comment-service-pf4q4c6zkq-pd.a.run.app/api/v1/comments/target/movie/${id}?page=1&page_size=20&sort_by=recent`, {
+      headers: commentToken ? {
+        'Authorization': `Bearer ${commentToken}`,
+        'accept': 'application/json'
+      } : {
+        'accept': 'application/json'
+      }
+    })
+      .then(res => res.json())
+      .then(async data => {
+        console.log('Comment API response:', data);
+        setComments(data?.items || []);
+        // Tích hợp lấy avatar và fullName cho từng user
+        const avatarMap: {[userId: number]: {img: string, fullName: string}} = {};
+        const uniqueUserIds = Array.from(new Set((data?.items || []).map((c: any) => c.user_id)));
+        await Promise.all(uniqueUserIds.map(async (userId) => {
+          if (!userId) return;
+          try {
+            const res = await fetch(`https://user.cegove.cloud/users/${userId}/profile`);
+            if (res.ok) {
+              const profile = await res.json();
+              avatarMap[userId] = {
+                img: profile.img || '',
+                fullName: profile.fullName || ''
+              };
+            } else {
+              avatarMap[userId] = {
+                img: '',
+                fullName: ''
+              };
+            }
+          } catch {
+            avatarMap[userId] = {
+              img: '',
+              fullName: ''
+            };
+          }
+        }));
+        // Gán fullName vào từng comment
+        const commentsWithFullName = (data?.items || []).map((c: any) => ({
+          ...c,
+          like_count: c.like_count ?? 0,
+          dislike_count: c.dislike_count ?? 0,
+          fullName: avatarMap[c.user_id]?.fullName || c.user_name || c.user_email || 'Người dùng'
+        }));
+        setComments(commentsWithFullName);
+        setUserAvatars(Object.fromEntries(Object.entries(avatarMap).map(([k, v]) => [k, v.img])));
+      })
+      .catch(() => setCommentError("Không thể tải bình luận."))
+      .finally(() => setCommentLoading(false));
+  }, [id]);
+
+  // Hàm gửi bình luận mới
+  const handleAddComment = async (content: string) => {
+    if (!id) return;
+    setCommentFormLoading(true);
+    setCommentError(null);
+    try {
+      // Lấy token từ localStorage hoặc context
+      const token = localStorage.getItem('access-token');
+      if (!token) {
+        setCommentError('Bạn cần đăng nhập để bình luận.');
+        setCommentFormLoading(false);
+        return;
+      }
+      const res = await fetch('https://comment-service-pf4q4c6zkq-pd.a.run.app/api/v1/comments/', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          target_type: 'movie',
+          target_id: Number(id),
+          content,
+        })
+      });
+      if (!res.ok) {
+        throw new Error('Gửi bình luận thất bại');
+      }
+      // Reload comments và gán lại fullName như khi load ban đầu
+      const reloadToken = localStorage.getItem('access-token');
+      fetch(`https://comment-service-pf4q4c6zkq-pd.a.run.app/api/v1/comments/target/movie/${id}?page=1&page_size=20&sort_by=recent`, {
+        headers: reloadToken ? {
+          'Authorization': `Bearer ${reloadToken}`,
+          'accept': 'application/json'
+        } : {
+          'accept': 'application/json'
+        }
+      })
+        .then(res => res.json())
+        .then(async data => {
+          const avatarMap = {};
+          const uniqueUserIds = Array.from(new Set((data?.items || []).map((c) => c.user_id)));
+          await Promise.all(uniqueUserIds.map(async (userId) => {
+            if (!userId) return;
+            try {
+              const res = await fetch(`https://user.cegove.cloud/users/${userId}/profile`);
+              if (res.ok) {
+                const profile = await res.json();
+                avatarMap[userId] = {
+                  img: profile.img || '',
+                  fullName: profile.fullName || ''
+                };
+              } else {
+                avatarMap[userId] = {
+                  img: '',
+                  fullName: ''
+                };
+              }
+            } catch {
+              avatarMap[userId] = {
+                img: '',
+                fullName: ''
+              };
+            }
+          }));
+          const commentsWithFullName = (data?.items || []).map((c) => ({
+            ...c,
+            fullName: avatarMap[c.user_id]?.fullName || c.user_name || c.user_email || 'Người dùng'
+          }));
+          setComments(commentsWithFullName);
+          setUserAvatars(Object.fromEntries(Object.entries(avatarMap).map(([k, v]) => [k, v.img])));
+        });
+    } catch (err) {
+      setCommentError('Gửi bình luận thất bại');
+    } finally {
+      setCommentFormLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.loading}>
+          <div className={styles.spinner}></div>
+          <p>Đang tải thông tin phim...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.error}>
+          <h2>Lỗi</h2>
+          <p>{error}</p>
+          <button 
+            className={styles.backButton}
+            onClick={() => navigate('/movie')}
+          >
+            ← Quay lại danh sách phim
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!movie) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.error}>
+          <h2>Không tìm thấy phim</h2>
+          <button 
+            className={styles.backButton}
+            onClick={() => navigate('/movie')}
+          >
+            ← Quay lại danh sách phim
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.container}>
+      <button 
+        className={styles.backButton}
+        onClick={() => navigate('/movie')}
+      >
+        ← Quay lại danh sách phim
+      </button>
+      
+      <div className={styles.movieDetail}>
+        <div className={styles.posterSection}>
+          <img 
+            src={movie.poster_link} 
+            alt={movie.series_title}
+            className={styles.poster}
+          />
+        </div>
+        
+        <div className={styles.infoSection}>
+          <h1 className={styles.title}>{movie.series_title}</h1>
+          
+          <div className={styles.metadata}>
+            <div className={styles.metaItem}>
+              <span className={styles.metaLabel}>Năm</span>
+              <span className={styles.metaValue}>{movie.released_year}</span>
+            </div>
+            <div className={styles.metaItem}>
+              <span className={styles.metaLabel}>Thời lượng</span>
+              <span className={styles.metaValue}>{movie.runtime}</span>
+            </div>
+            <div className={styles.metaItem}>
+              <span className={styles.metaLabel}>Phân loại</span>
+              <span className={styles.metaValue}>{movie.certificate}</span>
+            </div>
+            <div className={styles.metaItem}>
+              <span className={styles.metaLabel}>Đánh giá IMDb</span>
+              <span className={styles.metaValue}>⭐ {movie.imdb_rating}/10</span>
+            </div>
+          </div>
+          
+          <div className={styles.section}>
+            <h3 className={styles.sectionTitle}>Thể loại</h3>
+            <p className={styles.genre}>{movie.genre}</p>
+          </div>
+          
+          <div className={styles.section}>
+            <h3 className={styles.sectionTitle}>Tóm tắt</h3>
+            <p className={styles.overview}>{movie.overview}</p>
+          </div>
+          
+          <div className={styles.section}>
+            <h3 className={styles.sectionTitle}>Đạo diễn</h3>
+            <p className={styles.director}>{movie.director}</p>
+          </div>
+          
+          <div className={styles.section}>
+            <h3 className={styles.sectionTitle}>Diễn viên</h3>
+            <div className={styles.cast}>
+              {[movie.star1, movie.star2, movie.star3, movie.star4]
+                .filter(star => star && star.trim() !== '')
+                .map((star, index) => (
+                  <span key={index} className={styles.castMember}>
+                    {star}
+                  </span>
+                ))
+              }
+            </div>
+          </div>
+          
+          <div className={styles.actions}>
+            <button 
+              className={styles.buyButton}
+              onClick={() => setIsBookingPopupOpen(true)}
+            >
+              Mua vé
+            </button>
+            <button className={styles.watchlistButton}>
+              Thêm vào danh sách
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Booking Popup */}
+      <BookingPopup 
+        isOpen={isBookingPopupOpen}
+        onClose={() => setIsBookingPopupOpen(false)}
+        movieTitle={selectedMovieTitle}
+        movieId={selectedMovieId}
+      />
+
+      {/* Related Movies Slider */}
+      <RelatedMoviesSlider 
+        movies={similarMovies}
+        onBuyClick={(title, movieId) => {
+          setSelectedMovieTitle(title);
+          setSelectedMovieId(movieId);
+          setIsBookingPopupOpen(true);
+        }}
+      />
+
+      {/* Comment Section */}
+      <div style={{ marginTop: 32 }}>
+        <h3 style={{ fontSize: '1.3rem', fontWeight: 600, marginBottom: 12 }}>Bình luận</h3>
+        <CommentForm onSubmit={handleAddComment} loading={commentFormLoading} />
+        {commentError && <div style={{ color: '#d32f2f', marginBottom: 12 }}>{commentError}</div>}
+        <CommentList comments={comments} userAvatars={userAvatars} reloadComments={() => {
+          // Gọi lại API lấy comment
+          setCommentLoading(true);
+          setCommentError(null);
+          const commentToken = localStorage.getItem('access-token');
+          fetch(`https://comment-service-pf4q4c6zkq-pd.a.run.app/api/v1/comments/target/movie/${id}?page=1&page_size=20&sort_by=recent`, {
+            headers: commentToken ? {
+              'Authorization': `Bearer ${commentToken}`,
+              'accept': 'application/json'
+            } : {
+              'accept': 'application/json'
+            }
+          })
+            .then(res => res.json())
+            .then(async data => {
+              const avatarMap = {};
+              const uniqueUserIds = Array.from(new Set((data?.items || []).map((c) => c.user_id)));
+              await Promise.all(uniqueUserIds.map(async (userId) => {
+                if (!userId) return;
+                try {
+                  const res = await fetch(`https://user.cegove.cloud/users/${userId}/profile`);
+                  if (res.ok) {
+                    const profile = await res.json();
+                    avatarMap[userId] = {
+                      img: profile.img || '',
+                      fullName: profile.fullName || ''
+                    };
+                  } else {
+                    avatarMap[userId] = {
+                      img: '',
+                      fullName: ''
+                    };
+                  }
+                } catch {
+                  avatarMap[userId] = {
+                    img: '',
+                    fullName: ''
+                  };
+                }
+              }));
+              const commentsWithFullName = (data?.items || []).map((c) => ({
+                ...c,
+                fullName: avatarMap[c.user_id]?.fullName || c.user_name || c.user_email || 'Người dùng'
+              }));
+              setComments(commentsWithFullName);
+              setUserAvatars(Object.fromEntries(Object.entries(avatarMap).map(([k, v]) => [k, v.img])));
+            })
+            .catch(() => setCommentError("Không thể tải bình luận."))
+            .finally(() => setCommentLoading(false));
+        }} />
+      </div>
+    </div>
+  );
+}

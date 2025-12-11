@@ -1,0 +1,252 @@
+.moviesSection {
+  padding: 40px 60px;
+  background: #f9f7ef;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  min-height: 100vh;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.container {
+  padding: 60px 40px;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading,
+.error {
+  text-align: center;
+}
+
+.spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #e50914;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error h2 {
+  color: #e50914;
+  margin-bottom: 10px;
+}
+
+.header {
+  margin-bottom: 30px;
+}
+
+.header h2 {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #333;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  position: relative;
+  padding-bottom: 15px;
+}
+
+.header h2::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 80px;
+  height: 4px;
+  background: linear-gradient(90deg, #e50914 0%, #ff6b6b 100%);
+}
+
+.subtitle {
+  font-size: 15px;
+  color: #666;
+  font-style: italic;
+  margin-top: 10px;
+}
+
+.noMovies {
+  text-align: center;
+  padding: 60px 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.noMovies p {
+  font-size: 16px;
+  color: #666;
+  line-height: 1.6;
+}
+
+.moviesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 30px;
+  margin-top: 30px;
+}
+
+.movieCard {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.movieCard:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.poster {
+  width: 100%;
+  height: 360px;
+  object-fit: cover;
+  display: block;
+}
+
+.movieInfo {
+  padding: 16px;
+}
+
+.movieTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 8px 0;
+  line-height: 1.4;
+  height: 44px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.rating {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+.movieButtons {
+  display: flex;
+  gap: 8px;
+}
+
+.btnBuy,
+.btnDetail {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btnBuy {
+  background: linear-gradient(135deg, #e50914 0%, #b20710 100%);
+  color: white;
+}
+
+.btnBuy:hover {
+  background: linear-gradient(135deg, #ff0a16 0%, #e50914 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(229, 9, 20, 0.3);
+}
+
+.btnDetail {
+  background: white;
+  color: #e50914;
+  border: 2px solid #e50914;
+}
+
+.btnDetail:hover {
+  background: #e50914;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(229, 9, 20, 0.3);
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .moviesGrid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 25px;
+  }
+}
+
+@media (max-width: 768px) {
+  .moviesSection {
+    padding: 30px 20px;
+  }
+
+  .header h2 {
+    font-size: 24px;
+  }
+
+  .subtitle {
+    font-size: 14px;
+  }
+
+  .moviesGrid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 20px;
+  }
+
+  .poster {
+    height: 280px;
+  }
+
+  .movieTitle {
+    font-size: 14px;
+    height: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .moviesSection {
+    padding: 20px 15px;
+  }
+
+  .header h2 {
+    font-size: 20px;
+  }
+
+  .moviesGrid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 15px;
+  }
+
+  .poster {
+    height: 220px;
+  }
+
+  .movieInfo {
+    padding: 12px;
+  }
+
+  .movieTitle {
+    font-size: 13px;
+    height: 36px;
+  }
+
+  .btnBuy,
+  .btnDetail {
+    padding: 8px 12px;
+    font-size: 11px;
+  }
+}

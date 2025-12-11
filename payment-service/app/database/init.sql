@@ -89,14 +89,14 @@ CREATE TABLE bookings (
 
 CREATE TABLE booking_seats (
   id BIGSERIAL PRIMARY KEY,
-  booking_id BIGINT REFERENCES bookings(id),
+  booking_id VARCHAR(255) REFERENCES bookings(id),
   seat_id BIGINT REFERENCES seats(id),
   price NUMERIC(10,2)
 );
 
 CREATE TABLE payments (
   id BIGSERIAL PRIMARY KEY,
-  booking_id BIGINT REFERENCES bookings(id),
+  booking_id VARCHAR(255) REFERENCES bookings(id),
   provider TEXT, -- VNPay, MoMo, Stripe
   amount NUMERIC(10,2),
   status TEXT, -- success, failed, pending

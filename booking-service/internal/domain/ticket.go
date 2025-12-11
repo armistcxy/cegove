@@ -1,0 +1,28 @@
+package domain
+
+import "time"
+
+type TicketStatus int
+
+const (
+	TicketStatusActive    TicketStatus = 1
+	TicketStatusUsed      TicketStatus = 2
+	TicketStatusCancelled TicketStatus = 3
+)
+
+type Ticket struct {
+	ID         string `json:"id"`
+	BookingID  string `json:"booking_id"`
+	ShowtimeID string `json:"showtime_id"`
+
+	MovieTitle     string    `json:"movie_title"`
+	CinemaName     string    `json:"cinema_name"`
+	AuditoriumName string    `json:"auditorium_name"`
+	Showtime       time.Time `json:"showtime"`
+	SeatNumber     string    `json:"seat_number"`
+
+	QRCode    string       `json:"qr_code"`
+	Price     float64      `json:"price"`
+	Status    TicketStatus `json:"status"`
+	CreatedAt time.Time    `json:"created_at"`
+}
