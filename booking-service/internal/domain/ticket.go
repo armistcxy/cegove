@@ -5,9 +5,9 @@ import "time"
 type TicketStatus int
 
 const (
-	TicketStatusActive TicketStatus = iota
-	TicketStatusUsed
-	TicketStatusCancelled
+	TicketStatusActive    TicketStatus = 1
+	TicketStatusUsed      TicketStatus = 2
+	TicketStatusCancelled TicketStatus = 3
 )
 
 type Ticket struct {

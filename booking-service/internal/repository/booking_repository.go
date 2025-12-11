@@ -363,6 +363,18 @@ func (r *bookingRepository) ProcessPaymentWebhook(ctx context.Context, req domai
 		if _, err := tx.Exec(ctx, bQuery, bArgs...); err != nil {
 			return fmt.Errorf("update booking status: %w", err)
 		}
+
+		ssQuery, ssArgs, err := builder.Update("showtime_seats").
+			Set("status", domain.SeatStatusSold).
+			Where(sq.Eq{"booking_id": req.BookingID}).
+			ToSql()
+
+		if err != nil {
+			return fmt.Errorf("build update showtime seats status query: %w", err)
+		}
+		if _, err := tx.Exec(ctx, ssQuery, ssArgs...); err != nil {
+			return fmt.Errorf("update showtime seats status: %w", err)
+		}
 	}
 
 	// if payment status is failed, change ticket status to cancelled and booking status to failed
