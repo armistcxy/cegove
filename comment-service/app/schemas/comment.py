@@ -1,6 +1,6 @@
 # comment-service/app/schemas/comment.py
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional, List, Literal
+from typing import Optional, List, Literal, Dict
 from datetime import datetime
 
 
@@ -8,6 +8,7 @@ class CommentBase(BaseModel):
     target_type: Literal["movie", "theater"] = Field(..., description="Type of target: movie or theater")
     target_id: int = Field(..., gt=0, description="ID of movie or theater")
     content: str = Field(..., min_length=1, max_length=2000, description="Comment content")
+    rating: Optional[float] = Field(None, ge=1.0, le=5.0, description="Rating from 1 to 5 stars")
 
 
 class CommentCreate(CommentBase):
@@ -17,10 +18,18 @@ class CommentCreate(CommentBase):
         if not v or not v.strip():
             raise ValueError('Content cannot be empty')
         return v.strip()
+    
+    @field_validator('rating')
+    @classmethod
+    def validate_rating(cls, v):
+        if v is not None and (v < 1.0 or v > 5.0):
+            raise ValueError('Rating must be between 1.0 and 5.0')
+        return v
 
 
 class CommentUpdate(BaseModel):
     content: Optional[str] = Field(None, min_length=1, max_length=2000)
+    rating: Optional[float] = Field(None, ge=1.0, le=5.0, description="Rating from 1 to 5 stars")
     
     @field_validator('content')
     @classmethod
@@ -28,6 +37,13 @@ class CommentUpdate(BaseModel):
         if v is not None and (not v or not v.strip()):
             raise ValueError('Content cannot be empty')
         return v.strip() if v else v
+    
+    @field_validator('rating')
+    @classmethod
+    def validate_rating(cls, v):
+        if v is not None and (v < 1.0 or v > 5.0):
+            raise ValueError('Rating must be between 1.0 and 5.0')
+        return v
 
 
 class CommentResponse(CommentBase):
@@ -35,6 +51,7 @@ class CommentResponse(CommentBase):
     user_id: int
     user_name: Optional[str] = None
     user_email: Optional[str] = None
+    rating: Optional[float] = None
     is_approved: bool
     is_flagged: bool
     created_at: datetime
@@ -100,6 +117,12 @@ class CommentStatistics(BaseModel):
     total_comments: int
     total_likes: int
     recent_comments_count: int  # Last 7 days
+    average_rating: Optional[float] = Field(None, description="Average rating (1-5)")
+    total_ratings: int = Field(0, description="Number of comments with ratings")
+    rating_distribution: Dict[str, int] = Field(
+        default_factory=dict,
+        description="Distribution of ratings: {'1': count, '2': count, ...}"
+    )
 
 
 class CommentModerationUpdate(BaseModel):
