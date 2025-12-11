@@ -10,6 +10,12 @@ export interface Cinema {
   email: string;
 }
 
+export interface Auditorium {
+    id: number;
+    name: string;
+    pattern: string;
+}
+
 export async function fetchCinemas(city?: string): Promise<Cinema[]> {
   try {
     const url = city 
@@ -76,4 +82,20 @@ export async function fetchCities(): Promise<string[]> {
     console.error('Error fetching cities:', error);
     return [];
   }
+}
+
+export async function fetchAuditorium(auditoriumId: number): Promise<Auditorium> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/auditoriums/${auditoriumId}`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error fetching auditorium:', error);
+        throw error;
+    }
 }
