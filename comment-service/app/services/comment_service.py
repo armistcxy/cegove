@@ -24,6 +24,7 @@ class CommentService:
             target_type=comment_data.target_type,
             target_id=comment_data.target_id,
             content=comment_data.content,
+            rating=comment_data.rating,  # Add rating here
             user_name=user_name,
             user_email=user_email,
             is_approved=True
@@ -268,7 +269,7 @@ class CommentService:
         target_type: str,
         target_id: int
     ) -> Dict:
-        """Get comment statistics for a target"""
+        """Get comment statistics for a target including rating information"""
         # Total comments
         total_comments = db.query(func.count(Comment.id)).filter(
             Comment.target_type == target_type,
@@ -293,12 +294,41 @@ class CommentService:
             Comment.created_at >= seven_days_ago
         ).scalar()
         
+        # Rating statistics
+        rating_stats = db.query(
+            func.avg(Comment.rating).label('avg_rating'),
+            func.count(Comment.rating).label('total_ratings')
+        ).filter(
+            Comment.target_type == target_type,
+            Comment.target_id == target_id,
+            Comment.is_approved == True,
+            Comment.rating.isnot(None)
+        ).first()
+        
+        average_rating = float(rating_stats.avg_rating) if rating_stats.avg_rating else None
+        total_ratings = rating_stats.total_ratings or 0
+        
+        # Rating distribution (1-5 stars)
+        rating_distribution = {}
+        for star in range(1, 6):
+            count = db.query(func.count(Comment.id)).filter(
+                Comment.target_type == target_type,
+                Comment.target_id == target_id,
+                Comment.is_approved == True,
+                Comment.rating >= star,
+                Comment.rating < (star + 1)
+            ).scalar()
+            rating_distribution[str(star)] = count
+        
         return {
             'target_type': target_type,
             'target_id': target_id,
             'total_comments': total_comments,
             'total_likes': total_likes,
-            'recent_comments_count': recent_count
+            'recent_comments_count': recent_count,
+            'average_rating': round(average_rating, 2) if average_rating else None,
+            'total_ratings': total_ratings,
+            'rating_distribution': rating_distribution
         }
     
     # ==================== ADMIN METHODS ====================
