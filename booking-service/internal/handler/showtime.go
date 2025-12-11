@@ -217,11 +217,18 @@ func (h *ShowtimeHandler) HandleCreateShowtimes(w http.ResponseWriter, r *http.R
 
 			showtimeSeats := make([]domain.ShowtimeSeat, len(seats))
 			for i, s := range seats {
+				multiplier := 1.0
+				if s.Type == "VIP" {
+					multiplier = 1.5
+				}
+				if s.Type == "COUPLE" {
+					multiplier = 3.5
+				}
 				showtimeSeats[i] = domain.ShowtimeSeat{
 					SeatID:     s.ID,
 					ShowtimeID: st.ID,
 					Status:     domain.SeatStatusAvailable,
-					Price:      st.BasePrice,
+					Price:      st.BasePrice * multiplier,
 				}
 			}
 			return h.showtimeRepo.InsertShowtimeSeats(ctx, st.ID, showtimeSeats)

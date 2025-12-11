@@ -19,7 +19,7 @@ type Ticket struct {
 	CinemaName     string    `json:"cinema_name"`
 	AuditoriumName string    `json:"auditorium_name"`
 	Showtime       time.Time `json:"showtime"`
-	SeatNumber     int       `json:"seat_number"`
+	SeatNumber     string    `json:"seat_number"`
 
 	QRCode    string       `json:"qr_code"`
 	Price     float64      `json:"price"`

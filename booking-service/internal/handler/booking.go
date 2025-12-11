@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -9,12 +11,6 @@ import (
 	"github.com/armistcxy/cegove/booking-service/pkg/httphelp"
 	"github.com/armistcxy/cegove/booking-service/pkg/logging"
 )
-
-type createBookingRequest struct {
-	UserID     string   `json:"user_id" example:"user123"`
-	ShowtimeID string   `json:"showtime_id" example:"showtime123"`
-	SeatIDs    []string `json:"seat_ids" example:"seat1,seat2"`
-}
 
 // @BasePath /api/v1
 
@@ -36,6 +32,12 @@ func NewBookingHandler(bookingRepo repository.BookingRepository, logger *logging
 		logger:      logger,
 		bookingRepo: bookingRepo,
 	}
+}
+
+type createBookingRequest struct {
+	UserID     string   `json:"user_id" example:"user123"`
+	ShowtimeID string   `json:"showtime_id" example:"showtime123"`
+	SeatIDs    []string `json:"seat_ids" example:"seat1,seat2"`
 }
 
 // @Summary Create a new booking
@@ -70,8 +72,51 @@ func (h *BookingHandler) HandleCreateBooking(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	paymentURL := "https://payment.cegove.cloud/api/v1/payments/"
+	paymentPayload := map[string]any{
+		"booking_id": booking.ID,
+		"amount":     booking.TotalPrice,
+		"provider":   "vnpay",
+		"client_ip":  r.RemoteAddr,
+	}
+	paymentPayloadBytes, err := json.Marshal(paymentPayload)
+	if err != nil {
+		h.logger.Error("Failed to marshal payment payload", err)
+		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
+		return
+	}
+	paymentReq, err := http.NewRequest("POST", paymentURL, bytes.NewReader(paymentPayloadBytes))
+	if err != nil {
+		h.logger.Error("Failed to create payment request", err)
+		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
+		return
+	}
+	paymentReq.Header.Set("Content-Type", "application/json")
+	paymentResp, err := http.DefaultClient.Do(paymentReq)
+	if err != nil {
+		h.logger.Error("Failed to send payment request", err)
+		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
+		return
+	}
+
+	var paymentResponse struct {
+		Payment struct {
+			ID     int    `json:"id"`
+			Amount string `json:"amount"`
+		} `json:"payment"`
+		URL string `json:"url"`
+	}
+	if err := json.NewDecoder(paymentResp.Body).Decode(&paymentResponse); err != nil {
+		h.logger.Error("Failed to decode payment response", err)
+		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
+		return
+	}
+
 	// Respond with full booking including tickets
-	httphelp.EncodeJSON(w, r, http.StatusOK, booking)
+	httphelp.EncodeJSON(w, r, http.StatusOK, map[string]any{
+		"booking": booking,
+		"payment": paymentResponse,
+	})
 }
 
 // @Summary Get booking information
@@ -165,6 +210,40 @@ func (h *BookingHandler) HandlePaymentWebhook(w http.ResponseWriter, r *http.Req
 		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
 		return
 	}
+
+	// if req.PaymentStatus == "SUCCESS" {
+	// 	notificationURL := "https://notification.cegove.cloud/api/v1/notifications/send"
+	// 	notificationPayload := map[string]any{
+	// 		"to":      []string{""},
+	// 		"subject": "Booking Confirmation",
+	// 		"body":    "Your booking has been confirmed.",
+	// 	}
+	// 	notificationPayloadBytes, err := json.Marshal(notificationPayload)
+	// 	if err != nil {
+	// 		h.logger.Error("Failed to marshal notification payload", err)
+	// 		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
+	// 		return
+	// 	}
+	// 	notificationReq, err := http.NewRequest("POST", notificationURL, bytes.NewReader(notificationPayloadBytes))
+	// 	if err != nil {
+	// 		h.logger.Error("Failed to create notification request", err)
+	// 		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
+	// 		return
+	// 	}
+	// 	notificationReq.Header.Set("Content-Type", "application/json")
+	// 	notificationResp, err := http.DefaultClient.Do(notificationReq)
+	// 	if err != nil {
+	// 		h.logger.Error("Failed to send notification request", err)
+	// 		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
+	// 		return
+	// 	}
+	// 	defer notificationResp.Body.Close()
+	// 	if notificationResp.StatusCode != http.StatusOK {
+	// 		h.logger.Error("Failed to send notification request", err)
+	// 		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
+	// 		return
+	// 	}
+	// }
 
 	httphelp.EncodeJSON(w, r, http.StatusOK, map[string]string{"status": "received"})
 }

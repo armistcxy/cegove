@@ -3,9 +3,12 @@ package repository
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/armistcxy/cegove/booking-service/internal/domain"
+	"github.com/lib/pq"
+	"github.com/spf13/cast"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
@@ -55,17 +58,23 @@ func (r *bookingRepository) InsertBooking(ctx context.Context, booking *domain.B
 	// Reserve requested seats: lock them and assign booking ID
 	builder := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
+	seatIDInts := make([]int64, len(booking.SeatIDs))
+	for i, seatID := range booking.SeatIDs {
+		seatIDInts[i] = cast.ToInt64(seatID)
+	}
+
 	sQuery, sArgs, err := builder.Update("showtime_seats").
 		Set("status", domain.SeatStatusLocked).
 		Set("booking_id", booking.ID).
 		Where(sq.Eq{"showtime_id": booking.ShowtimeID}).
-		Where(sq.Eq{"seat_id": booking.SeatIDs}).
+		Where(sq.Eq{"seat_id": pq.Int64Array(seatIDInts)}).
 		ToSql()
 	if err != nil {
 		return err
 	}
 
 	if _, err = tx.Exec(ctx, sQuery, sArgs...); err != nil {
+		log.Printf("Failed to lock seats: %v", err)
 		return err
 	}
 
@@ -80,11 +89,12 @@ func (r *bookingRepository) InsertBooking(ctx context.Context, booking *domain.B
 	}
 
 	if _, err = tx.Exec(ctx, bQuery, bArgs...); err != nil {
+		log.Printf("Failed to insert booking: %v", err)
 		return err
 	}
 
 	var movieTitle string
-	mQuery, mArgs, err := builder.Select("series_title").From("movies").Join("showtimes ON movies.id = showtimes.movie_id").
+	mQuery, mArgs, err := builder.Select("series_title").From("movies").Join("showtimes ON movies.id::text = showtimes.movie_id").
 		Where(sq.Eq{"showtimes.id": booking.ShowtimeID}).ToSql()
 	if err != nil {
 		return err
@@ -93,12 +103,13 @@ func (r *bookingRepository) InsertBooking(ctx context.Context, booking *domain.B
 	row := tx.QueryRow(ctx, mQuery, mArgs...)
 	err = row.Scan(&movieTitle)
 	if err != nil {
+		log.Printf("Failed to get movie title: %v", err)
 		return err
 	}
 
 	var cinemaName string
-	cQuery, cArgs, err := builder.Select("name").From("cinemas").Join("auditoriums ON cinemas.id = auditoriums.cinema_id").
-		Join("showtimes ON auditoriums.id = showtimes.auditorium_id").
+	cQuery, cArgs, err := builder.Select("cinemas.name").From("cinemas").Join("auditoriums ON cinemas.id::text = auditoriums.cinema_id::text").
+		Join("showtimes ON auditoriums.id::text = showtimes.auditorium_id").
 		Where(sq.Eq{"showtimes.id": booking.ShowtimeID}).ToSql()
 	if err != nil {
 		return err
@@ -106,13 +117,15 @@ func (r *bookingRepository) InsertBooking(ctx context.Context, booking *domain.B
 	row = tx.QueryRow(ctx, cQuery, cArgs...)
 	err = row.Scan(&cinemaName)
 	if err != nil {
+		log.Printf("Failed to get cinema name: %v", err)
 		return err
 	}
 
 	var auditoriumName string
-	aQuery, aArgs, err := builder.Select("name").From("auditoriums").Join("showtimes ON auditoriums.id = showtimes.auditorium_id").
+	aQuery, aArgs, err := builder.Select("auditoriums.name").From("auditoriums").Join("showtimes ON auditoriums.id::text = showtimes.auditorium_id").
 		Where(sq.Eq{"showtimes.id": booking.ShowtimeID}).ToSql()
 	if err != nil {
+		log.Printf("Failed to build auditorium query: %v", err)
 		return err
 	}
 	row = tx.QueryRow(ctx, aQuery, aArgs...)
@@ -121,18 +134,34 @@ func (r *bookingRepository) InsertBooking(ctx context.Context, booking *domain.B
 		return err
 	}
 
+	showtimeQuery, showtimeArgs, err := builder.Select("start_time").From("showtimes").Where(sq.Eq{"id": booking.ShowtimeID}).ToSql()
+	if err != nil {
+		return err
+	}
+
+	row = tx.QueryRow(ctx, showtimeQuery, showtimeArgs...)
+	var showtime time.Time
+	err = row.Scan(&showtime)
+	if err != nil {
+		return err
+	}
+
 	tickets := make([]domain.Ticket, 0)
 	for _, seatID := range booking.SeatIDs {
 		sQuery, sArgs, err := builder.Select("seat_number", "price").From("showtime_seats").
-			Where(sq.Eq{"seat_id": seatID}).Where(sq.Eq{"showtime_id": booking.ShowtimeID}).ToSql()
+			Join("seats ON showtime_seats.seat_id::text = seats.id::text").
+			Where(sq.Eq{"seat_id::text": seatID}).
+			Where(sq.Eq{"showtime_id": booking.ShowtimeID}).
+			ToSql()
 		if err != nil {
 			return err
 		}
 		row := tx.QueryRow(ctx, sQuery, sArgs...)
-		var seatNumber int
+		var seatNumber string
 		var price float64
 		err = row.Scan(&seatNumber, &price)
 		if err != nil {
+			log.Printf("Failed to get seat number and price: %v", err)
 			return err
 		}
 		t := domain.Ticket{
@@ -142,10 +171,12 @@ func (r *bookingRepository) InsertBooking(ctx context.Context, booking *domain.B
 			MovieTitle:     movieTitle,
 			CinemaName:     cinemaName,
 			AuditoriumName: auditoriumName,
+			Showtime:       showtime,
 			SeatNumber:     seatNumber,
 			QRCode:         uuid.New().String(),
 			Price:          price,
 		}
+		booking.TotalPrice += price
 		tickets = append(tickets, t)
 	}
 
@@ -165,12 +196,29 @@ func (r *bookingRepository) InsertBooking(ctx context.Context, booking *domain.B
 		return err
 	}
 	if _, err = tx.Exec(ctx, query, args...); err != nil {
+		log.Printf("Failed to insert tickets: %v", err)
+		return err
+	}
+
+	bQuery, bArgs, err = builder.Update("bookings").
+		Set("total_price", booking.TotalPrice).
+		Where(sq.Eq{"id": booking.ID}).
+		ToSql()
+	if err != nil {
+		return err
+	}
+
+	if _, err = tx.Exec(ctx, bQuery, bArgs...); err != nil {
+		log.Printf("Failed to update booking total price: %v", err)
 		return err
 	}
 
 	if err = tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit transaction: %w", err)
 	}
+
+	booking.Tickets = tickets
+
 	return nil
 }
 
