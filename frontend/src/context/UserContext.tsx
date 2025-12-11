@@ -2,11 +2,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getUserProfile } from '../pages/User/Utils/ApiFunction';
 import {logout} from "../pages/Auth/Utils/ApiFunction.ts";
+import Loading from "../components/Loading/Loading.tsx";
 
 interface UserContextType {
     isLoggedIn: boolean;
     userProfile: any;
-    isLoading: boolean;
     setUserProfile: (user: any) => void;
     setIsLoggedIn: (status: boolean) => void;
     refreshUserProfile: () => Promise<void>;
@@ -16,13 +16,12 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const [isAppReady, setIsAppReady] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [userProfile, setUserProfile] = useState<any>(null);
-    const [isLoading, setIsLoading] = useState(true);
 
     const refreshUserProfile = async () => {
         const token = localStorage.getItem("access-token");
-        setIsLoading(true);
         if (token) {
             try {
                 const response = await getUserProfile(token);
@@ -34,11 +33,12 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setUserProfile(null);
             }
         }
-        setIsLoading(false);
+
+        setIsAppReady(true);
     };
 
-    const handleLogout = () => {
-        logout(localStorage.getItem("access-token") || "");
+    const handleLogout = async () => {
+        await logout(localStorage.getItem("access-token") || "");
         localStorage.removeItem("access-token");
         setIsLoggedIn(false);
         setUserProfile(null);
@@ -48,11 +48,14 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         refreshUserProfile();
     }, []);
 
+    if (!isAppReady) {
+        return (<Loading />);
+    }
+
     return (
         <UserContext.Provider value={{
             isLoggedIn,
             userProfile,
-            isLoading,
             setUserProfile,
             setIsLoggedIn,
             refreshUserProfile,

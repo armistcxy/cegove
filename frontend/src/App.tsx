@@ -1,5 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useUser } from './context/UserContext';
+import {BrowserRouter as Router, Routes, Route, Navigate, useParams} from 'react-router-dom';
 import Header from './components/Header/Header.tsx';
 import ProtectedRoute from './components/ProtectedRoute.tsx';
 import AdminLayout from './layouts/AdminLayout.tsx';
@@ -17,6 +16,12 @@ import AdminUsers from './pages/Admin/Users.tsx';
 import AdminMovies from './pages/Admin/Movies.tsx';
 import AdminCinemas from './pages/Admin/Cinemas.tsx';
 import AdminAbout from './pages/Admin/About.tsx';
+import BookingPage from "./pages/Booking/BookingPage.tsx";
+
+function BookingPageWrapper() {
+    const { showtimeId } = useParams();
+    return <BookingPage showtimeId={showtimeId} />;
+}
 
 function AppContent() {
   return (
@@ -53,6 +58,7 @@ function AppContent() {
                   <Route path="/login" element={<AuthPage />} />
                   <Route path="/register" element={<AuthPage />} />
                   <Route path="/profile" element={<Profile />} />
+                  <Route path="/booking/:showtimeId" element={<BookingPageWrapper />} />
                 </Routes>
               </main>
             </>

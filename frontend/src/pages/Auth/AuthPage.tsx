@@ -7,7 +7,7 @@ import { useUser } from "../../context/UserContext.tsx";
 
 const AuthPage = () => {
     const navigate = useNavigate();
-    const { refreshUserProfile, setIsLoggedIn } = useUser();
+    const { refreshUserProfile } = useUser();
 
     const [loginForm, setLoginForm] = useState<LoginForm>({
         username: "",
@@ -100,12 +100,8 @@ const AuthPage = () => {
                 const token = response.data;
                 localStorage.setItem("access-token", token);
 
-                // Update context - this will fetch and set userProfile
-                setIsLoggedIn(true);
                 await refreshUserProfile();
-                
-                // Navigate to homepage after login
-                navigate("/homepage", { replace: true });
+                navigate("/");
             }
         } catch (error) {
             if (error.response && error.response.status === 401) {
