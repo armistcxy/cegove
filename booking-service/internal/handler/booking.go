@@ -25,12 +25,14 @@ import (
 type BookingHandler struct {
 	logger      *logging.Logger
 	bookingRepo repository.BookingRepository
+	userRepo    repository.UserRepository
 }
 
-func NewBookingHandler(bookingRepo repository.BookingRepository, logger *logging.Logger) *BookingHandler {
+func NewBookingHandler(bookingRepo repository.BookingRepository, userRepo repository.UserRepository, logger *logging.Logger) *BookingHandler {
 	return &BookingHandler{
 		logger:      logger,
 		bookingRepo: bookingRepo,
+		userRepo:    userRepo,
 	}
 }
 
@@ -211,39 +213,55 @@ func (h *BookingHandler) HandlePaymentWebhook(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// if req.PaymentStatus == "SUCCESS" {
-	// 	notificationURL := "https://notification.cegove.cloud/api/v1/notifications/send"
-	// 	notificationPayload := map[string]any{
-	// 		"to":      []string{""},
-	// 		"subject": "Booking Confirmation",
-	// 		"body":    "Your booking has been confirmed.",
-	// 	}
-	// 	notificationPayloadBytes, err := json.Marshal(notificationPayload)
-	// 	if err != nil {
-	// 		h.logger.Error("Failed to marshal notification payload", err)
-	// 		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
-	// 		return
-	// 	}
-	// 	notificationReq, err := http.NewRequest("POST", notificationURL, bytes.NewReader(notificationPayloadBytes))
-	// 	if err != nil {
-	// 		h.logger.Error("Failed to create notification request", err)
-	// 		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
-	// 		return
-	// 	}
-	// 	notificationReq.Header.Set("Content-Type", "application/json")
-	// 	notificationResp, err := http.DefaultClient.Do(notificationReq)
-	// 	if err != nil {
-	// 		h.logger.Error("Failed to send notification request", err)
-	// 		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
-	// 		return
-	// 	}
-	// 	defer notificationResp.Body.Close()
-	// 	if notificationResp.StatusCode != http.StatusOK {
-	// 		h.logger.Error("Failed to send notification request", err)
-	// 		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
-	// 		return
-	// 	}
-	// }
+	if req.PaymentStatus == "SUCCESS" {
+		// get booking information
+		booking, err := h.bookingRepo.GetBookingInformation(ctx, req.BookingID)
+		if err != nil {
+			h.logger.Error("Failed to get booking information", err)
+			httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
+			return
+		}
+		h.logger.Info("Booking information", "booking", booking)
+
+		// get user email
+		email, err := h.userRepo.GetUserEmail(ctx, booking.UserID)
+		if err != nil {
+			h.logger.Error("Failed to get user email", err)
+			httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
+			return
+		}
+		h.logger.Info("User email", "email", email)
+
+		notificationURL := "https://notification.cegove.cloud/api/v1/notifications/send"
+		notificationPayload := map[string]any{
+			"to":      []string{email},
+			"subject": "Booking Confirmation",
+			"body":    "Your booking has been confirmed.",
+		}
+		notificationPayloadBytes, err := json.Marshal(notificationPayload)
+		if err != nil {
+			h.logger.Error("Failed to marshal notification payload", err)
+			httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
+			return
+		}
+		h.logger.Info("Notification payload", "payload", notificationPayloadBytes)
+		notificationReq, err := http.NewRequest("POST", notificationURL, bytes.NewReader(notificationPayloadBytes))
+		if err != nil {
+			h.logger.Error("Failed to create notification request", err)
+			httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
+			return
+		}
+		notificationReq.Header.Set("Content-Type", "application/json")
+		notificationResp, err := http.DefaultClient.Do(notificationReq)
+		if err != nil {
+			h.logger.Error("Failed to send notification request", err)
+			httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
+			return
+		}
+		if notificationResp != nil {
+			defer notificationResp.Body.Close()
+		}
+	}
 
 	httphelp.EncodeJSON(w, r, http.StatusOK, map[string]string{"status": "received"})
 }
