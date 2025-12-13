@@ -25,22 +25,21 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class Booking {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
 
-    private Long screeningId;
-    private Long totalAmount;
+    private Long showtimeId;
+    private Long totalPrice;
     private String status;
     private final LocalDateTime createdAt = LocalDateTime.now();
 
     public BookingDTO convertToDTO() {
         return BookingDTO.builder()
                 .id(id)
-                .totalAmount(totalAmount)
+                .totalPrice(totalPrice)
                 .status(status)
                 .createdAt(createdAt).build();
     }

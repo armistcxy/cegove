@@ -10,8 +10,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -37,7 +39,7 @@ public class UserController {
     }
 
     @GetMapping("/{userId}/profile")
-    public ResponseEntity<?> getUserProfile(@ModelAttribute("userId") Long userId) {
+    public ResponseEntity<?> getUserProfile(@PathVariable("userId") Long userId) {
         try {
             return ResponseEntity.ok(service.getUserProfile(userId));
         } catch (UsernameNotFoundException e) {
@@ -88,6 +90,42 @@ public class UserController {
     public ResponseEntity<?> getBookingHistory() {
         try {
             return ResponseEntity.ok(service.bookingHistory());
+        } catch (UsernameNotFoundException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PreAuthorize("hasAuthority('LOCAL_ADMIN')")
+    @GetMapping("")
+    public ResponseEntity<?> getAllUsers() {
+        try {
+            return ResponseEntity.ok(service.getAllUsers());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PreAuthorize("hasAuthority('LOCAL_ADMIN')")
+    @DeleteMapping("/{userId}")
+    public ResponseEntity<?> deleteUser(@PathVariable("userId") Long userId) {
+        try {
+            service.deleteUser(userId);
+            return ResponseEntity.ok("User deleted successfully");
+        } catch (UsernameNotFoundException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PreAuthorize("hasAuthority('LOCAL_ADMIN')")
+    @PutMapping("/{userId}/role")
+    public ResponseEntity<?> changeUserRole(@PathVariable("userId") Long userId, @RequestBody String role) {
+        try {
+            service.changeRoleUser(userId, role);
+            return ResponseEntity.ok("User role changed successfully");
         } catch (UsernameNotFoundException e) {
             return ResponseEntity.status(404).body(e.getMessage());
         } catch (Exception e) {
