@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchCinemas } from '../Cinemas/CinemaLogic';
+import { addCinema, deleteCinema, updateCinema } from './Utils/CinemaApi';
 import styles from './Admin.module.css';
 
 interface Cinema {
@@ -17,6 +18,16 @@ export default function Cinemas() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
+  const [showAdd, setShowAdd] = useState(false);
+  const [newCinema, setNewCinema] = useState({
+    name: '',
+    address: '',
+    city: '',
+    district: '',
+    phone: '',
+    images: [],
+  });
+  const [editCinema, setEditCinema] = useState<null | (Cinema & {id: number})>(null);
 
   useEffect(() => {
     loadCinemas();
@@ -34,16 +45,44 @@ export default function Cinemas() {
     }
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (confirm('Bạn có chắc chắn muốn xóa rạp này?')) {
-      // TODO: Implement delete API
-      console.log('Delete cinema:', id);
+      try {
+        await deleteCinema(id);
+        loadCinemas();
+      } catch (err) {
+        alert('Xóa rạp thất bại!');
+      }
     }
   };
 
   const handleEdit = (id: number) => {
-    // TODO: Implement edit functionality
-    console.log('Edit cinema:', id);
+    const cinema = cinemas.find(c => c.id === id);
+    if (cinema) setEditCinema(cinema);
+  };
+
+  const handleUpdateCinema = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editCinema) return;
+    try {
+      await updateCinema(editCinema.id, editCinema);
+      setEditCinema(null);
+      loadCinemas();
+    } catch (err) {
+      alert('Cập nhật rạp thất bại!');
+    }
+  };
+
+  const handleAddCinema = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await addCinema(newCinema);
+      setShowAdd(false);
+      setNewCinema({ name: '', address: '', city: '', district: '', phone: '', images: [] });
+      loadCinemas();
+    } catch (err) {
+      alert('Thêm rạp thất bại!');
+    }
   };
 
   // Get unique cities for filter
@@ -51,8 +90,10 @@ export default function Cinemas() {
 
   // Filter cinemas based on search and city
   const filteredCinemas = cinemas.filter(cinema => {
-    const matchesSearch = cinema.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         cinema.address.toLowerCase().includes(searchTerm.toLowerCase());
+    const name = cinema.name || '';
+    const address = cinema.address || '';
+    const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         address.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCity = !selectedCity || cinema.city === selectedCity;
     return matchesSearch && matchesCity;
   });
@@ -61,8 +102,112 @@ export default function Cinemas() {
     <div className={styles.pageContainer}>
       <div className={styles.pageHeader}>
         <h1 className={styles.pageTitle}>Quản lý Rạp Chiếu Phim</h1>
-        <button className={styles.btnPrimary}>+ Thêm rạp mới</button>
+        <button className={styles.btnPrimary} onClick={() => setShowAdd(true)}>+ Thêm rạp mới</button>
       </div>
+      
+      {showAdd && (
+        <div
+          style={{
+            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+            background: 'rgba(0,0,0,0.25)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            animation: 'fadeInModal 0.25s',
+          }}
+          onClick={e => { if (e.target === e.currentTarget) setShowAdd(false); }}
+        >
+          <style>{`
+            @keyframes fadeInModal { from { opacity: 0; } to { opacity: 1; } }
+            .modal-anim { animation: fadeInModal 0.25s; }
+            .modal-btn:hover { background: #222 !important; color: #fff !important; }
+            .modal-btn-cancel:hover { background: #eee !important; color: #222 !important; }
+            .modal-input:focus { border-color: #222; outline: none; }
+          `}</style>
+          <div className="modal-anim" style={{ background: '#fff', border: '1px solid #bbb', borderRadius: 14, padding: 32, minWidth: 350, boxShadow: '0 8px 32px #0003', position: 'relative', transition: 'box-shadow 0.2s' }}>
+            <button onClick={() => setShowAdd(false)} style={{ position: 'absolute', top: 8, right: 12, background: 'none', border: 'none', fontSize: 22, color: '#888', cursor: 'pointer', transition: 'color 0.2s' }} title="Đóng"
+              onMouseOver={e => (e.currentTarget.style.color = '#222')}
+              onMouseOut={e => (e.currentTarget.style.color = '#888')}
+            >×</button>
+            <h2 style={{marginTop:0, marginBottom: 16}}>Thêm rạp mới</h2>
+            <form onSubmit={handleAddCinema} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <label style={{fontWeight:700, minWidth:100}}>Tên rạp</label>
+                <input autoFocus required className="modal-input" style={{flex:1,padding:8, borderRadius:6, border:'1px solid #bbb'}} placeholder="Tên rạp" value={newCinema.name} onChange={e => setNewCinema({ ...newCinema, name: e.target.value })} />
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <label style={{fontWeight:700, minWidth:100}}>Địa chỉ</label>
+                <input required className="modal-input" style={{flex:1,padding:8, borderRadius:6, border:'1px solid #bbb'}} placeholder="Địa chỉ" value={newCinema.address} onChange={e => setNewCinema({ ...newCinema, address: e.target.value })} />
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <label style={{fontWeight:700, minWidth:100}}>Thành phố</label>
+                <input required className="modal-input" style={{flex:1,padding:8, borderRadius:6, border:'1px solid #bbb'}} placeholder="Thành phố" value={newCinema.city} onChange={e => setNewCinema({ ...newCinema, city: e.target.value })} />
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <label style={{fontWeight:700, minWidth:100}}>Quận/Huyện</label>
+                <input required className="modal-input" style={{flex:1,padding:8, borderRadius:6, border:'1px solid #bbb'}} placeholder="Quận/Huyện" value={newCinema.district} onChange={e => setNewCinema({ ...newCinema, district: e.target.value })} />
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <label style={{fontWeight:700, minWidth:100}}>Số điện thoại</label>
+                <input required className="modal-input" style={{flex:1,padding:8, borderRadius:6, border:'1px solid #bbb'}} placeholder="Số điện thoại" value={newCinema.phone} onChange={e => setNewCinema({ ...newCinema, phone: e.target.value })} />
+              </div>
+              <div style={{display:'flex',gap:8,marginTop:8}}>
+                <button type="submit" className="modal-btn" style={{ padding: '6px 18px', borderRadius: 6, border: '1px solid #bbb', background: '#222', color: '#fff', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s, color 0.2s' }}>Lưu</button>
+                <button type="button" className="modal-btn modal-btn-cancel" onClick={() => setShowAdd(false)} style={{ padding: '6px 18px', borderRadius: 6, border: '1px solid #bbb', background: '#fff', color: '#222', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s, color 0.2s' }}>Hủy</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {editCinema && (
+        <div
+          style={{
+            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+            background: 'rgba(0,0,0,0.25)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            animation: 'fadeInModal 0.25s',
+          }}
+          onClick={e => { if (e.target === e.currentTarget) setEditCinema(null); }}
+        >
+          <style>{`
+            @keyframes fadeInModal { from { opacity: 0; } to { opacity: 1; } }
+            .modal-anim { animation: fadeInModal 0.25s; }
+            .modal-btn:hover { background: #222 !important; color: #fff !important; }
+            .modal-btn-cancel:hover { background: #eee !important; color: #222 !important; }
+            .modal-input:focus { border-color: #222; outline: none; }
+          `}</style>
+          <div className="modal-anim" style={{ background: '#fff', border: '1px solid #bbb', borderRadius: 14, padding: 32, minWidth: 350, boxShadow: '0 8px 32px #0003', position: 'relative', transition: 'box-shadow 0.2s' }}>
+            <button onClick={() => setEditCinema(null)} style={{ position: 'absolute', top: 8, right: 12, background: 'none', border: 'none', fontSize: 22, color: '#888', cursor: 'pointer', transition: 'color 0.2s' }} title="Đóng"
+              onMouseOver={e => (e.currentTarget.style.color = '#222')}
+              onMouseOut={e => (e.currentTarget.style.color = '#888')}
+            >×</button>
+            <h2 style={{marginTop:0, marginBottom: 16}}>Sửa rạp</h2>
+            <form onSubmit={handleUpdateCinema} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <label style={{fontWeight:700, minWidth:100}}>Tên rạp</label>
+                <input autoFocus required className="modal-input" style={{flex:1,padding:8, borderRadius:6, border:'1px solid #bbb'}} placeholder="Tên rạp" value={editCinema.name} onChange={e => setEditCinema({ ...editCinema, name: e.target.value })} />
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <label style={{fontWeight:700, minWidth:100}}>Địa chỉ</label>
+                <input required className="modal-input" style={{flex:1,padding:8, borderRadius:6, border:'1px solid #bbb'}} placeholder="Địa chỉ" value={editCinema.address} onChange={e => setEditCinema({ ...editCinema, address: e.target.value })} />
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <label style={{fontWeight:700, minWidth:100}}>Thành phố</label>
+                <input required className="modal-input" style={{flex:1,padding:8, borderRadius:6, border:'1px solid #bbb'}} placeholder="Thành phố" value={editCinema.city} onChange={e => setEditCinema({ ...editCinema, city: e.target.value })} />
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <label style={{fontWeight:700, minWidth:100}}>Quận/Huyện</label>
+                <input required className="modal-input" style={{flex:1,padding:8, borderRadius:6, border:'1px solid #bbb'}} placeholder="Quận/Huyện" value={editCinema.district} onChange={e => setEditCinema({ ...editCinema, district: e.target.value })} />
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <label style={{fontWeight:700, minWidth:100}}>Số điện thoại</label>
+                <input required className="modal-input" style={{flex:1,padding:8, borderRadius:6, border:'1px solid #bbb'}} placeholder="Số điện thoại" value={editCinema.phone} onChange={e => setEditCinema({ ...editCinema, phone: e.target.value })} />
+              </div>
+              <div style={{display:'flex',gap:8,marginTop:8}}>
+                <button type="submit" className="modal-btn" style={{ padding: '6px 18px', borderRadius: 6, border: '1px solid #bbb', background: '#222', color: '#fff', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s, color 0.2s' }}>Lưu</button>
+                <button type="button" className="modal-btn modal-btn-cancel" onClick={() => setEditCinema(null)} style={{ padding: '6px 18px', borderRadius: 6, border: '1px solid #bbb', background: '#fff', color: '#222', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s, color 0.2s' }}>Hủy</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Filter Section */}
       <div className={styles.filterSection}>
@@ -117,14 +262,13 @@ export default function Cinemas() {
                   <th>Quận/Huyện</th>
                   <th>Địa chỉ</th>
                   <th>Số điện thoại</th>
-                  <th>Email</th>
                   <th>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredCinemas.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className={styles.noData}>
+                    <td colSpan={7} className={styles.noData}>
                       Không tìm thấy rạp chiếu phim nào
                     </td>
                   </tr>
@@ -139,18 +283,52 @@ export default function Cinemas() {
                       <td>{cinema.district}</td>
                       <td className={styles.addressCell}>{cinema.address}</td>
                       <td>{cinema.phone}</td>
-                      <td className={styles.emailCell}>{cinema.email}</td>
                       <td>
                         <div className={styles.actionButtons}>
-                          <button 
-                            className={styles.btnEdit}
+                          <button
+                            style={{
+                              marginRight: 8,
+                              padding: '6px 14px',
+                              borderRadius: 6,
+                              border: '1px solid #bbb',
+                              background: '#fff',
+                              color: '#222',
+                              cursor: 'pointer',
+                              fontWeight: 500,
+                              transition: 'background 0.2s, color 0.2s',
+                            }}
+                            onMouseOver={e => {
+                              e.currentTarget.style.background = '#222';
+                              e.currentTarget.style.color = '#fff';
+                            }}
+                            onMouseOut={e => {
+                              e.currentTarget.style.background = '#fff';
+                              e.currentTarget.style.color = '#222';
+                            }}
                             onClick={() => handleEdit(cinema.id)}
                             title="Chỉnh sửa"
                           >
                             Sửa
                           </button>
-                          <button 
-                            className={styles.btnDelete}
+                          <button
+                            style={{
+                              padding: '6px 14px',
+                              borderRadius: 6,
+                              border: '1px solid #bbb',
+                              background: '#fff',
+                              color: '#222',
+                              cursor: 'pointer',
+                              fontWeight: 500,
+                              transition: 'background 0.2s, color 0.2s',
+                            }}
+                            onMouseOver={e => {
+                              e.currentTarget.style.background = '#222';
+                              e.currentTarget.style.color = '#fff';
+                            }}
+                            onMouseOut={e => {
+                              e.currentTarget.style.background = '#fff';
+                              e.currentTarget.style.color = '#222';
+                            }}
                             onClick={() => handleDelete(cinema.id)}
                             title="Xóa"
                           >
