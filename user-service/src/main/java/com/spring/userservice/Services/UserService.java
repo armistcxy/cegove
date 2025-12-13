@@ -5,6 +5,7 @@ import com.spring.userservice.DTOs.ChangePasswordForm;
 import com.spring.userservice.DTOs.UserDTO;
 import com.spring.userservice.DTOs.UserPartDTO;
 import com.spring.userservice.Enums.Provider;
+import com.spring.userservice.Enums.UserRole;
 import com.spring.userservice.Exceptions.ActionNotAllowedException;
 import com.spring.userservice.Exceptions.InvalidCredentialsException;
 import com.spring.userservice.Exceptions.UserAlreadyExistedException;
@@ -121,5 +122,25 @@ public class UserService {
         return bookings.stream()
                 .map(Booking::convertToDTO)
                 .toList();
+    }
+
+    public List<UserDTO> getAllUsers() {
+        List<User> users = repository.findAll();
+        return users.stream()
+                .map(User::convertToDTO)
+                .toList();
+    }
+
+    public void deleteUser(Long userId) {
+        User user = repository.findById(userId)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with id: " + userId));
+        repository.delete(user);
+    }
+
+    public void changeRoleUser(Long userId, String role) {
+        User user = repository.findById(userId)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with id: " + userId));
+        user.setRole(UserRole.valueOf(role));
+        repository.save(user);
     }
 }

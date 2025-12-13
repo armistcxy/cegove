@@ -8,10 +8,8 @@ import java.time.LocalDateTime;
 @Data
 @Builder
 public class BookingDTO {
-    private Long id;
-    // Todo: Detail screening field
-
-    private Long totalAmount;
+    private String id;
+    private Long totalPrice;
     private String status;
     private LocalDateTime createdAt;
 }
