@@ -100,7 +100,19 @@ export default function Users() {
                     <td>{user.email}</td>
                     <td>
                       {user.img ? (
-                        <img src={user.img} alt={user.fullName} style={{ width: 40, height: 40, borderRadius: '50%' }} />
+                        <img
+                          src={user.img}
+                          alt={user.fullName}
+                          style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: '50%',
+                            objectFit: 'cover',
+                            objectPosition: 'center',
+                            display: 'block',
+                            background: '#eee',
+                          }}
+                        />
                       ) : 'No photo'}
                     </td>
                     <td>
