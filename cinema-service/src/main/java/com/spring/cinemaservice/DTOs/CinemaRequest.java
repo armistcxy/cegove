@@ -17,6 +17,4 @@ public class CinemaRequest {
     private String city;
     private String phone;
     private List<MultipartFile> images;
-
-    private List<AuditoriumRequest> auditoriumList;
 }

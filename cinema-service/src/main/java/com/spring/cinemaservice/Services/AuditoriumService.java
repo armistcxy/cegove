@@ -2,6 +2,7 @@ package com.spring.cinemaservice.Services;
 
 import com.spring.cinemaservice.DTOs.AuditoriumRequest;
 import com.spring.cinemaservice.DTOs.AuditoriumResponse;
+import com.spring.cinemaservice.Enums.AuditoriumPattern;
 import com.spring.cinemaservice.Models.Auditorium;
 import com.spring.cinemaservice.Models.Cinema;
 import com.spring.cinemaservice.Reposistories.AuditoriumReposistory;
@@ -45,5 +46,22 @@ public class AuditoriumService {
         Auditorium auditorium = reposistory.findById(auditoriumId)
                 .orElseThrow(() -> new UsernameNotFoundException("Auditorium not found with id: " + auditoriumId));
         return auditorium.convertToDTO();
+    }
+
+    public void deleteAuditorium(Long auditoriumId) {
+        Auditorium auditorium = reposistory.findById(auditoriumId)
+                .orElseThrow(() -> new UsernameNotFoundException("Auditorium not found with id: " + auditoriumId));
+        reposistory.delete(auditorium);
+    }
+
+    @Transactional
+    public void updateAuditoriumPattern(Long auditoriumId, String newPattern) {
+        Auditorium auditorium = reposistory.findById(auditoriumId)
+                .orElseThrow(() -> new UsernameNotFoundException("Auditorium not found with id: " + auditoriumId));
+        auditorium.setPattern(AuditoriumPattern.valueOf(newPattern));
+        reposistory.save(auditorium);
+
+        // Update seating arrangement based on the new pattern
+        seatService.updateSeats(auditorium);
     }
 }

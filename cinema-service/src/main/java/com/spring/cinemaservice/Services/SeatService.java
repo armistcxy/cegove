@@ -21,4 +21,17 @@ public class SeatService {
         }
         reposistory.saveAll(seats);
     }
+
+    public void updateSeats(Auditorium auditorium) {
+        // Remove existing seats
+        reposistory.deleteAllByAuditorium(auditorium);
+
+        // Generate new seating arrangement based on the updated pattern
+        List<Seat> newSeats = auditorium.getPattern().generateSeats();
+        for (Seat seat : newSeats) {
+            seat.setAuditorium(auditorium);
+            auditorium.getSeats().add(seat);
+        }
+        reposistory.saveAll(newSeats);
+    }
 }
