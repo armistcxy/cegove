@@ -1,8 +1,10 @@
 package com.spring.cinemaservice.Services;
 
 import com.spring.cinemaservice.DTOs.AuditoriumRequest;
+import com.spring.cinemaservice.DTOs.AuditoriumResponse;
 import com.spring.cinemaservice.DTOs.CinemaRequest;
 import com.spring.cinemaservice.DTOs.CinemaResponse;
+import com.spring.cinemaservice.Models.Auditorium;
 import com.spring.cinemaservice.Models.Cinema;
 import com.spring.cinemaservice.Reposistories.CinemaReposistory;
 import jakarta.transaction.Transactional;
@@ -20,12 +22,8 @@ public class CinemaService {
     private CinemaReposistory reposistory;
 
     @Autowired
-    private AuditoriumService auditoriumService;
-
-    @Autowired
     private ImageUploadClient imageUploadClient;
 
-    @Transactional
     public void createCinema(CinemaRequest cinemaRequest) {
         Cinema cinema = Cinema.builder()
                 .name(cinemaRequest.getName())
@@ -45,13 +43,6 @@ public class CinemaService {
         }
 
         Cinema savedCinema = reposistory.save(cinema);
-
-        // Create auditoriums
-        if (cinemaRequest.getAuditoriumList() != null) {
-            for (AuditoriumRequest auditoriumRequest : cinemaRequest.getAuditoriumList()) {
-                auditoriumService.createAuditorium(auditoriumRequest, savedCinema.getId());
-            }
-        }
     }
 
     public CinemaResponse getCinema(long id) {
@@ -72,5 +63,57 @@ public class CinemaService {
         return cinemas.stream()
                 .map(Cinema::convertToDTO)
                 .toList();
+    }
+
+    public void deleteCinema(long id) {
+        Cinema cinema = reposistory.findById(id)
+                .orElseThrow(() -> new UsernameNotFoundException("Do not have cinema with id:" + id));
+        reposistory.delete(cinema);
+    }
+
+    public void updateCinema(CinemaRequest cinemaRequest, long id) {
+        Cinema cinema = reposistory.findById(id)
+                .orElseThrow(() -> new UsernameNotFoundException("Do not have cinema with id:" + id));
+
+        if (cinemaRequest.getName() != null) {
+            cinema.setName(cinemaRequest.getName());
+        }
+
+        if (cinemaRequest.getAddress() != null) {
+            cinema.setAddress(cinemaRequest.getAddress());
+        }
+
+        if (cinemaRequest.getDistrict() != null) {
+            cinema.setDistrict(cinemaRequest.getDistrict());
+        }
+
+        if (cinemaRequest.getCity() != null) {
+            cinema.setCity(cinemaRequest.getCity());
+        }
+
+        if (cinemaRequest.getPhone() != null) {
+            cinema.setPhone(cinemaRequest.getPhone());
+        }
+
+        // Handle image uploads
+        if (cinemaRequest.getImages() != null && !cinemaRequest.getImages().isEmpty()) {
+            List<String> newImageUrls = new ArrayList<>();
+            for (MultipartFile image : cinemaRequest.getImages()) {
+                String imageUrl = imageUploadClient.uploadImage(image);
+                newImageUrls.add(imageUrl);
+            }
+            cinema.setImages(newImageUrls);
+        }
+
+        reposistory.save(cinema);
+    }
+
+    public AuditoriumResponse getAuditoriumsByCinemaId(Long cinemaId) {
+        Cinema cinema = reposistory.findById(cinemaId)
+                .orElseThrow(() -> new UsernameNotFoundException("Cinema not found with id: " + cinemaId));
+        return cinema.getAuditoriums().stream()
+                .map(Auditorium::convertToDTO)
+                .findFirst()
+                .orElseThrow(() -> new UsernameNotFoundException("No auditoriums found for cinema with id: " + cinemaId));
     }
 }
