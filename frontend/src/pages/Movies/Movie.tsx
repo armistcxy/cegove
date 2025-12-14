@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Movie, MoviesResponse, MovieFilters } from "./MovieLogic.ts";
 import { fetchMovies, fetchGenres } from "./MovieLogic.ts";
@@ -10,9 +10,8 @@ export default function Movies() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [hasMorePages, setHasMorePages] = useState(true);
+  const [totalPages, setTotalPages] = useState(1);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [loadedMovieIds, setLoadedMovieIds] = useState<Set<number>>(new Set());
   
   // Filter states
   const [genres, setGenres] = useState<string[]>([]);
@@ -33,9 +32,7 @@ export default function Movies() {
   const [selectedMovieId, setSelectedMovieId] = useState<number | undefined>(undefined);
   
   const navigate = useNavigate();
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const loadingRef = useRef<HTMLDivElement | null>(null);
-  const isLoadingRef = useRef(false);
+
 
   const getActiveFilters = useCallback((): MovieFilters => {
     const filters: MovieFilters = {};
@@ -46,95 +43,26 @@ export default function Movies() {
   }, [appliedGenre, appliedMinRating, appliedSortBy]);
 
   const loadMovies = useCallback(async (page: number, isInitial: boolean = false) => {
-    // Prevent multiple simultaneous requests
-    if (isLoadingRef.current) {
-      console.log('Request blocked - already loading');
-      return;
-    }
-    
-    console.log('Loading movies for page:', page, 'isInitial:', isInitial);
-    
-    isLoadingRef.current = true;
     setLoading(true);
     setError(null);
-    
     try {
       const filters = getActiveFilters();
       const response: MoviesResponse = await fetchMovies(page, 24, filters);
-      console.log('Fetched movies:', response.items.length, 'total_pages:', response.total_pages);
-      
-      if (isInitial) {
-        setMovies(response.items);
-        setLoadedMovieIds(new Set(response.items.map(movie => movie.id)));
-        setInitialLoading(false);
-      } else {
-        setMovies(prev => {
-          const existingIds = new Set(prev.map(movie => movie.id));
-          const newMovies = response.items.filter(movie => !existingIds.has(movie.id));
-          console.log('Adding new movies:', newMovies.length, 'total movies will be:', prev.length + newMovies.length);
-          return [...prev, ...newMovies];
-        });
-        
-        setLoadedMovieIds(prev => {
-          const newSet = new Set(prev);
-          response.items.forEach(movie => newSet.add(movie.id));
-          return newSet;
-        });
-      }
-      
+      setMovies(response.items);
       setCurrentPage(page);
-      const hasMore = page < response.total_pages;
-      setHasMorePages(hasMore);
-      console.log('Updated state - currentPage:', page, 'hasMorePages:', hasMore);
+      setTotalPages(response.total_pages);
+      if (isInitial) setInitialLoading(false);
     } catch (err) {
-      console.error('Error loading movies:', err);
       setError("Failed to load movies. Please try again.");
-      if (isInitial) {
-        setInitialLoading(false);
-      }
+      if (isInitial) setInitialLoading(false);
     } finally {
       setLoading(false);
-      isLoadingRef.current = false;
-      console.log('Loading completed');
     }
   }, [getActiveFilters]);
 
-  const loadMoreMovies = useCallback(() => {
-    if (!isLoadingRef.current && hasMorePages && !loading) {
-      console.log('Loading more movies, current page:', currentPage);
-      loadMovies(currentPage + 1);
-    }
-  }, [currentPage, hasMorePages, loading, loadMovies]);
 
-  useEffect(() => {
-    if (!loadingRef.current || !hasMorePages || loading) return;
 
-    console.log('Setting up intersection observer, hasMorePages:', hasMorePages);
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const [entry] = entries;
-        console.log('Intersection observed:', entry.isIntersecting, 'hasMorePages:', hasMorePages, 'loading:', isLoadingRef.current);
-        
-        if (entry.isIntersecting && hasMorePages && !isLoadingRef.current) {
-          console.log('Triggering load more movies');
-          loadMoreMovies();
-        }
-      },
-      {
-        threshold: 0.1,
-        rootMargin: '100px'
-      }
-    );
-
-    observer.observe(loadingRef.current);
-    observerRef.current = observer;
-
-    return () => {
-      console.log('Cleaning up intersection observer');
-      observer.disconnect();
-    };
-  }, [loadMoreMovies, hasMorePages, loading]);
 
   // Load genres on component mount
   useEffect(() => {
@@ -154,9 +82,8 @@ export default function Movies() {
   useEffect(() => {
     if (filterTrigger > 0) {
       setMovies([]);
-      setLoadedMovieIds(new Set());
       setCurrentPage(1);
-      setHasMorePages(true);
+      setTotalPages(1);
       setInitialLoading(true);
       loadMovies(1, true);
     }
@@ -192,15 +119,10 @@ export default function Movies() {
 
   const handleRetry = () => {
     setError(null);
-    if (movies.length === 0) {
-      setInitialLoading(true);
-      setCurrentPage(1);
-      setHasMorePages(true);
-      setLoadedMovieIds(new Set());
-      loadMovies(1, true);
-    } else {
-      loadMovies(currentPage + 1);
-    }
+    setInitialLoading(true);
+    setCurrentPage(1);
+    setTotalPages(1);
+    loadMovies(1, true);
   };
 
   const hasActiveFilters = appliedGenre || appliedMinRating > 0 || appliedSortBy;
@@ -349,34 +271,82 @@ export default function Movies() {
       </div>
       
       {/* Loading indicator for infinite scroll */}
-      {hasMorePages && (
-        <div ref={loadingRef} className={styles.loadMoreContainer}>
-          {loading ? (
-            <div className={styles.loadingMore}>
-              <div className={styles.spinner}></div>
-              <p>Đang tải thêm phim...</p>
-            </div>
-          ) : (
-            <div className={styles.loadMoreTrigger}>
-              <p>Kéo xuống để xem thêm phim</p>
-            </div>
-          )}
-        </div>
-      )}
-      
-      {/* End of content indicator */}
-      {!hasMorePages && movies.length > 0 && (
-        <div className={styles.endOfContent}>
-          <p>🎬 Bạn đã xem hết tất cả phim có sẵn! 🎬</p>
-        </div>
-      )}
-      
-      {/* Error state for loading more */}
-      {error && movies.length > 0 && (
-        <div className={styles.loadMoreError}>
-          <p className={styles.errorMessage}>{error}</p>
-          <button className={styles.retryButton} onClick={handleRetry}>
-            Thử lại
+      {/* Pagination controls */}
+      {totalPages > 1 && (
+        <div className={styles.paginationContainer}>
+          <button
+            className={styles.paginationButton}
+            onClick={() => loadMovies(currentPage - 1)}
+            disabled={currentPage === 1 || loading}
+          >
+            &lt; Trước
+          </button>
+          {/* Pagination numbers with ellipsis */}
+          {(() => {
+            const pageButtons = [];
+            const pageWindow = 2; // show 2 pages before/after current
+            const showFirst = 1;
+            const showLast = totalPages;
+            let left = Math.max(currentPage - pageWindow, 2);
+            let right = Math.min(currentPage + pageWindow, totalPages - 1);
+
+            // Always show first page
+            pageButtons.push(
+              <button
+                key={1}
+                className={currentPage === 1 ? styles.paginationButtonActive : styles.paginationButton}
+                onClick={() => loadMovies(1)}
+                disabled={currentPage === 1 || loading}
+              >
+                1
+              </button>
+            );
+
+            // Ellipsis if needed
+            if (left > 2) {
+              pageButtons.push(<span key="start-ellipsis">...</span>);
+            }
+
+            // Page window
+            for (let i = left; i <= right; i++) {
+              pageButtons.push(
+                <button
+                  key={i}
+                  className={currentPage === i ? styles.paginationButtonActive : styles.paginationButton}
+                  onClick={() => loadMovies(i)}
+                  disabled={currentPage === i || loading}
+                >
+                  {i}
+                </button>
+              );
+            }
+
+            // Ellipsis if needed
+            if (right < totalPages - 1) {
+              pageButtons.push(<span key="end-ellipsis">...</span>);
+            }
+
+            // Always show last page if more than 1
+            if (totalPages > 1) {
+              pageButtons.push(
+                <button
+                  key={totalPages}
+                  className={currentPage === totalPages ? styles.paginationButtonActive : styles.paginationButton}
+                  onClick={() => loadMovies(totalPages)}
+                  disabled={currentPage === totalPages || loading}
+                >
+                  {totalPages}
+                </button>
+              );
+            }
+            return pageButtons;
+          })()}
+          <button
+            className={styles.paginationButton}
+            onClick={() => loadMovies(currentPage + 1)}
+            disabled={currentPage === totalPages || loading}
+          >
+            Sau &gt;
           </button>
         </div>
       )}

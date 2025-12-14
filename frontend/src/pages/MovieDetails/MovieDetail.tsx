@@ -25,6 +25,8 @@ export default function MovieDetail() {
   const [commentError, setCommentError] = useState<string | null>(null);
   const [commentFormLoading, setCommentFormLoading] = useState(false);
   const [userAvatars, setUserAvatars] = useState<{[userId: number]: string}>({});
+  const [commentPage, setCommentPage] = useState(1);
+  const [commentTotalPages, setCommentTotalPages] = useState(1);
 
   useEffect(() => {
     if (!id) {
@@ -63,7 +65,7 @@ export default function MovieDetail() {
     setCommentLoading(true);
     setCommentError(null);
     const commentToken = localStorage.getItem('access-token');
-    fetch(`https://comment-service-pf4q4c6zkq-pd.a.run.app/api/v1/comments/target/movie/${id}?page=1&page_size=20&sort_by=recent`, {
+    fetch(`https://comment-service-pf4q4c6zkq-pd.a.run.app/api/v1/comments/target/movie/${id}?page=${commentPage}&page_size=10&sort_by=recent`, {
       headers: commentToken ? {
         'Authorization': `Bearer ${commentToken}`,
         'accept': 'application/json'
@@ -73,7 +75,7 @@ export default function MovieDetail() {
     })
       .then(res => res.json())
       .then(async data => {
-        console.log('Comment API response:', data);
+        setCommentTotalPages(data?.total_pages || 1);
         setComments(data?.items || []);
         // Tích hợp lấy avatar và fullName cho từng user
         const avatarMap: {[userId: number]: {img: string, fullName: string}} = {};
@@ -113,7 +115,7 @@ export default function MovieDetail() {
       })
       .catch(() => setCommentError("Không thể tải bình luận."))
       .finally(() => setCommentLoading(false));
-  }, [id]);
+  }, [id, commentPage]);
 
   // Hàm gửi bình luận mới
   const handleAddComment = async (content: string) => {
@@ -346,11 +348,10 @@ export default function MovieDetail() {
         <CommentForm onSubmit={handleAddComment} loading={commentFormLoading} />
         {commentError && <div style={{ color: '#d32f2f', marginBottom: 12 }}>{commentError}</div>}
         <CommentList comments={comments} userAvatars={userAvatars} reloadComments={() => {
-          // Gọi lại API lấy comment
           setCommentLoading(true);
           setCommentError(null);
           const commentToken = localStorage.getItem('access-token');
-          fetch(`https://comment-service-pf4q4c6zkq-pd.a.run.app/api/v1/comments/target/movie/${id}?page=1&page_size=20&sort_by=recent`, {
+          fetch(`https://comment-service-pf4q4c6zkq-pd.a.run.app/api/v1/comments/target/movie/${id}?page=${commentPage}&page_size=10&sort_by=recent`, {
             headers: commentToken ? {
               'Authorization': `Bearer ${commentToken}`,
               'accept': 'application/json'
@@ -360,6 +361,7 @@ export default function MovieDetail() {
           })
             .then(res => res.json())
             .then(async data => {
+              setCommentTotalPages(data?.total_pages || 1);
               const avatarMap = {};
               const uniqueUserIds = Array.from(new Set((data?.items || []).map((c) => c.user_id)));
               await Promise.all(uniqueUserIds.map(async (userId) => {
@@ -395,6 +397,110 @@ export default function MovieDetail() {
             .catch(() => setCommentError("Không thể tải bình luận."))
             .finally(() => setCommentLoading(false));
         }} />
+        {/* Pagination for comments */}
+        {commentTotalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 18, gap: 6 }}>
+            <button
+              style={{
+                background: '#fff', color: '#e50914', border: '2px solid #e50914', borderRadius: 20, minWidth: 44, height: 36, fontWeight: 700, margin: '0 2px', cursor: commentPage === 1 ? 'not-allowed' : 'pointer', opacity: commentPage === 1 ? 0.5 : 1
+              }}
+              onClick={() => setCommentPage(p => Math.max(1, p - 1))}
+              disabled={commentPage === 1}
+            >
+              &lt;
+            </button>
+            {(() => {
+              const pageButtons = [];
+              const pageWindow = 1;
+              let left = Math.max(commentPage - pageWindow, 2);
+              let right = Math.min(commentPage + pageWindow, commentTotalPages - 1);
+              // Always show first page
+              pageButtons.push(
+                <button
+                  key={1}
+                  style={{
+                    background: commentPage === 1 ? 'linear-gradient(135deg, #e50914 0%, #b20710 100%)' : '#fff',
+                    color: commentPage === 1 ? '#fff' : '#e50914',
+                    border: '2px solid #e50914',
+                    borderRadius: 20,
+                    minWidth: 44,
+                    height: 36,
+                    fontWeight: 700,
+                    margin: '0 2px',
+                    cursor: commentPage === 1 ? 'not-allowed' : 'pointer',
+                    opacity: commentPage === 1 ? 1 : 1
+                  }}
+                  onClick={() => setCommentPage(1)}
+                  disabled={commentPage === 1}
+                >
+                  1
+                </button>
+              );
+              if (left > 2) {
+                pageButtons.push(<span key="start-ellipsis" style={{ color: '#e50914', fontWeight: 700, padding: '0 6px' }}>...</span>);
+              }
+              for (let i = left; i <= right; i++) {
+                pageButtons.push(
+                  <button
+                    key={i}
+                    style={{
+                      background: commentPage === i ? 'linear-gradient(135deg, #e50914 0%, #b20710 100%)' : '#fff',
+                      color: commentPage === i ? '#fff' : '#e50914',
+                      border: '2px solid #e50914',
+                      borderRadius: 20,
+                      minWidth: 44,
+                      height: 36,
+                      fontWeight: 700,
+                      margin: '0 2px',
+                      cursor: commentPage === i ? 'not-allowed' : 'pointer',
+                      opacity: commentPage === i ? 1 : 1
+                    }}
+                    onClick={() => setCommentPage(i)}
+                    disabled={commentPage === i}
+                  >
+                    {i}
+                  </button>
+                );
+              }
+              if (right < commentTotalPages - 1) {
+                pageButtons.push(<span key="end-ellipsis" style={{ color: '#e50914', fontWeight: 700, padding: '0 6px' }}>...</span>);
+              }
+              if (commentTotalPages > 1) {
+                pageButtons.push(
+                  <button
+                    key={commentTotalPages}
+                    style={{
+                      background: commentPage === commentTotalPages ? 'linear-gradient(135deg, #e50914 0%, #b20710 100%)' : '#fff',
+                      color: commentPage === commentTotalPages ? '#fff' : '#e50914',
+                      border: '2px solid #e50914',
+                      borderRadius: 20,
+                      minWidth: 44,
+                      height: 36,
+                      fontWeight: 700,
+                      margin: '0 2px',
+                      cursor: commentPage === commentTotalPages ? 'not-allowed' : 'pointer',
+                      opacity: commentPage === commentTotalPages ? 1 : 1
+                    }}
+                    onClick={() => setCommentPage(commentTotalPages)}
+                    disabled={commentPage === commentTotalPages}
+                  >
+                    {commentTotalPages}
+                  </button>
+                );
+              }
+              return pageButtons;
+            })()}
+            <button
+              style={{
+                background: '#fff', color: '#e50914', border: '2px solid #e50914', borderRadius: 20, minWidth: 44, height: 36, fontWeight: 700, margin: '0 2px', cursor: commentPage === commentTotalPages ? 'not-allowed' : 'pointer', opacity: commentPage === commentTotalPages ? 0.5 : 1
+              }}
+              onClick={() => setCommentPage(p => Math.min(commentTotalPages, p + 1))}
+              disabled={commentPage === commentTotalPages}
+            >
+              &gt;
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
