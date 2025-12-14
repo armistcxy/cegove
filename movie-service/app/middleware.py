@@ -42,7 +42,7 @@ class AuthMiddleware:
         """Lấy thông tin user hiện tại từ token"""
         payload = self.verify_token(credentials)
         user_id = payload.get("userId")
-        email = payload.get("email")
+        email = payload.get("sub")
         role = payload.get("role")
         
         if not user_id or not role:
