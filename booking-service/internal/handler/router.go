@@ -24,7 +24,7 @@ type BookingRouter struct {
 func NewBookingRouter(pool *pgxpool.Pool, logger *logging.Logger) *BookingRouter {
 	router := httphelp.NewRouter()
 
-	bookingRepo := repository.NewBookingRepository(pool)
+	bookingRepo := repository.NewBookingRepository(pool, logger)
 	userRepo := repository.NewUserRepository(pool)
 
 	bookingHandler := NewBookingHandler(bookingRepo, userRepo, logger)

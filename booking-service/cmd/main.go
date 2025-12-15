@@ -46,8 +46,6 @@ func main() {
 		consulPass = os.Getenv("CONSUL_PASSWORD")
 	)
 
-	log.Printf("Just for testing")
-
 	consulLoader, err := config.NewConsulConfigLoader(config.ConsulLoaderConfig{
 		ConsulAddr: consulAddr,
 		User:       consulUser,
@@ -84,6 +82,8 @@ func main() {
 	}
 
 	env := viper.GetString("env")
+
+	env = "dev"
 
 	logger, err := logging.NewLogger(logging.Config{
 		ServiceName: "booking-service",

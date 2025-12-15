@@ -7,8 +7,7 @@ import (
 	"time"
 
 	"github.com/armistcxy/cegove/booking-service/internal/domain"
-	"github.com/lib/pq"
-	"github.com/spf13/cast"
+	"github.com/armistcxy/cegove/booking-service/pkg/logging"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
@@ -26,12 +25,14 @@ type BookingRepository interface {
 }
 
 type bookingRepository struct {
-	pool *pgxpool.Pool
+	pool   *pgxpool.Pool
+	logger *logging.Logger
 }
 
-func NewBookingRepository(pool *pgxpool.Pool) BookingRepository {
+func NewBookingRepository(pool *pgxpool.Pool, logger *logging.Logger) BookingRepository {
 	return &bookingRepository{
-		pool: pool,
+		pool:   pool,
+		logger: logger,
 	}
 }
 
@@ -58,20 +59,21 @@ func (r *bookingRepository) InsertBooking(ctx context.Context, booking *domain.B
 	// Reserve requested seats: lock them and assign booking ID
 	builder := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
-	seatIDInts := make([]int64, len(booking.SeatIDs))
+	seatIDInts := make([]string, len(booking.SeatIDs))
 	for i, seatID := range booking.SeatIDs {
-		seatIDInts[i] = cast.ToInt64(seatID)
+		seatIDInts[i] = seatID
 	}
 
 	sQuery, sArgs, err := builder.Update("showtime_seats").
 		Set("status", domain.SeatStatusLocked).
 		Set("booking_id", booking.ID).
 		Where(sq.Eq{"showtime_id": booking.ShowtimeID}).
-		Where(sq.Eq{"seat_id": pq.Int64Array(seatIDInts)}).
+		Where(sq.Eq{"seat_id": seatIDInts}).
 		ToSql()
 	if err != nil {
 		return err
 	}
+	r.logger.Debug("update showtime seats", "query", sQuery, "args", sArgs)
 
 	if _, err = tx.Exec(ctx, sQuery, sArgs...); err != nil {
 		log.Printf("Failed to lock seats: %v", err)
@@ -364,15 +366,19 @@ func (r *bookingRepository) ProcessPaymentWebhook(ctx context.Context, req domai
 			return fmt.Errorf("update booking status: %w", err)
 		}
 
+		log.Printf("Updating showtime seats status for booking %s", req.BookingID)
+
 		ssQuery, ssArgs, err := builder.Update("showtime_seats").
 			Set("status", domain.SeatStatusSold).
 			Where(sq.Eq{"booking_id": req.BookingID}).
 			ToSql()
 
 		if err != nil {
+			log.Printf("Failed to build update showtime seats status query: %v", err)
 			return fmt.Errorf("build update showtime seats status query: %w", err)
 		}
 		if _, err := tx.Exec(ctx, ssQuery, ssArgs...); err != nil {
+			log.Printf("Failed to update showtime seats status: %v", err)
 			return fmt.Errorf("update showtime seats status: %w", err)
 		}
 	}

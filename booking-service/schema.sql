@@ -42,8 +42,7 @@ CREATE TABLE tickets (
     cinema_name VARCHAR(255) NOT NULL,
     auditorium_name VARCHAR(255) NOT NULL,
     showtime TIMESTAMPTZ NOT NULL,
-    seat_row VARCHAR(10) NOT NULL,
-    seat_number INT NOT NULL,
+    seat_number VARCHAR(10) NOT NULL,
 
     qr_code TEXT NOT NULL,
     price DECIMAL(10, 2) NOT NULL,

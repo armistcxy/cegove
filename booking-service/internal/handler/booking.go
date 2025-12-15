@@ -232,11 +232,11 @@ func (h *BookingHandler) HandlePaymentWebhook(w http.ResponseWriter, r *http.Req
 		}
 		h.logger.Info("User email", "email", email)
 
-		notificationURL := "https://notification.cegove.cloud/api/v1/notifications/send"
+		notificationURL := "https://notification.cegove.cloud/v1/notifications/send"
 		notificationPayload := map[string]any{
-			"to":      []string{email},
+			"to":      []string{"adlehoang118@gmail.com"},
 			"subject": "Booking Confirmation",
-			"body":    "Your booking has been confirmed.",
+			"body":    GenerateBookingConfirmationEmail(booking, email),
 		}
 		notificationPayloadBytes, err := json.Marshal(notificationPayload)
 		if err != nil {
@@ -244,7 +244,6 @@ func (h *BookingHandler) HandlePaymentWebhook(w http.ResponseWriter, r *http.Req
 			httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
 			return
 		}
-		h.logger.Info("Notification payload", "payload", notificationPayloadBytes)
 		notificationReq, err := http.NewRequest("POST", notificationURL, bytes.NewReader(notificationPayloadBytes))
 		if err != nil {
 			h.logger.Error("Failed to create notification request", err)
