@@ -20,14 +20,13 @@ async def vnpay_ipn(request: Request, db: AsyncSession = Depends(get_db)):
 async def vnpay_return(request: Request, db: AsyncSession = Depends(get_db)):
     params = dict(request.query_params)
     print(f"Return URL called with params: {params}")
-    
-    # If payment failed/cancelled, update the status
-    if params.get("vnp_ResponseCode") != "00":
-        txn_ref = params.get("vnp_TxnRef")
-        if txn_ref:
-            resp_code, message = await service.handle_ipn(db, params)
-            print(f"Return URL - Payment updated: {resp_code} - {message}")
-    
+
+    # Update payment status for both success and failure
+    txn_ref = params.get("vnp_TxnRef")
+    if txn_ref:
+        resp_code, message = await service.handle_ipn(db, params)
+        print(f"Return URL - Payment updated: {resp_code} - {message}")
+
     # Redirect to frontend payment result page with all query parameters
     query_string = str(request.query_params)
     frontend_url = f"https://cegove.cloud/payment-result?{query_string}"
