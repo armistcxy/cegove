@@ -59,16 +59,14 @@ func (r *bookingRepository) InsertBooking(ctx context.Context, booking *domain.B
 	// Reserve requested seats: lock them and assign booking ID
 	builder := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
-	seatIDInts := make([]string, len(booking.SeatIDs))
-	for i, seatID := range booking.SeatIDs {
-		seatIDInts[i] = seatID
-	}
+	// seatIDInts := make([]string, len(booking.SeatIDs))
+	// copy(seatIDInts, booking.SeatIDs)
 
 	sQuery, sArgs, err := builder.Update("showtime_seats").
 		Set("status", domain.SeatStatusLocked).
 		Set("booking_id", booking.ID).
 		Where(sq.Eq{"showtime_id": booking.ShowtimeID}).
-		Where(sq.Eq{"seat_id": seatIDInts}).
+		Where(sq.Eq{"seat_id": booking.SeatIDs}).
 		ToSql()
 	if err != nil {
 		return err
