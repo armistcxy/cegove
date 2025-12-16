@@ -1,14 +1,18 @@
 import styles from './Admin.module.css';
 import { useEffect, useState } from 'react';
 import { fetchTotalMovies, fetchTotalCinemas } from './DashboardLogic';
+import { fetchTotalUsers } from './Utils/UserApi';
 
 export default function Dashboard() {
   const [totalMovies, setTotalMovies] = useState<number | null>(null);
   const [totalCinemas, setTotalCinemas] = useState<number | null>(null);
+  const [totalUsers, setTotalUsers] = useState<number | null>(null);
 
   useEffect(() => {
     fetchTotalMovies().then(setTotalMovies);
     fetchTotalCinemas().then(setTotalCinemas);
+    const token = localStorage.getItem('access-token') || '';
+    fetchTotalUsers(token).then(setTotalUsers);
   }, []);
 
   return (
@@ -23,7 +27,7 @@ export default function Dashboard() {
           </div>
           <div className={styles.statInfo}>
             <h3>Total Users</h3>
-            <p className={styles.statNumber}>1,234</p>
+            <p className={styles.statNumber}>{totalUsers !== null ? totalUsers : '...'}</p>
           </div>
         </div>
 

@@ -127,15 +127,52 @@ export default function Movies() {
                       </td>
                       <td>
                         <div className={styles.actionButtons}>
-                          <button 
-                            className={styles.btnEdit}
+                          <button
+                            style={{
+                              marginRight: 8,
+                              padding: '6px 14px',
+                              borderRadius: 6,
+                              border: '1px solid #bbb',
+                              background: '#fff',
+                              color: '#222',
+                              cursor: 'pointer',
+                              fontWeight: 500,
+                              transition: 'background 0.2s, color 0.2s',
+                            }}
+                            onMouseOver={e => {
+                              e.currentTarget.style.background = '#222';
+                              e.currentTarget.style.color = '#fff';
+                            }}
+                            onMouseOut={e => {
+                              e.currentTarget.style.background = '#fff';
+                              e.currentTarget.style.color = '#222';
+                            }}
                             onClick={() => handleEdit(movie.id)}
+                            title="Chỉnh sửa"
                           >
                             Sửa
                           </button>
-                          <button 
-                            className={styles.btnDelete}
+                          <button
+                            style={{
+                              padding: '6px 14px',
+                              borderRadius: 6,
+                              border: '1px solid #bbb',
+                              background: '#fff',
+                              color: '#222',
+                              cursor: 'pointer',
+                              fontWeight: 500,
+                              transition: 'background 0.2s, color 0.2s',
+                            }}
+                            onMouseOver={e => {
+                              e.currentTarget.style.background = '#222';
+                              e.currentTarget.style.color = '#fff';
+                            }}
+                            onMouseOut={e => {
+                              e.currentTarget.style.background = '#fff';
+                              e.currentTarget.style.color = '#222';
+                            }}
                             onClick={() => handleDelete(movie.id)}
+                            title="Xóa"
                           >
                             Xóa
                           </button>
