@@ -81,17 +81,17 @@ const BookingPage = ({ showtimeId }) => {
             ];
         } else if (pattern === "TWO") {
             rows = [
-                { row: "A", count: 24, type: "normal", isCouple: false },
-                { row: "B", count: 24, type: "normal", isCouple: false },
-                { row: "C", count: 24, type: "normal", isCouple: false },
-                { row: "D", count: 24, type: "vip", isCouple: false },
-                { row: "E", count: 24, type: "vip", isCouple: false },
-                { row: "F", count: 24, type: "vip", isCouple: false },
-                { row: "G", count: 24, type: "vip", isCouple: false },
-                { row: "H", count: 24, type: "vip", isCouple: false },
-                { row: "I", count: 6, type: "vip", isCouple: false },
-                { row: "J", count: 6, type: "vip", isCouple: false },
-                { row: "K", count: 6, type: "vip", isCouple: false },
+                { row: "A", count: 26, type: "normal", isCouple: false },
+                { row: "B", count: 26, type: "normal", isCouple: false },
+                { row: "C", count: 26, type: "normal", isCouple: false },
+                { row: "D", count: 26, type: "vip", isCouple: false },
+                { row: "E", count: 26, type: "vip", isCouple: false },
+                { row: "F", count: 26, type: "vip", isCouple: false },
+                { row: "G", count: 26, type: "vip", isCouple: false },
+                { row: "H", count: 26, type: "vip", isCouple: false },
+                { row: "I", count: 26, type: "vip", isCouple: false },
+                { row: "J", count: 26, type: "vip", isCouple: false },
+                { row: "K", count: 26, type: "vip", isCouple: false },
                 { row: "L", count: 13, type: "sweetbox", isCouple: true }
             ];
         } else if (pattern === "THREE") {
