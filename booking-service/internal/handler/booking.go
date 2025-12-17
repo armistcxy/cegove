@@ -234,7 +234,7 @@ func (h *BookingHandler) HandlePaymentWebhook(w http.ResponseWriter, r *http.Req
 
 		notificationURL := "https://notification.cegove.cloud/v1/notifications/send"
 		notificationPayload := map[string]any{
-			"to":      []string{"adlehoang118@gmail.com"},
+			"to":      []string{email},
 			"subject": "Booking Confirmation",
 			"body":    GenerateBookingConfirmationEmail(booking, email),
 		}
