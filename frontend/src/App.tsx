@@ -20,6 +20,8 @@ import AdminCinemas from './pages/Admin/Cinemas.tsx';
 import AdminAbout from './pages/Admin/About.tsx';
 import BookingPage from "./pages/Booking/BookingPage.tsx";
 import PaymentResult from "./pages/PaymentResult.tsx";
+// import BookingManage from './pages/Admin/BookingManage.tsx';
+import RoomManage from './pages/Admin/RoomManage.tsx';
 
 function BookingPageWrapper() {
     const { showtimeId } = useParams();
@@ -41,6 +43,8 @@ function AppContent() {
             <Route path="users" element={<AdminUsers />} />
             <Route path="movies" element={<AdminMovies />} />
             <Route path="cinemas" element={<AdminCinemas />} />
+            {/* Booking management route removed */}
+            <Route path="room-manage" element={<RoomManage />} />
             <Route path="about" element={<AdminAbout />} />
           </Route>
 

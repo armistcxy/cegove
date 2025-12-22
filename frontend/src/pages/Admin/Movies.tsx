@@ -80,8 +80,7 @@ export default function Movies() {
     if (confirm('Bạn có chắc chắn muốn xóa phim này?')) {
       setLoading(true);
       try {
-        const token =
-          'Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzbWlzdW1pa3VzQGdtYWlsLmNvbSIsInVzZXJJZCI6Mywicm9sZSI6IkxPQ0FMX0FETUlOIiwiaWF0IjoxNzY2NDE1ODU5LCJleHAiOjE3NjY0MTk0NTl9.nSb1WYdAuuXwkliMtTZ0HYlKKHBF_cJWS0X4ZiVLr0E';
+          const token = localStorage.getItem('access-token') ? `Bearer ${localStorage.getItem('access-token')}` : '';
         const response = await fetch(
           `https://movies.cegove.cloud/api/v1/movies/${id}`,
           {
@@ -125,8 +124,7 @@ export default function Movies() {
     if (!editMovie) return;
     setLoading(true);
     try {
-      const token =
-        'Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzbWlzdW1pa3VzQGdtYWlsLmNvbSIsInVzZXJJZCI6Mywicm9sZSI6IkxPQ0FMX0FETUlOIiwiaWF0IjoxNzY2NDE1ODU5LCJleHAiOjE3NjY0MTk0NTl9.nSb1WYdAuuXwkliMtTZ0HYlKKHBF_cJWS0X4ZiVLr0E';
+        const token = localStorage.getItem('access-token') ? `Bearer ${localStorage.getItem('access-token')}` : '';
       const response = await fetch(
         `https://movies.cegove.cloud/api/v1/movies/${editMovie.id}`,
         {
@@ -163,8 +161,7 @@ export default function Movies() {
     e.preventDefault();
     setLoading(true);
     try {
-      const token =
-        'Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzbWlzdW1pa3VzQGdtYWlsLmNvbSIsInVzZXJJZCI6Mywicm9sZSI6IkxPQ0FMX0FETUlOIiwiaWF0IjoxNzY2NDE1ODU5LCJleHAiOjE3NjY0MTk0NTl9.nSb1WYdAuuXwkliMtTZ0HYlKKHBF_cJWS0X4ZiVLr0E';
+        const token = localStorage.getItem('access-token') ? `Bearer ${localStorage.getItem('access-token')}` : '';
       const response = await fetch(
         'https://movies.cegove.cloud/api/v1/movies/',
         {

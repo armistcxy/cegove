@@ -2,10 +2,22 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Movie, MoviesResponse, MovieFilters } from "./MovieLogic.ts";
 import { fetchMovies, fetchGenres } from "./MovieLogic.ts";
+// Hàm fetch search phim
+async function fetchSearchMovies(query: string, limit: number = 10) {
+  const url = `https://movies.cegove.cloud/api/v1/movies/search?q=${encodeURIComponent(query)}&limit=${limit}`;
+  const res = await fetch(url, { headers: { 'accept': 'application/json' } });
+  if (!res.ok) throw new Error('Search failed');
+  const json = await res.json();
+  // Nếu trả về mảng, trả về luôn, nếu trả về object có items thì lấy items
+  if (Array.isArray(json)) return json;
+  return json.items ?? [];
+}
 import BookingPopup from "../../components/BookingPopup/BookingPopup.tsx";
 import styles from "./Movie.module.css";
 
 export default function Movies() {
+    const [search, setSearch] = useState("");
+
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +58,16 @@ export default function Movies() {
     setLoading(true);
     setError(null);
     try {
+      // Nếu có search thì không gọi fetchMovies mà gọi search API
+      if (search.trim() !== "") {
+        const items = await fetchSearchMovies(search, 24);
+        // Nếu items là mảng thì set luôn, nếu không thì set []
+        setMovies(Array.isArray(items) ? items : []);
+        setCurrentPage(1);
+        setTotalPages(1);
+        if (isInitial) setInitialLoading(false);
+        return;
+      }
       const filters = getActiveFilters();
       const response: MoviesResponse = await fetchMovies(page, 24, filters);
       setMovies(response.items);
@@ -58,7 +80,12 @@ export default function Movies() {
     } finally {
       setLoading(false);
     }
-  }, [getActiveFilters]);
+  }, [getActiveFilters, search]);
+  // Khi search thay đổi, chỉ gọi loadMovies khi search khác với trạng thái trước đó
+  useEffect(() => {
+    loadMovies(1, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
 
 
@@ -130,7 +157,18 @@ export default function Movies() {
   if (initialLoading) {
     return (
       <div className={styles.moviesSection}>
-        <h2>Phim Đang Chiếu</h2>
+        <div className={styles.header}>
+          <h2>Phim Đang Chiếu</h2>
+          <div style={{ flex: 1 }} />
+          <input
+            type="text"
+            placeholder="Tìm kiếm phim..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className={styles.filterInput}
+            style={{ minWidth: 220, marginLeft: 16 }}
+          />
+        </div>
         <div className={styles.loadingContainer}>
           <div className={styles.spinner}></div>
           <p>Đang tải phim...</p>
@@ -142,7 +180,18 @@ export default function Movies() {
   if (error && movies.length === 0) {
     return (
       <div className={styles.moviesSection}>
-        <h2>Phim Đang Chiếu</h2>
+        <div className={styles.header}>
+          <h2>Phim Đang Chiếu</h2>
+          <div style={{ flex: 1 }} />
+          <input
+            type="text"
+            placeholder="Tìm kiếm phim..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className={styles.filterInput}
+            style={{ minWidth: 220, marginLeft: 16 }}
+          />
+        </div>
         <div className={styles.errorContainer}>
           <p className={styles.errorMessage}>{error}</p>
           <button className={styles.retryButton} onClick={handleRetry}>
@@ -153,10 +202,20 @@ export default function Movies() {
     );
   }
 
+  // Hiển thị thông báo khi không có phim nào
   return (
     <div className={styles.moviesSection}>
       <div className={styles.header}>
         <h2>Phim Đang Chiếu</h2>
+        <div style={{ flex: 1 }} />
+        <input
+          type="text"
+          placeholder="Tìm kiếm phim..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className={styles.filterInput}
+          style={{ minWidth: 220, marginLeft: 16 }}
+        />
         <button 
           className={styles.filterToggle}
           onClick={() => setShowFilters(!showFilters)}
@@ -244,35 +303,40 @@ export default function Movies() {
           )}
         </div>
       )}
-      
+
       <div className={styles.moviesGrid}>
-        {movies.map((m, index) => (
-          <div className={styles.movieCard} key={`${m.id}-${index}`}>
-            <img src={m.poster_link} alt={m.series_title} className={styles.poster} />
-            <div className={styles.movieInfo}>
-              <p className={styles.movieTitle}>{m.series_title}</p>
-              <div className={styles.movieButtons}>
-                <button 
-                  className={styles.btnBuy}
-                  onClick={() => handleBuyClick(m.series_title, m.id)}
-                >
-                  Mua vé
-                </button>
-                <button 
-                  className={styles.btnDetail}
-                  onClick={() => handleDetailClick(m.id)}
-                >
-                  Xem chi tiết
-                </button>
+        {movies.length === 0 ? (
+          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '2rem', color: '#888' }}>
+            Không tìm thấy phim nào.
+          </div>
+        ) : (
+          movies.map((m, index) => (
+            <div className={styles.movieCard} key={`${m.id}-${index}`}>
+              <img src={m.poster_link} alt={m.series_title} className={styles.poster} />
+              <div className={styles.movieInfo}>
+                <p className={styles.movieTitle}>{m.series_title}</p>
+                <div className={styles.movieButtons}>
+                  <button 
+                    className={styles.btnBuy}
+                    onClick={() => handleBuyClick(m.series_title, m.id)}
+                  >
+                    Mua vé
+                  </button>
+                  <button 
+                    className={styles.btnDetail}
+                    onClick={() => handleDetailClick(m.id)}
+                  >
+                    Xem chi tiết
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
-      
-      {/* Loading indicator for infinite scroll */}
+
       {/* Pagination controls */}
-      {totalPages > 1 && (
+      {totalPages > 1 && movies.length > 0 && (
         <div className={styles.paginationContainer}>
           <button
             className={styles.paginationButton}
@@ -285,8 +349,6 @@ export default function Movies() {
           {(() => {
             const pageButtons = [];
             const pageWindow = 2; // show 2 pages before/after current
-            const showFirst = 1;
-            const showLast = totalPages;
             let left = Math.max(currentPage - pageWindow, 2);
             let right = Math.min(currentPage + pageWindow, totalPages - 1);
 
@@ -350,7 +412,7 @@ export default function Movies() {
           </button>
         </div>
       )}
-      
+
       {/* Booking Popup */}
       <BookingPopup 
         isOpen={isBookingOpen}

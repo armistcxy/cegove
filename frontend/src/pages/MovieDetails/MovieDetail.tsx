@@ -2,6 +2,14 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import type { Movie } from "../Movies/MovieLogic.ts";
 import { fetchMovieDetail, fetchSimilarMovies } from "./MovieDetailLogic.ts";
+
+interface MovieInsight {
+  summary: string;
+  positive_aspects: string[];
+  negative_aspects: string[];
+  recommendations: string;
+  based_on_comments: number;
+}
 import BookingPopup from "../../components/BookingPopup/BookingPopup.tsx";
 import RelatedMoviesSlider from "../../components/RelatedMoviesSlider/RelatedMoviesSlider.tsx";
 import CommentList from "../../components/CommentList/CommentList";
@@ -22,6 +30,10 @@ export default function MovieDetail() {
   // Comment state
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentLoading, setCommentLoading] = useState(false);
+  // Insight state
+  const [insight, setInsight] = useState<MovieInsight | null>(null);
+  const [insightLoading, setInsightLoading] = useState(false);
+  const [insightError, setInsightError] = useState<string | null>(null);
   const [commentError, setCommentError] = useState<string | null>(null);
   const [commentFormLoading, setCommentFormLoading] = useState(false);
   const [userAvatars, setUserAvatars] = useState<{[userId: number]: string}>({});
@@ -57,6 +69,39 @@ export default function MovieDetail() {
     };
 
     loadData();
+    // Load insight
+    if (id) {
+      setInsightLoading(true);
+      setInsightError(null);
+      fetch(`https://comment-service-pf4q4c6zkq-pd.a.run.app/api/v1/sentiment/insights/movie/${id}?force_refresh=false&max_comments=50`, {
+        headers: { 'accept': 'application/json' }
+      })
+        .then(async res => {
+          if (!res.ok) {
+            // Nếu lỗi 404 hoặc không đủ comment
+            let msg = 'Không thể tải insight.';
+            try {
+              const err = await res.json();
+              if (err && err.detail && err.detail.includes('Not enough comments')) {
+                msg = 'Chưa đủ bình luận để phân tích đánh giá.';
+              }
+            } catch {}
+            throw new Error(msg);
+          }
+          return res.json();
+        })
+        .then(data => {
+          setInsight({
+            summary: data.summary,
+            positive_aspects: data.positive_aspects,
+            negative_aspects: data.negative_aspects,
+            recommendations: data.recommendations,
+            based_on_comments: data.based_on_comments
+          });
+        })
+        .catch((e) => setInsightError(e.message || 'Không thể tải insight.'))
+        .finally(() => setInsightLoading(false));
+    }
   }, [id]);
 
   // Load comments
@@ -241,6 +286,7 @@ export default function MovieDetail() {
     );
   }
 
+
   return (
     <div className={styles.container}>
       <button 
@@ -249,19 +295,22 @@ export default function MovieDetail() {
       >
         ← Quay lại danh sách phim
       </button>
-      
+
       <div className={styles.movieDetail}>
         <div className={styles.posterSection}>
-          <img 
-            src={movie.poster_link} 
+          <img
+            src={movie.poster_link}
             alt={movie.series_title}
             className={styles.poster}
+            onError={e => {
+              (e.currentTarget as HTMLImageElement).src = '/assets/default-movie.png';
+            }}
           />
         </div>
-        
+
         <div className={styles.infoSection}>
           <h1 className={styles.title}>{movie.series_title}</h1>
-          
+
           <div className={styles.metadata}>
             <div className={styles.metaItem}>
               <span className={styles.metaLabel}>Năm</span>
@@ -280,22 +329,22 @@ export default function MovieDetail() {
               <span className={styles.metaValue}>⭐ {movie.imdb_rating}/10</span>
             </div>
           </div>
-          
+
           <div className={styles.section}>
             <h3 className={styles.sectionTitle}>Thể loại</h3>
             <p className={styles.genre}>{movie.genre}</p>
           </div>
-          
+
           <div className={styles.section}>
             <h3 className={styles.sectionTitle}>Tóm tắt</h3>
             <p className={styles.overview}>{movie.overview}</p>
           </div>
-          
+
           <div className={styles.section}>
             <h3 className={styles.sectionTitle}>Đạo diễn</h3>
             <p className={styles.director}>{movie.director}</p>
           </div>
-          
+
           <div className={styles.section}>
             <h3 className={styles.sectionTitle}>Diễn viên</h3>
             <div className={styles.cast}>
@@ -309,7 +358,7 @@ export default function MovieDetail() {
               }
             </div>
           </div>
-          
+
           <div className={styles.actions}>
             <button 
               className={styles.buyButton}
@@ -322,6 +371,36 @@ export default function MovieDetail() {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* INSIGHT */}
+      <div style={{margin: '32px 0 16px 0', padding: 24, background: '#f8f8fa', borderRadius: 12, boxShadow: '0 2px 8px #0001'}}>
+        <h2 style={{fontSize: '1.2rem', fontWeight: 700, marginBottom: 10, color: '#e50914'}}>Phân tích dựa trên đánh giá</h2>
+        {insightLoading ? (
+          <div>Đang tải insight...</div>
+        ) : insightError ? (
+          <div style={{color: '#d32f2f'}}>{insightError}</div>
+        ) : insight ? (
+          <>
+            <div style={{marginBottom: 10}}><b>Tóm tắt:</b> {insight.summary}</div>
+            <div style={{marginBottom: 10}}>
+              <b>Điểm mạnh nổi bật:</b>
+              <ul style={{margin: '6px 0 0 18px'}}>
+                {insight.positive_aspects.map((item, idx) => <li key={idx}>{item}</li>)}
+              </ul>
+            </div>
+            {insight.negative_aspects && insight.negative_aspects.length > 0 && (
+              <div style={{marginBottom: 10}}>
+                <b>Điểm hạn chế:</b>
+                <ul style={{margin: '6px 0 0 18px'}}>
+                  {insight.negative_aspects.map((item, idx) => <li key={idx}>{item}</li>)}
+                </ul>
+              </div>
+            )}
+            <div style={{marginBottom: 10}}><b>Khuyến nghị:</b> {insight.recommendations}</div>
+            <div style={{fontSize: '0.95em', color: '#888'}}>Phân tích dựa trên {insight.based_on_comments} bình luận gần nhất.</div>
+          </>
+        ) : null}
       </div>
 
       {/* Booking Popup */}

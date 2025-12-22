@@ -55,23 +55,18 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className={styles.statCard}>
-          <div className={styles.statIcon}>
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="32" height="32">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-            </svg>
-          </div>
-          <div className={styles.statInfo}>
-            <h3>Bookings Today</h3>
-            <p className={styles.statNumber}>189</p>
-          </div>
-        </div>
+        {/* Removed Bookings Today stat card as requested */}
       </div>
 
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Recent Activities</h2>
-        <div className={styles.card}>
-          <p className={styles.placeholder}>Dashboard content coming soon...</p>
+        <div className={styles.card} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 180 }}>
+          <svg width="48" height="48" fill="none" stroke="#bbb" strokeWidth="2" viewBox="0 0 24 24" style={{ marginBottom: 16 }}>
+            <circle cx="12" cy="12" r="10" strokeDasharray="4 2" />
+            <path d="M8 12h4l2 2m-2-2V8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <p className={styles.placeholder} style={{ fontSize: 20, color: '#888', fontWeight: 500, margin: 0 }}>Coming Soon</p>
+          <span style={{ color: '#bbb', fontSize: 14, marginTop: 8 }}>Tính năng này sẽ sớm được cập nhật!</span>
         </div>
       </div>
     </div>
