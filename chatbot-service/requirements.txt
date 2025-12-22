@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-dotenv
+google-generativeai
+httpx
+redis
+python-multipart
+pyjwt
+requests
+pyyaml
+pandas
