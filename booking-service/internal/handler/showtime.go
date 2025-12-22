@@ -240,5 +240,9 @@ func (h *ShowtimeHandler) HandleCreateShowtimes(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	httphelp.EncodeJSON(w, r, http.StatusOK, map[string]string{"status": "success"})
+	showtimeIDs := make([]string, len(req.Showtimes))
+	for i, st := range req.Showtimes {
+		showtimeIDs[i] = st.ID
+	}
+	httphelp.EncodeJSON(w, r, http.StatusOK, map[string][]string{"showtime_ids": showtimeIDs})
 }
