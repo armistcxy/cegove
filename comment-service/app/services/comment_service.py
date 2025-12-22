@@ -449,3 +449,49 @@ class CommentService:
             'flagged_comments': flagged_comments,
             'comments_by_type': {t: c for t, c in comments_by_type}
         }
+    
+    @staticmethod
+    def update_comment_rating(
+        db: Session,
+        comment_id: int,
+        user_id: int,
+        new_rating: float
+    ) -> Optional[Comment]:
+        """
+        Update comment rating (only by owner)
+        
+        Args:
+            db: Database session
+            comment_id: ID of comment to update
+            user_id: ID of user making the request
+            new_rating: New rating value (1.0 - 5.0)
+            
+        Returns:
+            Updated comment or None if not found/unauthorized
+        """
+        # Find comment and verify ownership
+        comment = db.query(Comment).filter(
+            Comment.id == comment_id,
+            Comment.user_id == user_id  # Only owner can update
+        ).first()
+        
+        if not comment:
+            return None
+        
+        # Update rating
+        old_rating = comment.rating
+        comment.rating = new_rating
+        comment.updated_at = datetime.now()
+        
+        db.commit()
+        db.refresh(comment)
+        
+        # Mark sentiment as stale if rating changed significantly
+        if old_rating is None or abs(old_rating - new_rating) >= 1.0:
+            from app.services.sentiment_service import SentimentService
+            sentiment_service = SentimentService()
+            sentiment_service.mark_target_as_stale(
+                db, comment.target_type, comment.target_id
+            )
+        
+        return comment
