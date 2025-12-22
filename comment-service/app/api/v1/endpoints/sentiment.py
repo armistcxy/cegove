@@ -16,6 +16,7 @@ from app.services.sentiment_service import SentimentService
 from app.services.ai_insight_service import AIInsightService
 from app.services.text_processor import VietnameseTextProcessor
 from app.api.v1.deps import get_current_user, require_admin
+from app.models.sentiment import SentimentScore, CommentSentiment, AIInsight
 
 router = APIRouter()
 sentiment_service = SentimentService()
