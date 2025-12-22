@@ -10,7 +10,8 @@ from app.schemas.comment import (
     PaginatedCommentsResponse, CommentStatistics,
     CommentReportCreate, CommentReportResponse,
     CommentModerationUpdate, BulkCommentAction,
-    CommentWithStats
+    CommentWithStats,
+    CommentRatingUpdate  # THÊM
 )
 from app.services.comment_service import CommentService
 from app.api.v1.deps import get_current_user, require_admin
@@ -392,6 +393,71 @@ def report_comment(
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.patch("/{comment_id}/rating", response_model=CommentResponse)
+def update_comment_rating(
+    comment_id: int,
+    rating_update: CommentRatingUpdate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Update rating of own comment
+    
+    **Authentication required** - Can only update rating of your own comments
+    
+    - **rating**: New rating value (1.0 - 5.0)
+    
+    This will also trigger recalculation of target's average rating and sentiment analysis.
+    """
+    if rating_update.rating is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Rating value is required"
+        )
+    
+    updated_comment = CommentService.update_comment_rating(
+        db=db,
+        comment_id=comment_id,
+        user_id=current_user["user_id"],
+        new_rating=rating_update.rating
+    )
+    
+    if not updated_comment:
+        raise HTTPException(
+            status_code=404,
+            detail="Comment not found or you don't have permission to update it"
+        )
+    
+    # Get likes count and user_has_liked for response
+    from app.models.comment import CommentLike
+    likes_count = db.query(CommentLike).filter(
+        CommentLike.comment_id == comment_id
+    ).count()
+    
+    user_like = db.query(CommentLike).filter(
+        CommentLike.comment_id == comment_id,
+        CommentLike.user_id == current_user["user_id"]
+    ).first()
+    user_has_liked = user_like is not None
+    
+    return CommentResponse(
+        id=updated_comment.id,
+        user_id=updated_comment.user_id,
+        user_name=updated_comment.user_name,
+        user_email=updated_comment.user_email,
+        target_type=updated_comment.target_type,
+        target_id=updated_comment.target_id,
+        content=updated_comment.content,
+        rating=updated_comment.rating,
+        is_approved=updated_comment.is_approved,
+        is_flagged=updated_comment.is_flagged,
+        created_at=updated_comment.created_at,
+        updated_at=updated_comment.updated_at,
+        likes_count=likes_count,
+        user_has_liked=user_has_liked
+    )
 
 
 # ==================== ADMIN ENDPOINTS ====================

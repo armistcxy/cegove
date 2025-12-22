@@ -145,3 +145,15 @@ class SentimentAnalysisResult(BaseModel):
     average_sentiment_score: float
     keywords: List[str]
     date_range: str
+
+
+class CommentRatingUpdate(BaseModel):
+    """Schema for updating comment rating"""
+    rating: Optional[float] = Field(None, ge=1.0, le=5.0, description="Rating from 1 to 5")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "rating": 4.5
+            }
+        }
