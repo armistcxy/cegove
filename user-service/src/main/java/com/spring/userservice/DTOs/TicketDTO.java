@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 @Builder
 public class TicketDTO {
     private String id;
+    private String bookingId;
     private String seatNumber;
     private BigDecimal price;
 }
