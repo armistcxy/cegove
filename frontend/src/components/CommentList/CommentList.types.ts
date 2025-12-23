@@ -13,4 +13,5 @@ export interface Comment {
   like_count?: number;
   user_has_liked?: boolean;
   fullName?: string;
+  rating?: number | null;
 }

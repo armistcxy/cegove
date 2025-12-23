@@ -13,6 +13,7 @@ interface MovieInsight {
 import BookingPopup from "../../components/BookingPopup/BookingPopup.tsx";
 import RelatedMoviesSlider from "../../components/RelatedMoviesSlider/RelatedMoviesSlider.tsx";
 import CommentList from "../../components/CommentList/CommentList";
+import StarRating from "../../components/StarRating";
 import type { Comment } from "../../components/CommentList/CommentList.types";
 import CommentForm from "../../components/CommentList/CommentForm";
 import styles from "./MovieDetail.module.css";
@@ -203,8 +204,8 @@ export default function MovieDetail() {
       })
         .then(res => res.json())
         .then(async data => {
-          const avatarMap = {};
-          const uniqueUserIds = Array.from(new Set((data?.items || []).map((c) => c.user_id)));
+          const avatarMap: Record<number, { img: string; fullName: string }> = {};
+          const uniqueUserIds = Array.from(new Set((data?.items || []).map((c: any) => c.user_id)));
           await Promise.all(uniqueUserIds.map(async (userId) => {
             if (!userId) return;
             try {
@@ -228,7 +229,7 @@ export default function MovieDetail() {
               };
             }
           }));
-          const commentsWithFullName = (data?.items || []).map((c) => ({
+          const commentsWithFullName = (data?.items || []).map((c: any) => ({
             ...c,
             fullName: avatarMap[c.user_id]?.fullName || c.user_name || c.user_email || 'Người dùng'
           }));
@@ -376,10 +377,28 @@ export default function MovieDetail() {
       {/* INSIGHT */}
       <div style={{margin: '32px 0 16px 0', padding: 24, background: '#f8f8fa', borderRadius: 12, boxShadow: '0 2px 8px #0001'}}>
         <h2 style={{fontSize: '1.2rem', fontWeight: 700, marginBottom: 10, color: '#e50914'}}>Phân tích dựa trên đánh giá</h2>
+        {/* Luôn hiển thị đánh giá trung bình */}
+        {(() => {
+          const ratings = comments.map(c => c.rating).filter(r => typeof r === 'number') as number[];
+          const avg = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null;
+          return (
+            <div style={{marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8}}>
+              <b>Đánh giá trung bình:</b>
+              {avg !== null ? (
+                <>
+                  <span style={{fontWeight: 600, fontSize: 18}}>{avg.toFixed(1)}/5</span>
+                  <StarRating rating={avg} size={28} readOnly />
+                  <span style={{color: '#888', fontSize: 13}}>({ratings.length} đánh giá)</span>
+                </>
+              ) : (
+                <span style={{color: '#aaa'}}>Chưa có đánh giá</span>
+              )}
+            </div>
+          );
+        })()}
+        {/* Hiển thị insight nếu có, nếu không thì báo chưa đủ bình luận */}
         {insightLoading ? (
           <div>Đang tải insight...</div>
-        ) : insightError ? (
-          <div style={{color: '#d32f2f'}}>{insightError}</div>
         ) : insight ? (
           <>
             <div style={{marginBottom: 10}}><b>Tóm tắt:</b> {insight.summary}</div>
@@ -400,7 +419,11 @@ export default function MovieDetail() {
             <div style={{marginBottom: 10}}><b>Khuyến nghị:</b> {insight.recommendations}</div>
             <div style={{fontSize: '0.95em', color: '#888'}}>Phân tích dựa trên {insight.based_on_comments} bình luận gần nhất.</div>
           </>
-        ) : null}
+        ) : (
+          insightError && (
+            <div style={{color: '#d32f2f'}}>{insightError}</div>
+          )
+        )}
       </div>
 
       {/* Booking Popup */}
@@ -441,8 +464,8 @@ export default function MovieDetail() {
             .then(res => res.json())
             .then(async data => {
               setCommentTotalPages(data?.total_pages || 1);
-              const avatarMap = {};
-              const uniqueUserIds = Array.from(new Set((data?.items || []).map((c) => c.user_id)));
+              const avatarMap: Record<number, { img: string; fullName: string }> = {};
+              const uniqueUserIds = Array.from(new Set((data?.items || []).map((c: any) => c.user_id)));
               await Promise.all(uniqueUserIds.map(async (userId) => {
                 if (!userId) return;
                 try {
@@ -466,7 +489,7 @@ export default function MovieDetail() {
                   };
                 }
               }));
-              const commentsWithFullName = (data?.items || []).map((c) => ({
+              const commentsWithFullName = (data?.items || []).map((c: any) => ({
                 ...c,
                 fullName: avatarMap[c.user_id]?.fullName || c.user_name || c.user_email || 'Người dùng'
               }));
