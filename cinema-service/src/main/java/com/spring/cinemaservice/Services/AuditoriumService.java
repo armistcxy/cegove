@@ -5,14 +5,19 @@ import com.spring.cinemaservice.DTOs.AuditoriumResponse;
 import com.spring.cinemaservice.Enums.AuditoriumPattern;
 import com.spring.cinemaservice.Models.Auditorium;
 import com.spring.cinemaservice.Models.Cinema;
+import com.spring.cinemaservice.Models.Seat;
+import com.spring.cinemaservice.Models.Showtime;
 import com.spring.cinemaservice.Reposistories.AuditoriumReposistory;
 import com.spring.cinemaservice.Reposistories.CinemaReposistory;
+import com.spring.cinemaservice.Reposistories.SeatReposistory;
+import com.spring.cinemaservice.Reposistories.ShowtimeReposistory;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class AuditoriumService {
@@ -21,6 +26,15 @@ public class AuditoriumService {
 
     @Autowired
     private SeatService seatService;
+
+    @Autowired
+    private ShowtimeSeatService showtimeSeatService;
+
+    @Autowired
+    private SeatReposistory seatReposistory;
+
+    @Autowired
+    private ShowtimeReposistory showtimeReposistory;
 
     @Autowired
     private CinemaReposistory cinemaReposistory;
@@ -59,9 +73,17 @@ public class AuditoriumService {
         Auditorium auditorium = reposistory.findById(auditoriumId)
                 .orElseThrow(() -> new UsernameNotFoundException("Auditorium not found with id: " + auditoriumId));
         auditorium.setPattern(AuditoriumPattern.valueOf(newPattern));
-        reposistory.save(auditorium);
+        Auditorium updatedAuditorium = reposistory.save(auditorium);
 
         // Update seating arrangement based on the new pattern
         seatService.updateSeats(auditorium);
+
+        List<Seat> updatedSeats = seatReposistory.findAllByAuditorium(updatedAuditorium);
+
+        List<Showtime> showtimes = showtimeReposistory.findUpcomingShowtimesByAuditorium(auditoriumId);
+
+        for (Showtime showtime : showtimes) {
+            showtimeSeatService.rebuildShowtimeSeats(showtime, updatedSeats);
+        }
     }
 }
