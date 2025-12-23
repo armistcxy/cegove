@@ -37,7 +37,7 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
         String token = jwtService.generateToken(user);
 
-        String feUrl = "http://localhost:3000/profile";
+        String feUrl = "https://demo.cegove.cloud/profile";
         String targetUrl = UriComponentsBuilder.fromUriString(feUrl)
                 .queryParam("accessToken", token)
                 .build().toUriString();

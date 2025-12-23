@@ -18,7 +18,7 @@ public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler 
 
         String errorMessage = exception.getMessage();
 
-        String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:3000/login")
+        String targetUrl = UriComponentsBuilder.fromUriString("https://demo.cegove.cloud/login")
                 .queryParam("error", errorMessage)
                 .build().encode().toUriString();
 
