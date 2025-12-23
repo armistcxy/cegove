@@ -9,7 +9,7 @@ package main
 // @description This is the booking service API.
 // @contact.name API Support
 // @contact.email support@example.com
-// @host localhost:8080
+// @host booking.cegove.cloud
 // @BasePath /api
 
 import (

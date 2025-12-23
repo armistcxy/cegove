@@ -189,6 +189,38 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "post": {
+                "description": "Create showtimes",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "showtimes"
+                ],
+                "summary": "Create showtimes",
+                "parameters": [
+                    {
+                        "description": "Showtimes creation request",
+                        "name": "showtimes",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.CreateShowtimesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Showtimes created successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/showtimes/{showtime_id}/seats": {
@@ -467,8 +499,14 @@ const docTemplate = `{
         "domain.Showtime": {
             "type": "object",
             "properties": {
+                "auditorium_id": {
+                    "type": "string"
+                },
                 "base_price": {
                     "type": "number"
+                },
+                "cinema_id": {
+                    "type": "string"
                 },
                 "end_time": {
                     "type": "string"
@@ -479,14 +517,8 @@ const docTemplate = `{
                 "movie_id": {
                     "type": "string"
                 },
-                "screen_id": {
-                    "type": "string"
-                },
                 "start_time": {
                     "type": "string"
-                },
-                "status": {
-                    "type": "integer"
                 }
             }
         },
@@ -502,6 +534,12 @@ const docTemplate = `{
                 "seat_id": {
                     "type": "string"
                 },
+                "seat_number": {
+                    "type": "string"
+                },
+                "seat_type": {
+                    "type": "string"
+                },
                 "showtime_id": {
                     "type": "string"
                 },
@@ -513,6 +551,9 @@ const docTemplate = `{
         "domain.Ticket": {
             "type": "object",
             "properties": {
+                "auditorium_name": {
+                    "type": "string"
+                },
                 "booking_id": {
                     "type": "string"
                 },
@@ -534,13 +575,7 @@ const docTemplate = `{
                 "qr_code": {
                     "type": "string"
                 },
-                "screen_name": {
-                    "type": "string"
-                },
                 "seat_number": {
-                    "type": "integer"
-                },
-                "seat_row": {
                     "type": "string"
                 },
                 "showtime": {
@@ -557,15 +592,26 @@ const docTemplate = `{
         "domain.TicketStatus": {
             "type": "integer",
             "enum": [
-                0,
                 1,
-                2
+                2,
+                3
             ],
             "x-enum-varnames": [
                 "TicketStatusActive",
                 "TicketStatusUsed",
                 "TicketStatusCancelled"
             ]
+        },
+        "handler.CreateShowtimesRequest": {
+            "type": "object",
+            "properties": {
+                "showtimes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Showtime"
+                    }
+                }
+            }
         },
         "handler.createBookingRequest": {
             "type": "object",
@@ -604,7 +650,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "localhost:8080",
+	Host:             "booking.cegove.cloud",
 	BasePath:         "/api",
 	Schemes:          []string{},
 	Title:            "Booking Service API",

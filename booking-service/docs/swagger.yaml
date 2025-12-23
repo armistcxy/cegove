@@ -101,20 +101,20 @@ definitions:
     type: object
   domain.Showtime:
     properties:
+      auditorium_id:
+        type: string
       base_price:
         type: number
+      cinema_id:
+        type: string
       end_time:
         type: string
       id:
         type: string
       movie_id:
         type: string
-      screen_id:
-        type: string
       start_time:
         type: string
-      status:
-        type: integer
     type: object
   domain.ShowtimeSeat:
     properties:
@@ -124,6 +124,10 @@ definitions:
         type: number
       seat_id:
         type: string
+      seat_number:
+        type: string
+      seat_type:
+        type: string
       showtime_id:
         type: string
       status:
@@ -131,6 +135,8 @@ definitions:
     type: object
   domain.Ticket:
     properties:
+      auditorium_name:
+        type: string
       booking_id:
         type: string
       cinema_name:
@@ -145,11 +151,7 @@ definitions:
         type: number
       qr_code:
         type: string
-      screen_name:
-        type: string
       seat_number:
-        type: integer
-      seat_row:
         type: string
       showtime:
         type: string
@@ -160,14 +162,21 @@ definitions:
     type: object
   domain.TicketStatus:
     enum:
-    - 0
     - 1
     - 2
+    - 3
     type: integer
     x-enum-varnames:
     - TicketStatusActive
     - TicketStatusUsed
     - TicketStatusCancelled
+  handler.CreateShowtimesRequest:
+    properties:
+      showtimes:
+        items:
+          $ref: '#/definitions/domain.Showtime'
+        type: array
+    type: object
   handler.createBookingRequest:
     properties:
       seat_ids:
@@ -189,7 +198,7 @@ definitions:
       code:
         type: string
     type: object
-host: localhost:8080
+host: booking.cegove.cloud
 info:
   contact:
     email: support@example.com
@@ -315,6 +324,27 @@ paths:
               $ref: '#/definitions/domain.Showtime'
             type: array
       summary: List all showtimes
+      tags:
+      - showtimes
+    post:
+      description: Create showtimes
+      parameters:
+      - description: Showtimes creation request
+        in: body
+        name: showtimes
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreateShowtimesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Showtimes created successfully
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create showtimes
       tags:
       - showtimes
   /showtimes/{showtime_id}/seats:
