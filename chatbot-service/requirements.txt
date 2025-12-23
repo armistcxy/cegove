@@ -11,3 +11,5 @@ pyjwt
 requests
 pyyaml
 pandas
+fuzzywuzzy 
+python-Levenshtein

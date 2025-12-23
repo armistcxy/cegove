@@ -67,6 +67,7 @@ def get_comments_by_target(
             target_type=comment.target_type,
             target_id=comment.target_id,
             content=comment.content,
+            rating=comment.rating,  # THÊM DÒNG NÀY
             is_approved=comment.is_approved,
             is_flagged=comment.is_flagged,
             created_at=comment.created_at,
@@ -139,6 +140,7 @@ def create_comment(
         target_type=created_comment.target_type,
         target_id=created_comment.target_id,
         content=created_comment.content,
+        rating=created_comment.rating,  # THÊM DÒNG NÀY
         is_approved=created_comment.is_approved,
         is_flagged=created_comment.is_flagged,
         created_at=created_comment.created_at,
@@ -283,6 +285,7 @@ def update_comment(
         target_type=updated_comment.target_type,
         target_id=updated_comment.target_id,
         content=updated_comment.content,
+        rating=updated_comment.rating,  # THÊM DÒNG NÀY
         is_approved=updated_comment.is_approved,
         is_flagged=updated_comment.is_flagged,
         created_at=updated_comment.created_at,
