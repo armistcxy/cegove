@@ -1,18 +1,20 @@
 package com.spring.cinemaservice.Services;
 
-import com.spring.cinemaservice.DTOs.AuditoriumRequest;
 import com.spring.cinemaservice.DTOs.AuditoriumResponse;
 import com.spring.cinemaservice.DTOs.CinemaRequest;
 import com.spring.cinemaservice.DTOs.CinemaResponse;
+import com.spring.cinemaservice.DTOs.CinemaRevenueMonthlyDTO;
 import com.spring.cinemaservice.Models.Auditorium;
 import com.spring.cinemaservice.Models.Cinema;
+import com.spring.cinemaservice.Reposistories.BookingReposistory;
 import com.spring.cinemaservice.Reposistories.CinemaReposistory;
-import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,6 +22,9 @@ import java.util.List;
 public class CinemaService {
     @Autowired
     private CinemaReposistory reposistory;
+
+    @Autowired
+    private BookingReposistory bookingRepository;
 
     @Autowired
     private ImageUploadClient imageUploadClient;
@@ -115,5 +120,13 @@ public class CinemaService {
                 .map(Auditorium::convertToDTO)
                 .findFirst()
                 .orElseThrow(() -> new UsernameNotFoundException("No auditoriums found for cinema with id: " + cinemaId));
+    }
+
+    public List<CinemaRevenueMonthlyDTO> getRevenueByMonth(Long cinemaId, int year, int month) {
+
+        LocalDateTime start = LocalDate.of(year, month, 1).atStartOfDay();
+        LocalDateTime end = start.plusMonths(1);
+
+        return bookingRepository.getCinemaRevenueByMonth(cinemaId, start, end);
     }
 }

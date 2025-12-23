@@ -123,4 +123,18 @@ public class CinemaController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
+    @PreAuthorize("hasAuthority('LOCAL_ADMIN')")
+    @GetMapping("/{id}/revenue")
+    public ResponseEntity<?> getCinemaRevenueMonthly(@PathVariable Long id,
+                                                     @RequestParam int month,
+                                                     @RequestParam int year) {
+        try {
+            return ResponseEntity.status(200).body(service.getRevenueByMonth(id, year, month));
+        } catch (UsernameNotFoundException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
 }

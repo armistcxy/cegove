@@ -2,6 +2,7 @@ package com.spring.userservice.Services;
 
 import com.spring.userservice.DTOs.BookingDTO;
 import com.spring.userservice.DTOs.ChangePasswordForm;
+import com.spring.userservice.DTOs.TicketDTO;
 import com.spring.userservice.DTOs.UserDTO;
 import com.spring.userservice.DTOs.UserPartDTO;
 import com.spring.userservice.Enums.Provider;
@@ -9,8 +10,8 @@ import com.spring.userservice.Enums.UserRole;
 import com.spring.userservice.Exceptions.ActionNotAllowedException;
 import com.spring.userservice.Exceptions.InvalidCredentialsException;
 import com.spring.userservice.Exceptions.UserAlreadyExistedException;
-import com.spring.userservice.Models.Booking;
 import com.spring.userservice.Models.User;
+import com.spring.userservice.Reposistories.BookingReposistory;
 import com.spring.userservice.Reposistories.UserReposistory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -21,12 +22,17 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class UserService {
     @Autowired
     private UserReposistory repository;
+
+    @Autowired
+    private BookingReposistory bookingRepository;
 
     @Autowired
     private ImageUploadClient imageUploadClient;
@@ -118,10 +124,25 @@ public class UserService {
 
     public List<BookingDTO> bookingHistory() {
         User currentUser = getCurrentUser();
-        List<Booking> bookings = currentUser.getBookings();
-        return bookings.stream()
-                .map(Booking::convertToDTO)
+        List<BookingDTO> bookings =
+                bookingRepository.findBookingDTOByUserId(currentUser.getId());
+
+        if (bookings.isEmpty()) return bookings;
+
+        List<String> bookingIds = bookings.stream()
+                .map(BookingDTO::getId)
                 .toList();
+
+        Map<String, List<TicketDTO>> ticketMap =
+                bookingRepository.findTicketsByBookingIds(bookingIds)
+                        .stream()
+                        .collect(Collectors.groupingBy(TicketDTO::getBookingId));
+
+        bookings.forEach(b ->
+                b.setTickets(ticketMap.getOrDefault(b.getId(), List.of()))
+        );
+
+        return bookings;
     }
 
     public List<UserDTO> getAllUsers() {

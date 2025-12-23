@@ -1,6 +1,5 @@
 package com.spring.userservice.Models;
 
-import com.spring.userservice.DTOs.BookingDTO;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -42,17 +41,4 @@ public class Booking {
     private Long totalPrice;
     private String status;
     private final LocalDateTime createdAt = LocalDateTime.now();
-
-    public BookingDTO convertToDTO() {
-        return BookingDTO.builder()
-                .id(id)
-                .totalPrice(totalPrice)
-                .movieTitle((tickets != null && !tickets.isEmpty()) ? tickets.get(0).getMovieTitle() : null)
-                .cinemaName((tickets != null && !tickets.isEmpty()) ? tickets.get(0).getCinemaName() : null)
-                .auditoriumName(!tickets.isEmpty() ? tickets.get(0).getAuditoriumName() : null)
-                .startTime(showtime != null ? showtime.getStartTime() : null)
-                .endTime(showtime != null ? showtime.getEndTime() : null)
-                .tickets(tickets.stream().map(Ticket::convertToDTO).toList())
-                .createdAt(createdAt).build();
-    }
 }
