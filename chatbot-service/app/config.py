@@ -75,7 +75,7 @@ def get_settings() -> Settings:
         
         print(f"\n✓ Successfully loaded config from Consul")
         
-        # setattr(settings, "REDIS_HOST", 'localhost')  # Override Redis host for local dev
+        setattr(settings, "REDIS_HOST", 'localhost')  # Override Redis host for local dev
     
     except Exception as e:
         print(f"⚠ Warning: Failed to load config from Consul: {e}")
