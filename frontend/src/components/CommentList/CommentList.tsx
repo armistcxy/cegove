@@ -1,4 +1,13 @@
 import React from 'react';
+function LoadingSpinner() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 50 50" style={{ verticalAlign: 'middle' }}>
+      <circle cx="25" cy="25" r="20" fill="none" stroke="#ef4444" strokeWidth="5" strokeDasharray="31.4 31.4" strokeLinecap="round">
+        <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.8s" repeatCount="indefinite" />
+      </circle>
+    </svg>
+  );
+}
 import styles from './CommentList.module.css';
 
 import type { Comment } from './CommentList.types';
@@ -136,6 +145,8 @@ const CommentList: React.FC<CommentListProps> = ({ comments, userAvatars, reload
         setLocalLikes(prev => ({ ...prev, [id]: true }));
       }
       if (reloadComments) reloadComments();
+      // Đảm bảo loading hiển thị tối thiểu 1000ms
+      await new Promise(res => setTimeout(res, 1100));
     } catch (err) {
       // Ưu tiên báo lỗi đúng trạng thái
       const comment = comments.find(c => c.id === id);
@@ -216,7 +227,7 @@ const CommentList: React.FC<CommentListProps> = ({ comments, userAvatars, reload
               <div className={styles.date}>{new Date(comment.created_at).toLocaleString()}</div>
               <div className={styles.actionsRow}>
                 <button className={styles.iconBtn} onClick={() => handleLike(comment.id)} title={localLikes[comment.id] ? "Hủy like" : "Like"} disabled={pending[comment.id]}>
-                  <HeartIcon filled={comment.user_has_liked ?? !!localLikes[comment.id]} /> <span>{comment.likes_count ?? comment.like_count ?? 0}</span>
+                  {pending[comment.id] ? <LoadingSpinner /> : <HeartIcon filled={comment.user_has_liked ?? !!localLikes[comment.id]} />} <span>{comment.likes_count ?? comment.like_count ?? 0}</span>
                 </button>
                 <div className={styles.menuWrap}>
                   <button
