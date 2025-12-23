@@ -25,6 +25,7 @@ public class Showtime {
     private String id;
 
     private Long auditoriumId;
+    private Long cinemaId;
 
     private OffsetDateTime startTime;
     private BigDecimal basePrice;
