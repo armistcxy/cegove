@@ -87,7 +87,6 @@ Trả lời bằng tiếng Việt, thành thật và hữu ích."""
     async def process(self, message: str, state: AgentState) -> Dict[str, Any]:
         """Phân tích và route message"""
         
-        # Kiểm tra input
         if not message or len(message.strip()) == 0:
             return {
                 "response": "Bạn chưa nhập gì cả. Hãy cho tôi biết bạn cần gì nhé!",
@@ -95,41 +94,40 @@ Trả lời bằng tiếng Việt, thành thật và hữu ích."""
                 "metadata": None
             }
         
-        # Nếu đang trong booking flow, route trực tiếp đến booking agent
+        # Nếu đang trong booking flow
         if state.current_agent == AgentType.BOOKING and state.booking_state:
             return await self.booking_agent.process(message, state)
         
-        # THÊM: Kiểm tra xem có phải câu hỏi về context không
+        # KIỂM TRA CONTEXT AGENT TRƯỚC - ƯU TIÊN CAO
         if await self.context_agent.can_handle(message, state):
+            print(f"[Router] Routing to ContextAgent for: {message}")
             return await self.context_agent.process(message, state)
         
-        # Phân tích intent với fallback
+        # Phân tích intent
         try:
             intent_result = await self._analyze_intent(message, state)
         except Exception as e:
-            print(f"Intent analysis failed: {e}, using rule-based")
+            print(f"[Router] Intent analysis failed: {e}, using rule-based")
             intent_result = self._rule_based_intent(message)
         
         intent = intent_result.get("intent", "general")
         confidence = intent_result.get("confidence", 0.5)
         extracted_info = intent_result.get("extracted_info", {})
         
-        # Route theo intent
-        if intent == "movie" and confidence > 0.6:
-            state.current_agent = AgentType.MOVIE
-            state.context.update(extracted_info)
-            return await self.movie_agent.process(message, state)
+        print(f"[Router] Intent: {intent}, Confidence: {confidence}")
         
-        elif intent == "booking" and confidence > 0.6:
+        # Route theo intent
+        if intent == "booking" and confidence > 0.7:  # Tăng threshold
             state.current_agent = AgentType.BOOKING
             state.context.update(extracted_info)
             return await self.booking_agent.process(message, state)
         
+        elif intent == "movie" and confidence > 0.6:
+            state.current_agent = AgentType.MOVIE
+            state.context.update(extracted_info)
+            return await self.movie_agent.process(message, state)
+        
         else:
-            # Kiểm tra xem có phải context question không
-            if extracted_info.get("type") == "context_question" and len(state.history) > 0:
-                return await self.context_agent.process(message, state)
-            # Xử lý general chat
             return await self._handle_general(message, state)
     
     async def can_handle(self, message: str, state: AgentState) -> bool:
@@ -137,20 +135,29 @@ Trả lời bằng tiếng Việt, thành thật và hữu ích."""
         return True
     
     def _rule_based_intent(self, message: str) -> Dict[str, Any]:
-        """Rule-based intent detection khi API fail"""
+        """Rule-based intent - THÔNG MINH HƠN"""
         message_lower = message.lower()
         
-        # Check context keywords first
-        context_keywords = ["danh sách", "vừa", "trước", "đó", "đây", "bạn nói", "trong đó"]
+        # BOOKING keywords - ƯU TIÊN CAO
+        booking_keywords = ["đặt vé", "book", "mua vé", "đặt chỗ", "booking", "đặt giúp", "muốn đặt"]
+        if any(word in message_lower for word in booking_keywords):
+            return {"intent": "booking", "confidence": 0.95, "extracted_info": {}}
+        
+        # CONTEXT keywords - ƯU TIÊN VỪA
+        context_keywords = [
+            "danh sách", "vừa", "trước", "đó", "đây", "bạn nói", "bạn đề xuất",
+            "phim đầu", "phim thứ", "cái đầu", "cái thứ", "chi tiết",
+            "trong đó", "ở trên", "nội dung của", "thông tin về"
+        ]
         if any(word in message_lower for word in context_keywords):
             return {"intent": "general", "confidence": 0.9, "extracted_info": {"type": "context_question"}}
         
-        if any(word in message_lower for word in ["đặt vé", "book", "mua vé", "đặt chỗ", "booking"]):
-            return {"intent": "booking", "confidence": 0.85, "extracted_info": {}}
-        elif any(word in message_lower for word in ["phim", "movie", "xem", "tìm", "gợi ý", "thể loại"]):
+        # MOVIE keywords - ƯU TIÊN THẤP
+        movie_keywords = ["phim", "movie", "xem", "tìm", "gợi ý", "thể loại", "diễn viên", "đạo diễn"]
+        if any(word in message_lower for word in movie_keywords):
             return {"intent": "movie", "confidence": 0.85, "extracted_info": {}}
-        else:
-            return {"intent": "general", "confidence": 0.9, "extracted_info": {}}
+        
+        return {"intent": "general", "confidence": 0.9, "extracted_info": {}}
     
     async def _analyze_intent(self, message: str, state: AgentState) -> Dict[str, Any]:
         """Phân tích intent của message - Có context để hiểu ngữ cảnh"""

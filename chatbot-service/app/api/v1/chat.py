@@ -15,7 +15,7 @@ router_agent = RouterAgent()
 @router.post("/chat", response_model=ChatResponse)
 async def chat(
     message: ChatMessage,
-    current_user: dict = Depends(get_current_user)  # Tạm comment để test
+    # current_user: dict = Depends(get_current_user)  # Tạm comment để test
 ):
     """
     Xử lý tin nhắn chat từ người dùng

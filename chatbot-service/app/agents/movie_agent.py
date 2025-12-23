@@ -14,53 +14,54 @@ class MovieAgent(BaseAgent):
     def __init__(self):
         super().__init__("movie")
         
-        # System instruction cho extraction - CÓ GENRE MAPPING
+        # System instruction cho extraction - ĐƠN GIẢN HÓA
         self.extraction_instruction = f"""Bạn là trợ lý trích xuất thông tin tìm kiếm phim.
 
 {knowledge_service.get_genre_mapping_text()}
 
-Quan trọng:
-- Nếu user nói tiếng Việt, PHẢI chuyển sang tiếng Anh
-- Ví dụ: "phim hành động" → genre: "Action"
-- Ví dụ: "phim hoạt hình" → genre: "Animation"
+NHIỆM VỤ: Trích xuất thông tin TÌM KIẾM từ câu hỏi user.
 
-Chỉ trả về JSON hợp lệ."""
+QUY TẮC:
+1. Nếu user NÓI TÊN PHIM cụ thể → dùng "query"
+2. Nếu user chỉ nói THỂ LOẠI → dùng "genre" (tiếng Anh)
+3. Ưu tiên "query" hơn "genre" khi không chắc
+
+Ví dụ:
+- "phim batman" → {{"query": "batman"}}
+- "phim hoạt hình" → {{"genre": "Animation"}}
+- "phim hành động hay" → {{"genre": "Action", "min_rating": 7.0}}
+
+CHỈ trả JSON, KHÔNG giải thích."""
         
-        # System instruction cho response generation - CÓ SYSTEM KNOWLEDGE
+        # Response instruction giữ nguyên
         self.response_instruction = f"""Bạn là chuyên gia tư vấn phim ảnh thân thiện và am hiểu.
 
 {knowledge_service.get_system_knowledge()}
 
-Nhiệm vụ:
-- Giúp người dùng tìm phim phù hợp với sở thích
-- Gợi ý phim hay dựa trên thông tin có sẵn
-- Giải thích về nội dung, diễn viên, đạo diễn
-- Đưa ra đánh giá và nhận xét về phim
+NGUYÊN TẮC:
+- CHỈ dùng thông tin từ DATABASE được cung cấp
+- KHÔNG tự bịa phim
+- Nếu không có phim → nói thật
 
-Khi trả lời:
-- Sử dụng thông tin được cung cấp từ database
-- Trả lời ngắn gọn, súc tích nhưng đầy đủ thông tin
-- Highlight những điểm đặc biệt, thú vị của phim
-- Nếu có nhiều phim phù hợp, liệt kê 3-5 phim tốt nhất
-- Luôn kèm theo thông tin: tên phim, năm, rating, thể loại
-- Nếu user hỏi về hệ thống, dựa vào knowledge để trả lời
-
-Format trả lời:
+Format:
 🎬 **Tên Phim** (Năm) - ⭐ Rating
-📝 Mô tả ngắn gọn
-🎭 Thể loại | 🎬 Đạo diễn | ⏱️ Thời lượng
+📝 Mô tả
+🎭 Thể loại | 🎬 Đạo diễn
 
-Trả lời bằng tiếng Việt, nhiệt tình và hữu ích."""
+Trả lời bằng tiếng Việt."""
         
-        # Khởi tạo models một lần
+        # Khởi tạo models
         self.extraction_model = gemini_service.create_model(self.extraction_instruction)
         self.response_model = gemini_service.create_model(self.response_instruction)
     
     async def process(self, message: str, state: AgentState) -> Dict[str, Any]:
         """Xử lý yêu cầu về phim"""
         
-        # Extract search parameters from message using Gemini
+        # Extract search parameters - CẢI THIỆN
         params = await self._extract_search_params(message)
+        
+        # LOG RA ĐỂ DEBUG
+        print(f"[MovieAgent] Extracted params: {params}")
         
         # Translate Vietnamese genre to English if needed
         if params.get("genre"):
@@ -69,10 +70,13 @@ Trả lời bằng tiếng Việt, nhiệt tình và hữu ích."""
                 print(f"[MovieAgent] Translated genre: {params['genre']} → {translated}")
                 params["genre"] = translated
         
-        # Search movies based on parameters
-        movies_data = await self._search_movies(params)
+        # Search movies - CẢI THIỆN
+        movies_data = await self._search_movies(params, message)
         
-        # Generate response with movie data
+        # LOG KẾT QUẢ
+        print(f"[MovieAgent] Found {len(movies_data.get('movies', []))} movies")
+        
+        # Generate response
         response = await self._generate_movie_response(
             message=message,
             movies_data=movies_data,
@@ -95,39 +99,29 @@ Trả lời bằng tiếng Việt, nhiệt tình và hữu ích."""
         return any(keyword in message_lower for keyword in keywords)
     
     async def _extract_search_params(self, message: str) -> Dict[str, Any]:
-        """Extract search parameters from message - Dùng model đã khởi tạo"""
+        """Extract search parameters - CẢI THIỆN VỚI FALLBACK"""
         
-        extraction_prompt = f"""Phân tích yêu cầu và trích xuất thông tin tìm kiếm phim:
+        # Đơn giản hóa prompt
+        extraction_prompt = f"""Tin nhắn: "{message}"
 
-Tin nhắn: "{message}"
+Trích xuất thông tin tìm kiếm:
+- query: Tên phim (nếu user nói cụ thể)
+- genre: Thể loại (BẰNG TIẾNG ANH, dùng mapping)
+- min_rating: Rating tối thiểu (nếu user yêu cầu phim "hay", "tốt")
 
-Trích xuất các thông tin (nếu có):
-- query: Từ khóa tìm kiếm chung (tên phim)
-- genre: Thể loại phim (PHẢI BẰNG TIẾNG ANH - dùng mapping ở trên)
-- year: Năm phát hành
-- min_rating: Rating tối thiểu (0-10)
-- sort_by: Sắp xếp theo (rating, released_year, meta_score)
+Trả về JSON ngắn gọn:
+{{"query": "..."}} HOẶC {{"genre": "Action"}} HOẶC {{"query": "...", "min_rating": 7.0}}
 
-Trả về JSON:
-{{
-    "query": "...",
-    "genre": "Action",  // CHÚ Ý: Phải tiếng Anh
-    "year": "...",
-    "min_rating": 7.0,
-    "sort_by": "rating"
-}}
-
-Chỉ trả về các field có thông tin, bỏ qua field không xác định được."""
+CHỈ JSON, không text khác."""
         
         try:
-            # Retry logic
             max_retries = 2
             for attempt in range(max_retries):
                 try:
                     response = self.extraction_model.generate_content(extraction_prompt)
-                    
-                    # Parse JSON
                     text = response.text.strip()
+                    
+                    # Clean JSON
                     if text.startswith("```json"):
                         text = text[7:]
                     if text.startswith("```"):
@@ -137,42 +131,134 @@ Chỉ trả về các field có thông tin, bỏ qua field không xác định �
                     text = text.strip()
                     
                     result = json.loads(text)
-                    return result if isinstance(result, dict) else {}
+                    
+                    # Validate result
+                    if isinstance(result, dict) and (result.get("query") or result.get("genre")):
+                        return result
+                    else:
+                        # Fallback to simple extraction
+                        return self._simple_extraction(message)
+                        
+                except json.JSONDecodeError as e:
+                    print(f"[MovieAgent] JSON parse error: {e}, text: {text}")
+                    if attempt < max_retries - 1:
+                        time.sleep(1)
+                    else:
+                        return self._simple_extraction(message)
+                        
                 except Exception as e:
                     if "429" in str(e) and attempt < max_retries - 1:
                         time.sleep(2)
                     else:
-                        raise
+                        print(f"[MovieAgent] Extraction error: {e}")
+                        return self._simple_extraction(message)
+                        
         except Exception as e:
-            print(f"Error extracting params: {e}")
-            # Fallback: simple keyword extraction
-            return {"query": message}
+            print(f"[MovieAgent] Fatal extraction error: {e}")
+            return self._simple_extraction(message)
     
-    async def _search_movies(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Search movies using API"""
+    def _simple_extraction(self, message: str) -> Dict[str, Any]:
+        """FALLBACK: Rule-based extraction khi AI thất bại"""
+        message_lower = message.lower()
+        params = {}
         
-        # If has specific query, use search endpoint
-        if params.get("query"):
-            movies = await api_client.search_movies(
-                query=params["query"],
-                limit=10
-            )
-            return {"movies": movies, "total": len(movies)}
+        print(f"[MovieAgent] Using simple extraction for: {message}")
         
-        # Otherwise use filter endpoint
-        movies_response = await api_client.get_movies(
-            page=1,
-            page_size=10,
-            genre=params.get("genre"),
-            year=params.get("year"),
-            min_rating=params.get("min_rating"),
-            sort_by=params.get("sort_by", "rating")
-        )
-        
-        return {
-            "movies": movies_response.get("items", []),
-            "total": movies_response.get("total", 0)
+        # Detect genre keywords (Vietnamese)
+        genre_map = {
+            "hoạt hình": "Animation",
+            "hành động": "Action",
+            "phiêu lưu": "Adventure",
+            "hài": "Comedy",
+            "tâm lý": "Drama",
+            "kinh dị": "Horror",
+            "khoa học viễn tưởng": "Sci-Fi",
+            "tình cảm": "Romance",
+            "tội phạm": "Crime",
+            "chiến tranh": "War",
+            "lịch sử": "History"
         }
+        
+        # Check for genre
+        for vn_genre, en_genre in genre_map.items():
+            if vn_genre in message_lower:
+                params["genre"] = en_genre
+                print(f"[MovieAgent] Detected genre: {vn_genre} → {en_genre}")
+                break
+        
+        # If no genre, treat entire message as query
+        if not params.get("genre"):
+            # Remove common words
+            query = message_lower.replace("phim", "").replace("xem", "").replace("tìm", "").replace("gợi ý", "").strip()
+            if query:
+                params["query"] = query
+                print(f"[MovieAgent] Using query: {query}")
+        
+        # Check for quality keywords
+        if any(word in message_lower for word in ["hay", "tốt", "đỉnh", "nổi tiếng"]):
+            params["min_rating"] = 7.0
+            print(f"[MovieAgent] Added min_rating: 7.0")
+        
+        return params if params else {"query": message}
+    
+    async def _search_movies(self, params: Dict[str, Any], original_message: str) -> Dict[str, Any]:
+        """Search movies - CẢI THIỆN VỚI BETTER SEARCH LOGIC"""
+        
+        print(f"[MovieAgent] Searching with params: {params}")
+        
+        # Strategy 1: Search by query (EXACT MATCH PRIORITY)
+        if params.get("query"):
+            query = params["query"].strip()
+            
+            # Try exact match first
+            movies = await api_client.search_movies(query=query, limit=10)
+            
+            if movies:
+                print(f"[MovieAgent] Strategy 1 (query='{query}') found {len(movies)} movies")
+                
+                # FILTER: Ensure query appears in title
+                filtered_movies = []
+                query_lower = query.lower()
+                
+                for movie in movies:
+                    title = movie.get('series_title', '').lower()
+                    if query_lower in title:
+                        filtered_movies.append(movie)
+                
+                # If filtered results exist, use them; otherwise use all
+                if filtered_movies:
+                    print(f"[MovieAgent] Filtered to {len(filtered_movies)} movies matching '{query}'")
+                    return {"movies": filtered_movies, "total": len(filtered_movies)}
+                else:
+                    print(f"[MovieAgent] No exact matches, using all {len(movies)} results")
+                    return {"movies": movies, "total": len(movies)}
+            else:
+                print(f"[MovieAgent] Strategy 1 (query) found 0 movies")
+        
+        # Strategy 2: Filter by genre/rating
+        if params.get("genre") or params.get("min_rating"):
+            movies_response = await api_client.get_movies(
+                page=1,
+                page_size=10,
+                genre=params.get("genre"),
+                year=params.get("year"),
+                min_rating=params.get("min_rating"),
+                sort_by="rating"
+            )
+            
+            movies = movies_response.get("items", [])
+            if movies:
+                print(f"[MovieAgent] Strategy 2 (filter) found {len(movies)} movies")
+                return {
+                    "movies": movies,
+                    "total": movies_response.get("total", len(movies))
+                }
+            else:
+                print(f"[MovieAgent] Strategy 2 (filter) found 0 movies")
+        
+        # Strategy 3: Fallback - KHÔNG LẤY TẤT CẢ, BÁO LỖI
+        print(f"[MovieAgent] No results found, returning empty")
+        return {"movies": [], "total": 0}
     
     async def _generate_movie_response(
         self,
@@ -180,7 +266,7 @@ Chỉ trả về các field có thông tin, bỏ qua field không xác định �
         movies_data: Dict[str, Any],
         state: AgentState
     ) -> str:
-        """Generate response with movie information - Dùng model đã khởi tạo"""
+        """Generate response - GIỐNG NHƯ CŨ"""
         
         movies = movies_data.get("movies", [])
         total_found = movies_data.get("total", len(movies))
@@ -189,43 +275,34 @@ Chỉ trả về các field có thông tin, bỏ qua field không xác định �
             return """Xin lỗi, tôi không tìm thấy phim nào phù hợp trong database. 😔
 
 Bạn có thể thử:
-- Tìm với từ khóa khác
-- Mở rộng tiêu chí (bỏ năm, rating...)
-- Hỏi tôi "có những phim nào" để xem danh sách
+- Tìm với từ khóa khác (VD: "action", "comedy")
+- Hỏi "có những phim nào" để xem danh sách
+- Tìm theo tên cụ thể (VD: "phim Avatar")
 
 Tôi chỉ tìm trong database CÓ SẴN nhé!"""
         
         # Format movie data for Gemini
-        movies_info = self._format_movies_info(movies[:5])  # Top 5
+        movies_info = self._format_movies_info(movies[:5])
         
         # Build context from history
         context = self._build_gemini_context(state.history[-6:] if len(state.history) > 0 else [])
         
-        prompt = f"""Người dùng hỏi: "{message}"
+        prompt = f"""User hỏi: "{message}"
 
-DATABASE TRẢ VỀ {total_found} phim. Dưới đây là top {len(movies[:5])} phim:
+DATABASE: Tìm thấy {total_found} phim. Top {len(movies[:5])}:
 
 {movies_info}
 
 NHIỆM VỤ:
-1. Phân tích CHÍNH XÁC {len(movies[:5])} phim trên
-2. Gợi ý 3-5 phim TỐT NHẤT từ danh sách
-3. Giải thích dựa trên dữ liệu CÓ (rating, thể loại, đạo diễn)
-4. KHÔNG đề cập phim không có trong danh sách
+- Gợi ý 3-5 phim TỐT NHẤT
+- Dùng ĐÚNG thông tin từ database
+- Giải thích ngắn gọn
 
-BẮT BUỘC:
-- Bắt đầu: "Tôi tìm thấy {total_found} phim trong database..."
-- Chỉ nói về các phim ĐƯỢC LIET KÊ ở trên
-- Dùng đúng tên, năm, rating từ database
-- Nếu user hỏi về phim không có → "Phim đó không có trong danh sách tìm được"
-
-Trả lời ngắn gọn, chính xác, dựa 100% vào dữ liệu trên."""
+Trả lời bằng tiếng Việt."""
         
         try:
-            # Sử dụng model đã khởi tạo sẵn
             chat = self.response_model.start_chat(history=context)
             
-            # Retry logic
             max_retries = 2
             for attempt in range(max_retries):
                 try:
@@ -236,39 +313,38 @@ Trả lời ngắn gọn, chính xác, dựa 100% vào dữ liệu trên."""
                         time.sleep(2)
                     else:
                         raise
+                        
         except Exception as e:
-            print(f"Error generating movie response: {e}")
-            if "429" in str(e):
-                # Fallback: simple response với dữ liệu thật
-                movie = movies[0]
-                return f"""📊 Database tìm thấy {total_found} phim. Gợi ý top 1:
+            print(f"Error generating response: {e}")
+            # Fallback: Simple response
+            movie = movies[0]
+            return f"""📊 Tìm thấy {total_found} phim trong database!
+
+Top gợi ý:
 
 🎬 **{movie.get('series_title')}** ({movie.get('released_year')})
 ⭐ Rating: {movie.get('imdb_rating')}/10
 🎭 Thể loại: {movie.get('genre')}
 🎬 Đạo diễn: {movie.get('director')}
 
-📝 {movie.get('overview', 'Một bộ phim hay trong hệ thống!')}
+📝 {movie.get('overview', 'Một bộ phim hay!')}
 
 Nguồn: Database hệ thống"""
-            return "Xin lỗi, tôi gặp sự cố khi phân tích. Vui lòng thử lại."
     
     def _format_movies_info(self, movies: List[Dict[str, Any]]) -> str:
-        """Format movies into readable text"""
+        """Format movies - GIỐNG CŨ"""
         formatted = []
         
         for movie in movies:
-            # Safely get overview with proper None handling
             overview = movie.get('overview') or 'N/A'
             overview_text = overview[:200] if overview != 'N/A' else 'N/A'
             
-            # Safely get stars list
             stars = movie.get('stars', [])
             stars_text = ', '.join(stars[:3]) if stars else 'N/A'
             
             info = f"""
 - **{movie.get('series_title', 'N/A')}** ({movie.get('released_year', 'N/A')})
-  Rating: {movie.get('imdb_rating', 'N/A')}/10 | Meta Score: {movie.get('meta_score', 'N/A')}
+  Rating: {movie.get('imdb_rating', 'N/A')}/10 | Meta: {movie.get('meta_score', 'N/A')}
   Thể loại: {movie.get('genre', 'N/A')}
   Đạo diễn: {movie.get('director', 'N/A')}
   Diễn viên: {stars_text}
@@ -280,7 +356,7 @@ Nguồn: Database hệ thống"""
         return "\n".join(formatted)
     
     def _build_gemini_context(self, history: list) -> list:
-        """Convert history to Gemini format"""
+        """Convert history - GIỐNG CŨ"""
         gemini_history = []
         for msg in history:
             role = "model" if msg["role"] == "assistant" else "user"
