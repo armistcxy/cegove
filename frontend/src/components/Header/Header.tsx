@@ -89,7 +89,7 @@ export default function Header() {
           </ul>
 
           <div className="search-buy-infor">
-            <Link to="/Movie" className="mua-ve"><img src={muaVeNgay} alt="" /></Link>
+            <Link to="/recent-movie" className="mua-ve"><img src={muaVeNgay} alt="" /></Link>
           </div>
         </div>
       </div>
