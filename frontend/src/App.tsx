@@ -2,6 +2,7 @@ import {BrowserRouter as Router, Routes, Route, Navigate, useParams} from 'react
 import Header from './components/Header/Header.tsx';
 import ProtectedRoute from './components/ProtectedRoute.tsx';
 import AdminLayout from './layouts/AdminLayout.tsx';
+import ChatBot from './components/ChatBot/ChatBot.tsx';
 import HomePage from './pages/Home/HomePage.tsx';
 import Movies from './pages/Movies/Movie.tsx';
 import MoviesForYou from './pages/MoviesForYou/MoviesForYou.tsx';
@@ -77,6 +78,7 @@ function AppContent() {
                   <Route path="/recent-movie" element={<RecentMovie />} />
                 </Routes>
               </main>
+              <ChatBot />
             </>
           } />
       </Routes>
