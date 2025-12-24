@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     MOVIE_SERVICE_URL: str = ""
     BOOKING_SERVICE_URL: str = ""
     CINEMA_SERVICE_URL: str = ""
+    PAYMENT_SERVICE_URL: str = "https://payment.cegove.cloud"
     
     # JWT
     JWT_SECRET_KEY: str = ""
@@ -75,7 +76,7 @@ def get_settings() -> Settings:
         
         print(f"\n✓ Successfully loaded config from Consul")
         
-        # setattr(settings, "REDIS_HOST", 'localhost')  # Override Redis host for local dev
+        setattr(settings, "REDIS_HOST", 'localhost')  # Override Redis host for local dev
     
     except Exception as e:
         print(f"⚠ Warning: Failed to load config from Consul: {e}")

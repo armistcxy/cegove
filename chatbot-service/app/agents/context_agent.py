@@ -417,42 +417,61 @@ Bạn muốn biết thêm gì? (VD: "nội dung phim", "cho tôi 5 phim")""",
         }
     
     async def can_handle(self, message: str, state: AgentState) -> bool:
-        """Check if message is context-dependent"""
+        """Check if message is context-dependent - MUST BE VERY SPECIFIC"""
         
         if not state.history:
             return False
         
         message_lower = message.lower()
         
-        # Context keywords
+        # SKIP these - they are NOT context questions even if they have some keywords
+        skip_patterns = [
+            r"lịch chiếu",           # Showtime query
+            r"đặt.*vé",              # Booking
+            r"mua.*vé",              # Booking  
+            r"book",                 # Booking
+            r"phim.*chiếu",          # Showtime
+            r"chiếu.*phim",          # Showtime
+            r"đang chiếu",           # Showtime
+            r"phim.*hot",            # Movie suggestion
+            r"phim.*hay",            # Movie suggestion
+            r"gợi ý",                # Movie suggestion
+            r"tìm phim",             # Movie search
+        ]
+        
+        for pattern in skip_patterns:
+            if re.search(pattern, message_lower):
+                return False
+        
+        # ONLY handle TRUE context references - be very specific
         context_keywords = [
-            # Direct references
-            "vừa", "vừa rồi", "vừa nói", "trước đó", "ở trên", "bạn nói", "bạn đề xuất",
-            # List/position references  
-            "danh sách", "phim đầu", "phim thứ", "phim cuối", "cái đầu", "cái thứ",
-            "số 1", "số 2", "số 3", "thứ nhất", "thứ hai", "thứ ba",
-            # Number requests
-            "cho tôi", "đưa tôi", "liệt kê", "top",
-            # Info about previous context
-            "nội dung của", "thông tin về", "chi tiết về",
-            # Relative references
-            "trong đó", "phía trên", "như trên", "ở đây"
+            # Direct references to PREVIOUS conversation
+            "vừa nói", "vừa rồi", "bạn nói", "bạn đề cập", "bạn đề xuất",
+            # List/position references (MUST have "phim" nearby)
+            "phim đầu tiên", "phim thứ nhất", "phim thứ hai", "phim thứ ba", 
+            "phim thứ 1", "phim thứ 2", "phim thứ 3", "phim thứ 4", "phim thứ 5",
+            "phim số 1", "phim số 2", "phim số 3",
+            "phim cuối", "phim cuối cùng", "cái đầu tiên", "cái thứ",
+            # Relative references  
+            "ở trên", "phía trên", "như trên", "trong danh sách"
         ]
         
         has_context_keyword = any(kw in message_lower for kw in context_keywords)
         
-        # Skip if clearly new search
-        new_search_keywords = ["tìm phim mới", "gợi ý mới", "phim khác", "tìm kiếm"]
+        # Skip if clearly new search or booking
+        new_search_keywords = ["tìm phim mới", "gợi ý mới", "phim khác", "tìm kiếm", "đặt vé", "mua vé"]
         has_new_search = any(kw in message_lower for kw in new_search_keywords)
         
         if has_new_search:
             return False
         
-        # Special: "cho tôi N phim" should be context-based
+        # "cho tôi N phim" - ONLY context if we just showed a list
         if re.search(r'cho\s*(?:tôi|mình)\s*\d+\s*phim', message_lower):
+            # Check if last assistant message has a movie list
             for msg in reversed(state.history[-3:]):
-                if msg.get("role") == "assistant" and "🎬" in msg.get("content", ""):
+                if msg.get("role") == "assistant" and "**" in msg.get("content", "") and re.search(r'\d+\..*\*\*', msg.get("content", "")):
                     return True
+            return False  # No list in history, not a context question
         
         return has_context_keyword
     

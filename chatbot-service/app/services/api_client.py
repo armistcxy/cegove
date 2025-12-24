@@ -12,6 +12,7 @@ class APIClient:
         self.movie_service_url = settings.MOVIE_SERVICE_URL
         self.booking_service_url = settings.BOOKING_SERVICE_URL
         self.cinema_service_url = settings.CINEMA_SERVICE_URL
+        self.payment_service_url = settings.PAYMENT_SERVICE_URL
         self.timeout = 30.0
     
     # ========== MOVIE SERVICE APIs ==========
@@ -127,22 +128,25 @@ class APIClient:
     async def get_showtimes(
         self,
         movie_id: Optional[int] = None,
-        cinema_id: Optional[str] = None,
+        cinema_id: Optional[int] = None,
         date: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        """Get showtimes - Scenario 3, 4"""
+        """
+        Get showtimes with optional filters - Scenario 3, 4
+        API: /api/v1/showtimes?movie_id=X&cinema_id=Y&date=YYYY-MM-DD
+        """
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 params = {}
-                if movie_id:
+                if movie_id is not None:
                     params["movie_id"] = movie_id
-                if cinema_id:
+                if cinema_id is not None:
                     params["cinema_id"] = cinema_id
-                if date:
+                if date is not None:
                     params["date"] = date
-                    
+                
                 response = await client.get(
-                    f"{self.booking_service_url}/api/showtimes",
+                    f"{self.booking_service_url}/api/v1/showtimes",
                     params=params
                 )
                 response.raise_for_status()
@@ -150,6 +154,50 @@ class APIClient:
         except Exception as e:
             print(f"Error getting showtimes: {e}")
             return []
+    
+    async def get_showtimes_by_cinema_name(
+        self, 
+        cinema_name: str,
+        date: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get showtimes for a specific cinema by name.
+        Useful when user asks "Rạp CGV Times City chiếu phim gì?"
+        """
+        from app.services.knowledge_service import knowledge_service
+        
+        # Tìm cinema ID từ tên
+        cinemas = knowledge_service.search_cinema(cinema_name)
+        if not cinemas:
+            return []
+        
+        cinema_id = cinemas[0].get("id")
+        return await self.get_showtimes(cinema_id=cinema_id, date=date)
+    
+    async def get_showtimes_by_movie_name(
+        self, 
+        movie_name: str,
+        cinema_id: Optional[int] = None,
+        date: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get showtimes for a specific movie by name.
+        Useful when user asks "Phim Avengers chiếu lúc mấy giờ?"
+        """
+        # Tìm movie ID từ tên
+        result = await self.fuzzy_search_movie(movie_name)
+        if not result.get("found"):
+            return []
+        
+        movie_id = result.get("movie", {}).get("id")
+        if not movie_id:
+            return []
+        
+        return await self.get_showtimes(
+            movie_id=movie_id, 
+            cinema_id=cinema_id, 
+            date=date
+        )
     
     async def get_showtime_seats(self, showtime_id: str) -> List[Dict[str, Any]]:
         """Get seats for showtime - Scenario 4, 8"""
@@ -256,6 +304,34 @@ class APIClient:
         except Exception as e:
             print(f"Error getting user bookings: {e}")
             return []
+    
+    # ========== PAYMENT SERVICE APIs ==========
+    
+    async def create_payment(
+        self,
+        booking_id: str,
+        amount: float,
+        user_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create payment for booking
+        Returns payment URL or payment info
+        """
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(
+                    f"{self.payment_service_url}/api/v1/payments/",
+                    json={
+                        "booking_id": booking_id,
+                        "amount": amount,
+                        "user_id": user_id
+                    }
+                )
+                response.raise_for_status()
+                return response.json()
+        except Exception as e:
+            print(f"Error creating payment: {e}")
+            return None
     
     # ========== HELPER METHODS ==========
     

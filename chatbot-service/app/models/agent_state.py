@@ -11,8 +11,10 @@ class AgentType(str, Enum):
 class BookingState(BaseModel):
     """
     Trạng thái của booking flow - Hỗ trợ Scenario 4, 6, 8
+    
+    Quy trình: select_movie → select_cinema → select_showtime → view_seats → select_seats → confirm
     """
-    step: str  # "select_movie", "select_showtime", "select_seats", "confirm", "payment"
+    step: str  # "select_movie", "select_cinema", "select_showtime", "view_seats", "select_seats", "confirm"
     movie_id: Optional[str] = None
     movie_title: Optional[str] = None
     cinema_id: Optional[str] = None
@@ -23,8 +25,11 @@ class BookingState(BaseModel):
     seat_names: Optional[List[str]] = None
     num_seats: Optional[int] = None
     total_price: Optional[float] = None
+    seat_pattern: Optional[str] = None  # pattern1, pattern2, pattern3
     # Lưu danh sách để user có thể chọn
     available_showtimes: Optional[List[Dict]] = None
+    available_cinemas: Optional[List[Dict]] = None
+    all_showtimes: Optional[List[Dict]] = None  # All showtimes for movie (before filtering by cinema)
     available_seats: Optional[List[Dict]] = None
 
 class MovieContext(BaseModel):
@@ -33,15 +38,42 @@ class MovieContext(BaseModel):
     movie_titles: List[str] = []
     last_search_params: Optional[Dict] = None
 
+class FocusedMovie(BaseModel):
+    """
+    Phim đang được focus trong conversation.
+    Khi user xem lịch chiếu phim X, phim X trở thành focused movie.
+    Khi user nói "đặt vé" mà không chỉ định phim → dùng focused movie.
+    """
+    movie_id: str
+    movie_title: str
+    showtimes: Optional[List[Dict]] = None  # Lịch chiếu đã load
+
 class AgentState(BaseModel):
     """Trạng thái chung của conversation"""
     session_id: str
     user_id: str
     current_agent: AgentType
     booking_state: Optional[BookingState] = None
-    movie_context: Optional[MovieContext] = None  # THÊM: Context phim
+    movie_context: Optional[MovieContext] = None  # Context phim đã đề cập
+    focused_movie: Optional[FocusedMovie] = None  # Phim đang được focus (vừa xem lịch chiếu)
     context: Dict[str, Any] = {}
     history: List[Dict] = []
+    
+    def set_focused_movie(self, movie_id: str, movie_title: str, showtimes: List[Dict] = None):
+        """Set phim đang được focus"""
+        self.focused_movie = FocusedMovie(
+            movie_id=movie_id,
+            movie_title=movie_title,
+            showtimes=showtimes
+        )
+    
+    def get_focused_movie(self) -> Optional[FocusedMovie]:
+        """Lấy phim đang focus"""
+        return self.focused_movie
+    
+    def clear_focused_movie(self):
+        """Xóa focused movie"""
+        self.focused_movie = None
     
     def get_movie_by_index(self, index: int) -> Optional[Dict]:
         """Lấy phim theo thứ tự trong context - Scenario 5"""
