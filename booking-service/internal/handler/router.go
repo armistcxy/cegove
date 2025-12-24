@@ -33,6 +33,7 @@ func NewBookingRouter(pool *pgxpool.Pool, logger *logging.Logger) *BookingRouter
 	showtimeRepo := repository.NewShowtimeRepository(pool)
 	seatRepo := repository.NewSeatRepository(pool)
 	showtimeHandler := NewShowtimeHandler(showtimeRepo, seatRepo, logger)
+	footHandler := NewFoodHandler(foodRepo, logger)
 
 	router.RegisterHandlerFunc(http.MethodGet, "/v1/showtimes", showtimeHandler.HandleListShowtimes)
 	router.RegisterHandlerFunc(http.MethodGet, "/v1/showtimes/{showtime_id}", showtimeHandler.HandleGetShowtime)
@@ -45,6 +46,9 @@ func NewBookingRouter(pool *pgxpool.Pool, logger *logging.Logger) *BookingRouter
 	router.RegisterHandlerFunc(http.MethodGet, "/v1/bookings/{booking_id}", bookingHandler.HandleGetBookingInformation)
 	router.RegisterHandlerFunc(http.MethodPost, "/v1/bookings/webhooks/payment", bookingHandler.HandlePaymentWebhook)
 	router.RegisterHandlerFunc(http.MethodPost, "/v1/tickets/scan", bookingHandler.HandleScanTicket)
+
+	router.RegisterHandlerFunc(http.MethodGet, "/v1/food/items", footHandler.HandleListFoodItems)
+	router.RegisterHandlerFunc(http.MethodGet, "/v1/food/items/{food_item_id}", footHandler.HandleGetFoodItem)
 
 	return &BookingRouter{
 		Router: router,

@@ -3,7 +3,6 @@ package handler
 import (
 	"net/http"
 
-	"github.com/armistcxy/cegove/booking-service/internal/domain"
 	"github.com/armistcxy/cegove/booking-service/internal/repository"
 	"github.com/armistcxy/cegove/booking-service/pkg/httphelp"
 	"github.com/armistcxy/cegove/booking-service/pkg/logging"
@@ -34,60 +33,6 @@ func (h *FoodHandler) HandleListFoodItems(w http.ResponseWriter, r *http.Request
 	foodItems, err := h.foodRepo.ListFoodItems(ctx)
 	if err != nil {
 		h.logger.Error("Failed to list food items", err)
-		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
-		return
-	}
-
-	httphelp.EncodeJSON(w, r, http.StatusOK, foodItems)
-}
-
-// @Summary List food items by type
-// @Description Get food items filtered by type (POPCORN, DRINK, COMBO)
-// @Tags food
-// @Produce json
-// @Param type query string false "Food type (POPCORN, DRINK, COMBO)"
-// @Success 200 {array} domain.FoodItem "Filtered food items"
-// @Failure 500 {object} map[string]string "Internal error"
-// @Router /food/items/by-type [get]
-func (h *FoodHandler) HandleListFoodItemsByType(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	foodType := domain.FoodType(r.URL.Query().Get("type"))
-	if foodType == "" {
-		httphelp.EncodeJSONError(w, r, http.StatusBadRequest, nil)
-		return
-	}
-
-	foodItems, err := h.foodRepo.ListFoodItemsByType(ctx, foodType)
-	if err != nil {
-		h.logger.Error("Failed to list food items by type", err)
-		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
-		return
-	}
-
-	httphelp.EncodeJSON(w, r, http.StatusOK, foodItems)
-}
-
-// @Summary List food items by category
-// @Description Get food items filtered by category (SNACKS, BEVERAGES, BUNDLE)
-// @Tags food
-// @Produce json
-// @Param category query string false "Food category (SNACKS, BEVERAGES, BUNDLE)"
-// @Success 200 {array} domain.FoodItem "Filtered food items"
-// @Failure 500 {object} map[string]string "Internal error"
-// @Router /food/items/by-category [get]
-func (h *FoodHandler) HandleListFoodItemsByCategory(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	category := domain.FoodCategory(r.URL.Query().Get("category"))
-	if category == "" {
-		httphelp.EncodeJSONError(w, r, http.StatusBadRequest, nil)
-		return
-	}
-
-	foodItems, err := h.foodRepo.ListFoodItemsByCategory(ctx, category)
-	if err != nil {
-		h.logger.Error("Failed to list food items by category", err)
 		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
 		return
 	}
