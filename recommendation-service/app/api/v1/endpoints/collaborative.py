@@ -192,7 +192,7 @@ async def get_personalized_recommendations(
         # Content-based from top rated movies
         content_based_results = get_content_based_from_user_history(
             db=db,
-            user_ratings=user_ratings,
+            user_behaviors=user_ratings,
             watched_movie_ids=watched_movie_ids,
             top_n=request.top_n,
             rec_service=rec_service,
@@ -266,7 +266,7 @@ async def get_personalized_recommendations(
     if n_content > 0:
         content_based_results = get_content_based_from_user_history(
             db=db,
-            user_ratings=user_ratings,
+            user_behaviors=user_ratings,
             watched_movie_ids=existing_ids,
             top_n=n_content,
             rec_service=rec_service,
