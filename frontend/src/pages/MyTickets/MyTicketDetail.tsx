@@ -9,6 +9,12 @@ interface TicketDetail {
   price: number;
 }
 
+interface FoodItem {
+  food_item_id: string;
+  quantity: number;
+  price: number;
+}
+
 interface BookingDetail {
   id: string;
   totalPrice: number;
@@ -19,59 +25,77 @@ interface BookingDetail {
   endTime: string;
   createdAt: string;
   tickets: TicketDetail[];
+  food_items?: FoodItem[];
+}
+
+interface FoodDetail {
+  id: string;
+  name: string;
+  type: string;
+  category: string;
+  price: number;
+  image_url: string;
+  available: boolean;
+  created_at: string;
 }
 
 export default function MyTicketDetail() {
   const { id } = useParams<{ id: string }>();
   const [booking, setBooking] = useState<BookingDetail | null>(null);
+  const [foodDetails, setFoodDetails] = useState<{ [id: string]: FoodDetail }>({});
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchBooking();
-    // eslint-disable-next-line
-  }, [id]);
 
-  const fetchBooking = async () => {
+  useEffect(() => {
+    if (!id) return;
     setLoading(true);
-    try {
-      const token = localStorage.getItem('access-token');
-      if (!token) {
-        setBooking(null);
-        setLoading(false);
-        return;
-      }
-      const response = await fetch('https://user.cegove.cloud/users/booking-history', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+    // Gọi endpoint booking detail để lấy food_items
+    fetch(`https://booking.cegove.cloud/api/v1/bookings/${id}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (!data) {
+          setBooking(null);
+          return;
         }
-      });
-      if (!response.ok) throw new Error('Failed to fetch booking');
-      const data = await response.json();
-      const found = (Array.isArray(data) ? data : []).find((b: any) => b.id === id);
-      if (!found) {
-        setBooking(null);
-      } else {
         setBooking({
-          id: found.id,
-          totalPrice: found.totalPrice,
-          movieTitle: found.movieTitle,
-          cinemaName: found.cinemaName,
-          auditoriumName: found.auditoriumName,
-          startTime: found.startTime,
-          endTime: found.endTime,
-          createdAt: found.createdAt,
-          tickets: Array.isArray(found.tickets) ? found.tickets : [],
+          id: data.id,
+          totalPrice: data.total_price,
+          movieTitle: data.tickets?.[0]?.movie_title || '',
+          cinemaName: data.tickets?.[0]?.cinema_name || '',
+          auditoriumName: data.tickets?.[0]?.auditorium_name || '',
+          startTime: data.tickets?.[0]?.showtime || '',
+          endTime: '',
+          createdAt: data.created_at,
+          tickets: Array.isArray(data.tickets) ? data.tickets.map((t: any) => ({
+            id: t.id,
+            bookingId: t.booking_id,
+            seatNumber: t.seat_number,
+            price: t.price,
+          })) : [],
+          food_items: Array.isArray(data.food_items) ? data.food_items : [],
         });
-      }
-    } catch (error) {
-      setBooking(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+        // Lấy thông tin từng food item
+        if (Array.isArray(data.food_items)) {
+          data.food_items.forEach((item: any) => {
+            if (!item.food_item_id) return;
+            setFoodDetails(prev => {
+              if (prev[item.food_item_id]) return prev;
+              // fetch food detail nếu chưa có
+              fetch(`https://booking.cegove.cloud/api/v1/food/items/${item.food_item_id}`)
+                .then(res => res.ok ? res.json() : null)
+                .then(food => {
+                  if (food && food.id) {
+                    setFoodDetails(p => ({ ...p, [food.id]: food }));
+                  }
+                });
+              return prev;
+            });
+          });
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [id]);
 
   const formatDate = (isoString: string) => {
     const date = new Date(isoString);
@@ -115,6 +139,69 @@ export default function MyTicketDetail() {
       >
         <span style={{fontSize: '1.2em', verticalAlign: 'middle', marginRight: 4}}>&larr;</span> Quay lại
       </button>
+
+      {/* Hiển thị food items nếu có - moved above tickets */}
+      {booking?.food_items && booking.food_items.length > 0 && (
+        <div style={{
+          margin: '32px auto 0 auto',
+          maxWidth: 1000,
+          width: '95%',
+          background: '#fff8f2',
+          borderRadius: 16,
+          boxShadow: '0 2px 12px #e5091422',
+          padding: 32,
+        }}>
+          <h3 style={{color: '#b20710', fontWeight: 700, marginBottom: 16}}>Đồ ăn kèm</h3>
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 18,
+            justifyContent: 'flex-start',
+          }}>
+            {booking.food_items.map(item => {
+              const food = foodDetails[item.food_item_id];
+              return (
+                <div key={item.food_item_id} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'flex-start',
+                  background: '#fff',
+                  borderRadius: 10,
+                  boxShadow: '0 1px 6px #e5091422',
+                  padding: 14,
+                  minWidth: 270,
+                  maxWidth: 320,
+                  width: '30%',
+                  flex: '1 1 30%',
+                  height: 110,
+                  gap: 16,
+                  boxSizing: 'border-box',
+                }}>
+                  {food?.image_url ? (
+                    <img src={food.image_url} alt={food.name} style={{width: 60, height: 60, objectFit: 'cover', borderRadius: 8, border: '1.5px solid #ffe5e9', background: '#fff'}} />
+                  ) : (
+                    <div style={{width: 60, height: 60, background: '#ffe5e9', borderRadius: 8}} />
+                  )}
+                  <div style={{flex: 1}}>
+                    <div style={{
+                      fontWeight: 700,
+                      color: '#b20710',
+                      fontSize: 16,
+                      wordBreak: 'break-word',
+                      whiteSpace: 'normal',
+                      lineHeight: 1.25,
+                      overflowWrap: 'anywhere',
+                      maxWidth: 220,
+                    }}>{food?.name || item.food_item_id}</div>
+                    <div style={{color: '#888', fontSize: 13}}>{food?.category || ''}</div>
+                    <div style={{color: '#b20710', fontWeight: 600, fontSize: 15}}>{item.price.toLocaleString('vi-VN')} đ x {item.quantity}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div style={{
