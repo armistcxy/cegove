@@ -76,6 +76,7 @@ export default function Header() {
               <ul className="child-menu">
                 <li><Link to="/movie" className="hover-red">Danh sách phim</Link></li>
                 <li><Link to="/movies-for-you" className="hover-red">Dành cho bạn</Link></li>
+                <li><Link to="/recent-movie" className="hover-red">Phim đang chiếu</Link></li>
               </ul> 
             </li>
             <li className="hover-effect">

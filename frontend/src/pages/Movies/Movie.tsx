@@ -2,13 +2,12 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Movie, MoviesResponse, MovieFilters } from "./MovieLogic.ts";
 import { fetchMovies, fetchGenres } from "./MovieLogic.ts";
-// Hàm fetch search phim
+
 async function fetchSearchMovies(query: string, limit: number = 10) {
   const url = `https://movies.cegove.cloud/api/v1/movies/search?q=${encodeURIComponent(query)}&limit=${limit}`;
   const res = await fetch(url, { headers: { 'accept': 'application/json' } });
   if (!res.ok) throw new Error('Search failed');
   const json = await res.json();
-  // Nếu trả về mảng, trả về luôn, nếu trả về object có items thì lấy items
   if (Array.isArray(json)) return json;
   return json.items ?? [];
 }
@@ -32,13 +31,12 @@ export default function Movies() {
   const [sortBy, setSortBy] = useState<'votes_asc' | 'votes_desc' | ''>("");
   const [showFilters, setShowFilters] = useState(false);
   
-  // Applied filters (only updated when user clicks Apply)
   const [appliedGenre, setAppliedGenre] = useState<string>("");
   const [appliedMinRating, setAppliedMinRating] = useState<number>(0);
   const [appliedSortBy, setAppliedSortBy] = useState<'votes_asc' | 'votes_desc' | ''>("");
   const [filterTrigger, setFilterTrigger] = useState<number>(0);
   
-  // Booking popup state
+
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [selectedMovieTitle, setSelectedMovieTitle] = useState<string>("");
   const [selectedMovieId, setSelectedMovieId] = useState<number | undefined>(undefined);
@@ -58,10 +56,8 @@ export default function Movies() {
     setLoading(true);
     setError(null);
     try {
-      // Nếu có search thì không gọi fetchMovies mà gọi search API
       if (search.trim() !== "") {
         const items = await fetchSearchMovies(search, 24);
-        // Nếu items là mảng thì set luôn, nếu không thì set []
         setMovies(Array.isArray(items) ? items : []);
         setCurrentPage(1);
         setTotalPages(1);
@@ -81,17 +77,11 @@ export default function Movies() {
       setLoading(false);
     }
   }, [getActiveFilters, search]);
-  // Khi search thay đổi, chỉ gọi loadMovies khi search khác với trạng thái trước đó
   useEffect(() => {
     loadMovies(1, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
 
-
-
-
-  // Load genres on component mount
   useEffect(() => {
     const loadGenres = async () => {
       const genreList = await fetchGenres();
@@ -100,12 +90,10 @@ export default function Movies() {
     loadGenres();
   }, []);
 
-  // Initial load
   useEffect(() => {
     loadMovies(1, true);
   }, []);
 
-  // Reload movies when filters change
   useEffect(() => {
     if (filterTrigger > 0) {
       setMovies([]);
@@ -117,7 +105,6 @@ export default function Movies() {
   }, [filterTrigger]);
 
   const handleApplyFilters = () => {
-    // Apply the selected filters
     setAppliedGenre(selectedGenre);
     setAppliedMinRating(minRating);
     setAppliedSortBy(sortBy);
@@ -158,7 +145,7 @@ export default function Movies() {
     return (
       <div className={styles.moviesSection}>
         <div className={styles.header}>
-          <h2>Phim Đang Chiếu</h2>
+          <h2>Danh sách phim</h2>
           <div style={{ flex: 1 }} />
           <input
             type="text"
@@ -181,7 +168,7 @@ export default function Movies() {
     return (
       <div className={styles.moviesSection}>
         <div className={styles.header}>
-          <h2>Phim Đang Chiếu</h2>
+          <h2>Danh sách phim</h2>
           <div style={{ flex: 1 }} />
           <input
             type="text"
@@ -202,11 +189,10 @@ export default function Movies() {
     );
   }
 
-  // Hiển thị thông báo khi không có phim nào
   return (
     <div className={styles.moviesSection}>
       <div className={styles.header}>
-        <h2>Phim Đang Chiếu</h2>
+        <h2>Danh sách phim</h2>
         <div style={{ flex: 1 }} />
         <input
           type="text"

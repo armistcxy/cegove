@@ -23,6 +23,7 @@ import BookingPage from "./pages/Booking/BookingPage.tsx";
 import PaymentResult from "./pages/PaymentResult/PaymentResult.tsx";
 // import BookingManage from './pages/Admin/BookingManage.tsx';
 import RoomManage from './pages/Admin/RoomManage.tsx';
+import RecentMovie from './pages/RecentMovies/RecentMovie.tsx';
 
 function BookingPageWrapper() {
     const { showtimeId } = useParams();
@@ -71,6 +72,7 @@ function AppContent() {
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/booking/:showtimeId" element={<BookingPageWrapper />} />
                   <Route path="/payment-result" element={<PaymentResult />} />
+                  <Route path="/recent-movie" element={<RecentMovie />} />
                 </Routes>
               </main>
             </>
