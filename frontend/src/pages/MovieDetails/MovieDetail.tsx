@@ -18,6 +18,63 @@ import type { Comment } from "../../components/CommentList/CommentList.types";
 import CommentForm from "../../components/CommentList/CommentForm";
 import styles from "./MovieDetail.module.css";
 
+const recentMovie = [
+    1000,
+    1007,
+    1002,
+    205,
+    613,
+    464,
+    21,
+    19,
+    612,
+    877,
+    596,
+    585,
+    569,
+    484,
+    334,
+    323,
+    195,
+    60,
+    129,
+    34,
+    92,
+    20,
+    85,
+    136,
+    217,
+    463,
+    466,
+    475,
+    571,
+    879,
+    882,
+    884,
+    903,
+    722,
+    61,
+    54,
+    59,
+    86,
+    87,
+    130,
+    131,
+    132,
+    322,
+    342,
+    465,
+    469,
+    570,
+    720,
+    725,
+    878,
+    891,
+    62,
+    55,
+    56
+]
+
 export default function MovieDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -360,21 +417,23 @@ export default function MovieDetail() {
             </div>
           </div>
 
-          <div className={styles.actions}>
-            <button 
-              className={styles.buyButton}
-              onClick={() => {
-                setSelectedMovieTitle(movie.series_title);
-                setSelectedMovieId(movie.id);
-                setIsBookingPopupOpen(true);
-              }}
-            >
-              Mua vé
-            </button>
-            <button className={styles.watchlistButton}>
-              Thêm vào danh sách
-            </button>
-          </div>
+          {movie.id && recentMovie.includes(movie.id) && (
+              <div className={styles.actions}>
+                <button
+                  className={styles.buyButton}
+                  onClick={() => {
+                    setSelectedMovieTitle(movie.series_title);
+                    setSelectedMovieId(movie.id);
+                    setIsBookingPopupOpen(true);
+                  }}
+                >
+                  Mua vé
+                </button>
+                <button className={styles.watchlistButton}>
+                  Thêm vào danh sách
+                </button>
+              </div>
+          )}
         </div>
       </div>
 

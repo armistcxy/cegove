@@ -11,7 +11,7 @@ async function fetchSearchMovies(query: string, limit: number = 10) {
   if (Array.isArray(json)) return json;
   return json.items ?? [];
 }
-import BookingPopup from "../../components/BookingPopup/BookingPopup.tsx";
+
 import styles from "./Movie.module.css";
 
 export default function Movies() {
@@ -35,11 +35,6 @@ export default function Movies() {
   const [appliedMinRating, setAppliedMinRating] = useState<number>(0);
   const [appliedSortBy, setAppliedSortBy] = useState<'votes_asc' | 'votes_desc' | ''>("");
   const [filterTrigger, setFilterTrigger] = useState<number>(0);
-  
-
-  const [isBookingOpen, setIsBookingOpen] = useState(false);
-  const [selectedMovieTitle, setSelectedMovieTitle] = useState<string>("");
-  const [selectedMovieId, setSelectedMovieId] = useState<number | undefined>(undefined);
   
   const navigate = useNavigate();
 
@@ -123,12 +118,6 @@ export default function Movies() {
 
   const handleDetailClick = (movieId: number) => {
     navigate(`/MovieDetail/${movieId}`);
-  };
-
-  const handleBuyClick = (movieTitle: string, movieId: number) => {
-    setSelectedMovieTitle(movieTitle);
-    setSelectedMovieId(movieId);
-    setIsBookingOpen(true);
   };
 
   const handleRetry = () => {
@@ -303,12 +292,6 @@ export default function Movies() {
                 <p className={styles.movieTitle}>{m.series_title}</p>
                 <div className={styles.movieButtons}>
                   <button 
-                    className={styles.btnBuy}
-                    onClick={() => handleBuyClick(m.series_title, m.id)}
-                  >
-                    Mua vé
-                  </button>
-                  <button 
                     className={styles.btnDetail}
                     onClick={() => handleDetailClick(m.id)}
                   >
@@ -335,8 +318,8 @@ export default function Movies() {
           {(() => {
             const pageButtons = [];
             const pageWindow = 2; // show 2 pages before/after current
-            let left = Math.max(currentPage - pageWindow, 2);
-            let right = Math.min(currentPage + pageWindow, totalPages - 1);
+            const left = Math.max(currentPage - pageWindow, 2);
+            const right = Math.min(currentPage + pageWindow, totalPages - 1);
 
             // Always show first page
             pageButtons.push(
@@ -398,14 +381,6 @@ export default function Movies() {
           </button>
         </div>
       )}
-
-      {/* Booking Popup */}
-      <BookingPopup 
-        isOpen={isBookingOpen}
-        onClose={() => setIsBookingOpen(false)}
-        movieTitle={selectedMovieTitle}
-        movieId={selectedMovieId}
-      />
     </div>
   );
 }
