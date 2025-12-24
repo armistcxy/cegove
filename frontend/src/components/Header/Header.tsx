@@ -85,18 +85,11 @@ export default function Header() {
                 {/* <li><Link to="/NotAvailable" className="hover-red">Rạp đặc biệt</Link></li>
                 <li><Link to="/NotAvailable" className="hover-red">Rạp sắp mở</Link></li> */}
               </ul>
-            </li> 
-            <li className="hover-effect">
-              thành viên
-              <ul className="child-menu">
-                <li><Link to="/profile" className="hover-red">Tài khoản CGV</Link></li>
-                {/* <li><Link to="/NotAvailable" className="hover-red">Quyền lợi</Link></li> */}
-              </ul>
             </li>
           </ul>
 
           <div className="search-buy-infor">
-            <Link to="/Movie" className="mua-ve"><img src={muaVeNgay} alt="" /></Link>
+            <Link to="/recent-movie" className="mua-ve"><img src={muaVeNgay} alt="" /></Link>
           </div>
         </div>
       </div>

@@ -59,8 +59,8 @@ export default function MoviesForYou() {
           <h2>Phim dành cho bạn</h2>
           <p className={styles.subtitle}>
             {movies.length > 0 && movies[0]
-              ? 'Danh sách phim phổ biến dành cho bạn'
-              : 'Đang tải danh sách phim phổ biến dành cho bạn ... '}
+              ? 'Danh sách phim dựa trên sở thích và lịch sử xem của bạn'
+              : 'Đang tải danh sách phim dựa trên sở thích và lịch sử xem của bạn ... '}
           </p>
         </div>
       </div>

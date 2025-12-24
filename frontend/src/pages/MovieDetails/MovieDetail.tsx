@@ -421,6 +421,7 @@ export default function MovieDetail() {
               <div className={styles.actions}>
                 <button
                   className={styles.buyButton}
+                  style={{ width: '100%', fontSize: 20, padding: '16px 0', fontWeight: 700 }}
                   onClick={() => {
                     setSelectedMovieTitle(movie.series_title);
                     setSelectedMovieId(movie.id);
@@ -428,9 +429,6 @@ export default function MovieDetail() {
                   }}
                 >
                   Mua vé
-                </button>
-                <button className={styles.watchlistButton}>
-                  Thêm vào danh sách
                 </button>
               </div>
           )}

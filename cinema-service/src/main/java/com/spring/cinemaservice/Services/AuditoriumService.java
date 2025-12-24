@@ -31,9 +31,6 @@ public class AuditoriumService {
     private ShowtimeSeatService showtimeSeatService;
 
     @Autowired
-    private SeatReposistory seatReposistory;
-
-    @Autowired
     private ShowtimeReposistory showtimeReposistory;
 
     @Autowired
@@ -76,11 +73,13 @@ public class AuditoriumService {
         Auditorium updatedAuditorium = reposistory.save(auditorium);
 
         // Update seating arrangement based on the new pattern
-        seatService.updateSeats(auditorium);
-
-        List<Seat> updatedSeats = seatReposistory.findAllByAuditorium(updatedAuditorium);
+        List<Seat> updatedSeats = seatService.updateSeats(auditorium);
 
         List<Showtime> showtimes = showtimeReposistory.findUpcomingShowtimesByAuditorium(auditoriumId);
+
+        if (showtimes == null || showtimes.isEmpty()) {
+            return;
+        }
 
         for (Showtime showtime : showtimes) {
             showtimeSeatService.rebuildShowtimeSeats(showtime, updatedSeats);

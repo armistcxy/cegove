@@ -13,7 +13,7 @@ import sjora from '../../assets/sjora_240x201.jpg';
 import waffle from '../../assets/waffle_240-x-201.jpg';
 import photoTicket from '../../assets/phototicket---496x247_1.jpg';
 import "./HomePage.module.css";
-import MovieGrid from "../../components/MovieGrid";
+import MovieGrid, { RecentMovieGrid } from "../../components/MovieGrid";
 
 export default function HomePage() {
   // Slider refs & indices (kept only what's needed)
@@ -199,8 +199,8 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* MOVIES - New Grid Component */}
-      <MovieGrid 
+      {/* MOVIES - New Grid Component (Recent Movies) */}
+      <RecentMovieGrid
         title=""
         limit={8}
         showTitle={false}
