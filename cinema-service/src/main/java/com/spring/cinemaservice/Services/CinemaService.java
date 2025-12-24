@@ -17,6 +17,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class CinemaService {
@@ -113,13 +114,12 @@ public class CinemaService {
         reposistory.save(cinema);
     }
 
-    public AuditoriumResponse getAuditoriumsByCinemaId(Long cinemaId) {
+    public List<AuditoriumResponse> getAuditoriumsByCinemaId(Long cinemaId) {
         Cinema cinema = reposistory.findById(cinemaId)
                 .orElseThrow(() -> new UsernameNotFoundException("Cinema not found with id: " + cinemaId));
         return cinema.getAuditoriums().stream()
                 .map(Auditorium::convertToDTO)
-                .findFirst()
-                .orElseThrow(() -> new UsernameNotFoundException("No auditoriums found for cinema with id: " + cinemaId));
+                .collect(Collectors.toList());
     }
 
     public List<CinemaRevenueMonthlyDTO> getRevenueByMonth(Long cinemaId, int year, int month) {
