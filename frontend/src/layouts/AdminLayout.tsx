@@ -52,7 +52,16 @@ export default function AdminLayout() {
         </svg>
       )
     },
-    // Booking management menu item removed
+    {
+      path: '/admin/showtime-manage',
+      label: 'Showtime',
+      icon: (
+        <svg className={styles.iconSvg} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6l4 2" />
+        </svg>
+      )
+    },
     {
       path: '/admin/about',
       label: 'About',

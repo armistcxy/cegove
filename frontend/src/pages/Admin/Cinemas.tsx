@@ -256,13 +256,13 @@ export default function Cinemas() {
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>ID</th>
-                  <th>Tên rạp</th>
-                  <th>Thành phố</th>
-                  <th>Quận/Huyện</th>
-                  <th>Địa chỉ</th>
-                  <th>Số điện thoại</th>
-                  <th>Thao tác</th>
+                  <th style={{ textAlign: 'center' }}>ID</th>
+                  <th style={{ textAlign: 'center' }}>Tên rạp</th>
+                  <th style={{ textAlign: 'center' }}>Thành phố</th>
+                  <th style={{ textAlign: 'center' }}>Quận/Huyện</th>
+                  <th style={{ textAlign: 'center' }}>Địa chỉ</th>
+                  <th style={{ textAlign: 'center' }}>Số điện thoại</th>
+                  <th style={{ textAlign: 'center' }}>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -275,15 +275,15 @@ export default function Cinemas() {
                 ) : (
                   filteredCinemas.map((cinema) => (
                     <tr key={cinema.id}>
-                      <td>{cinema.id}</td>
-                      <td className={styles.cinemaName}>{cinema.name}</td>
-                      <td>
+                      <td style={{ textAlign: 'center' }}>{cinema.id}</td>
+                      <td className={styles.cinemaName} style={{ textAlign: 'center' }}>{cinema.name}</td>
+                      <td style={{ textAlign: 'center' }}>
                         <span className={styles.cityTag}>{cinema.city}</span>
                       </td>
-                      <td>{cinema.district}</td>
-                      <td className={styles.addressCell}>{cinema.address}</td>
-                      <td>{cinema.phone}</td>
-                      <td>
+                      <td style={{ textAlign: 'center' }}>{cinema.district}</td>
+                      <td className={styles.addressCell} style={{ textAlign: 'center' }}>{cinema.address}</td>
+                      <td style={{ textAlign: 'center' }}>{cinema.phone}</td>
+                      <td style={{ textAlign: 'center' }}>
                         <div className={styles.actionButtons}>
                           <button
                             style={{

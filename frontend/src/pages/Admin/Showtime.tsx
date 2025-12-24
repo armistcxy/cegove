@@ -2,20 +2,29 @@ import React, { useEffect, useState } from 'react';
 import styles from './Admin.module.css';
 import { fetchCinemas } from '../Cinemas/CinemaLogic';
 import type { Cinema } from '../Cinemas/CinemaLogic';
-import { fetchAuditoriumsByCinemaId } from './Utils/AuditoriumApi';
+import { fetchMovies } from '../Movies/MovieLogic';
 
-interface AuditoriumRow {
-  id: number;
-  name: string;
-  pattern: string;
+interface Showtime {
+  id: string;
+  movie_id: string;
+  cinema_id: string;
+  auditorium_id: string;
+  start_time: string;
+  end_time: string;
+  base_price: number;
 }
 
-export default function RoomManage() {
+interface MovieMap {
+  [id: string]: string; // movie_id -> movie_title
+}
+
+export default function ShowtimeManage() {
   const [cinemas, setCinemas] = useState<Cinema[]>([]);
   const [selectedCinemaId, setSelectedCinemaId] = useState<number | null>(null);
-  const [auditoriums, setAuditoriums] = useState<AuditoriumRow[]>([]);
+  const [showtimes, setShowtimes] = useState<Showtime[]>([]);
   const [loadingCinemas, setLoadingCinemas] = useState(true);
-  const [loadingRooms, setLoadingRooms] = useState(false);
+  const [loadingShowtimes, setLoadingShowtimes] = useState(false);
+  const [movieMap, setMovieMap] = useState<MovieMap>({});
   const [cities, setCities] = useState<string[]>([]);
   const [selectedCity, setSelectedCity] = useState<string>('');
 
@@ -39,33 +48,38 @@ export default function RoomManage() {
   }, []);
 
   useEffect(() => {
-    async function loadRooms() {
+    async function loadMovies() {
+      const response = await fetchMovies(1, 1000); // lấy nhiều phim để map
+      const map: MovieMap = {};
+      response.items.forEach(m => { map[m.id.toString()] = m.series_title; });
+      setMovieMap(map);
+    }
+    loadMovies();
+  }, []);
+
+  useEffect(() => {
+    async function loadShowtimes() {
       if (!selectedCinemaId) {
-        setAuditoriums([]);
+        setShowtimes([]);
         return;
       }
-      setLoadingRooms(true);
+      setLoadingShowtimes(true);
       try {
-        const rooms = await fetchAuditoriumsByCinemaId(selectedCinemaId);
-        if (Array.isArray(rooms)) {
-          setAuditoriums(rooms);
-        } else if (rooms && typeof rooms === 'object') {
-          setAuditoriums([rooms]);
-        } else {
-          setAuditoriums([]);
-        }
+        const res = await fetch(`https://booking.cegove.cloud/api/v1/showtimes?cinema_id=${selectedCinemaId}`);
+        const data = await res.json();
+        setShowtimes(Array.isArray(data) ? data : []);
       } catch (e) {
-        setAuditoriums([]);
+        setShowtimes([]);
       } finally {
-        setLoadingRooms(false);
+        setLoadingShowtimes(false);
       }
     }
-    loadRooms();
+    loadShowtimes();
   }, [selectedCinemaId]);
 
   return (
     <div className={styles.pageContainer}>
-      <h1 className={styles.pageTitle}>Quản lý phòng</h1>
+      <h1 className={styles.pageTitle}>Quản lý lịch chiếu</h1>
       <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <label htmlFor="city-select" style={{ fontWeight: 500 }}>Chọn thành phố:</label>
@@ -93,38 +107,36 @@ export default function RoomManage() {
             ))}
           </select>
         </div>
-        <button className={styles.btnPrimary} disabled={!selectedCinemaId}>+ Thêm phòng</button>
       </div>
       {loadingCinemas ? (
         <div>Đang tải danh sách rạp...</div>
-      ) : loadingRooms ? (
-        <div>Đang tải danh sách phòng...</div>
+      ) : loadingShowtimes ? (
+        <div>Đang tải lịch chiếu...</div>
       ) : (
         <div className={styles.tableContainer}>
           <table className={styles.table}>
             <thead>
               <tr>
                 <th style={{ textAlign: 'center' }}>ID</th>
-                <th style={{ textAlign: 'center' }}>Tên phòng</th>
-                <th style={{ textAlign: 'center' }}>Pattern</th>
-                <th style={{ textAlign: 'center' }}>Action</th>
+                <th style={{ textAlign: 'center' }}>Tên phim</th>
+                <th style={{ textAlign: 'center' }}>Thời gian bắt đầu</th>
+                <th style={{ textAlign: 'center' }}>Thời gian kết thúc</th>
+                <th style={{ textAlign: 'center' }}>Giá vé</th>
               </tr>
             </thead>
             <tbody>
               {selectedCinemaId == null ? (
-                <tr><td colSpan={4} style={{ textAlign: 'center', color: '#888' }}>Vui lòng chọn rạp</td></tr>
-              ) : auditoriums.length === 0 ? (
-                <tr><td colSpan={4} style={{ textAlign: 'center', color: '#888' }}>Không có phòng nào</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: 'center', color: '#888' }}>Vui lòng chọn rạp</td></tr>
+              ) : showtimes.length === 0 ? (
+                <tr><td colSpan={5} style={{ textAlign: 'center', color: '#888' }}>Không có lịch chiếu nào</td></tr>
               ) : (
-                auditoriums.map(room => (
-                  <tr key={room.id}>
-                    <td style={{ textAlign: 'center' }}>{room.id}</td>
-                    <td style={{ textAlign: 'center' }}>{room.name}</td>
-                    <td style={{ textAlign: 'center' }}>{room.pattern}</td>
-                    <td style={{ textAlign: 'center' }}>
-                      <button style={{ marginRight: 8, border: '1px solid #000', borderRadius: 4, padding: '4px 12px', background: 'white', color: '#000', cursor: 'pointer' }}>Sửa pattern</button>
-                      <button style={{ border: '1px solid #000', borderRadius: 4, padding: '4px 12px', background: 'white', color: '#000', cursor: 'pointer' }}>Xóa</button>
-                    </td>
+                showtimes.map(st => (
+                  <tr key={st.id}>
+                    <td style={{ textAlign: 'center' }}>{st.id}</td>
+                    <td style={{ textAlign: 'center' }}>{movieMap[st.movie_id] ?? st.movie_id}</td>
+                    <td style={{ textAlign: 'center' }}>{new Date(st.start_time).toLocaleString()}</td>
+                    <td style={{ textAlign: 'center' }}>{new Date(st.end_time).toLocaleString()}</td>
+                    <td style={{ textAlign: 'center' }}>{st.base_price.toLocaleString()} đ</td>
                   </tr>
                 ))
               )}
