@@ -14,7 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -124,8 +125,11 @@ public class CinemaService {
 
     public List<CinemaRevenueMonthlyDTO> getRevenueByMonth(Long cinemaId, int year, int month) {
 
-        LocalDateTime start = LocalDate.of(year, month, 1).atStartOfDay();
-        LocalDateTime end = start.plusMonths(1);
+        OffsetDateTime start = LocalDate.of(year, month, 1)
+                .atStartOfDay()
+                .atOffset(ZoneOffset.UTC);
+
+        OffsetDateTime end = start.plusMonths(1);
 
         return bookingRepository.getCinemaRevenueByMonth(cinemaId, start, end);
     }

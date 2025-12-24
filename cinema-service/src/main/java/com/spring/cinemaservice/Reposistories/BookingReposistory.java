@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @Repository
@@ -25,7 +25,7 @@ public interface BookingReposistory extends JpaRepository<Booking, String> {
     """)
     List<CinemaRevenueMonthlyDTO> getCinemaRevenueByMonth(
             @Param("cinemaId") Long cinemaId,
-            @Param("startDate") LocalDateTime startDate,
-            @Param("endDate") LocalDateTime endDate
+            @Param("startDate") OffsetDateTime startDate,
+            @Param("endDate") OffsetDateTime endDate
     );
 }
