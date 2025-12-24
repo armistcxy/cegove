@@ -6,11 +6,16 @@ definitions:
         type: string
       expires_at:
         type: string
+      food_items:
+        description: Optional food/beverage items
+        items:
+          $ref: '#/definitions/domain.BookingFoodItem'
+        type: array
       id:
         type: string
       seat_ids:
         items:
-          type: string
+          type: integer
         type: array
       showtime_id:
         type: string
@@ -23,20 +28,69 @@ definitions:
       total_price:
         type: number
       user_id:
+        type: integer
+    type: object
+  domain.BookingFoodItem:
+    properties:
+      food_item_id:
         type: string
+      price:
+        description: Price at time of booking
+        type: number
+      quantity:
+        type: integer
     type: object
   domain.BookingStatus:
     enum:
-    - 0
-    - 1
-    - 2
-    - 3
-    type: integer
+    - PENDING
+    - CONFIRMED
+    - CANCELLED
+    - FAILED
+    type: string
     x-enum-varnames:
     - BookingStatusPending
     - BookingStatusConfirmed
     - BookingStatusCancelled
     - BookingStatusFailed
+  domain.FoodCategory:
+    enum:
+    - SNACKS
+    - BEVERAGES
+    - BUNDLE
+    type: string
+    x-enum-varnames:
+    - FoodCategorySnacks
+    - FoodCategoryBeverages
+    - FoodCategoryBundle
+  domain.FoodItem:
+    properties:
+      available:
+        type: boolean
+      category:
+        $ref: '#/definitions/domain.FoodCategory'
+      created_at:
+        type: string
+      id:
+        type: string
+      image_url:
+        type: string
+      name:
+        type: string
+      price:
+        type: number
+      type:
+        $ref: '#/definitions/domain.FoodType'
+    type: object
+  domain.FoodType:
+    enum:
+    - POPCORN
+    - DRINK
+    - COMBO
+    type: string
+    x-enum-varnames:
+    - FoodTypePopcorn
+    - FoodTypeDrink
+    - FoodTypeCombo
   domain.PaymentWebhookRequest:
     properties:
       booking_id:
@@ -162,11 +216,13 @@ definitions:
     type: object
   domain.TicketStatus:
     enum:
-    - 1
-    - 2
-    - 3
-    type: integer
+    - pending
+    - active
+    - used
+    - cancelled
+    type: string
     x-enum-varnames:
+    - TicketStatusPending
     - TicketStatusActive
     - TicketStatusUsed
     - TicketStatusCancelled
@@ -177,8 +233,22 @@ definitions:
           $ref: '#/definitions/domain.Showtime'
         type: array
     type: object
+  handler.createBookingFoodRequest:
+    properties:
+      food_item_id:
+        example: food123
+        type: string
+      quantity:
+        example: 2
+        type: integer
+    type: object
   handler.createBookingRequest:
     properties:
+      food_items:
+        description: Optional food/beverage items
+        items:
+          $ref: '#/definitions/handler.createBookingFoodRequest'
+        type: array
       seat_ids:
         example:
         - seat1
@@ -311,6 +381,110 @@ paths:
       summary: Handle Payment Webhook
       tags:
       - bookings
+  /food/items:
+    get:
+      description: Get a list of all available food items (popcorn, drinks, combos)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of available food items
+          schema:
+            items:
+              $ref: '#/definitions/domain.FoodItem'
+            type: array
+        "500":
+          description: Internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List all available food items
+      tags:
+      - food
+  /food/items/{food_id}:
+    get:
+      description: Get detailed information about a specific food item
+      parameters:
+      - description: Food Item ID
+        in: path
+        name: food_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Food item details
+          schema:
+            $ref: '#/definitions/domain.FoodItem'
+        "404":
+          description: Food item not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get food item details
+      tags:
+      - food
+  /food/items/by-category:
+    get:
+      description: Get food items filtered by category (SNACKS, BEVERAGES, BUNDLE)
+      parameters:
+      - description: Food category (SNACKS, BEVERAGES, BUNDLE)
+        in: query
+        name: category
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Filtered food items
+          schema:
+            items:
+              $ref: '#/definitions/domain.FoodItem'
+            type: array
+        "500":
+          description: Internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List food items by category
+      tags:
+      - food
+  /food/items/by-type:
+    get:
+      description: Get food items filtered by type (POPCORN, DRINK, COMBO)
+      parameters:
+      - description: Food type (POPCORN, DRINK, COMBO)
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Filtered food items
+          schema:
+            items:
+              $ref: '#/definitions/domain.FoodItem'
+            type: array
+        "500":
+          description: Internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List food items by type
+      tags:
+      - food
   /showtimes:
     get:
       description: Get a list of all available showtimes

@@ -168,6 +168,165 @@ const docTemplate = `{
                 }
             }
         },
+        "/food/items": {
+            "get": {
+                "description": "Get a list of all available food items (popcorn, drinks, combos)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "food"
+                ],
+                "summary": "List all available food items",
+                "responses": {
+                    "200": {
+                        "description": "List of available food items",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/domain.FoodItem"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/food/items/by-category": {
+            "get": {
+                "description": "Get food items filtered by category (SNACKS, BEVERAGES, BUNDLE)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "food"
+                ],
+                "summary": "List food items by category",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Food category (SNACKS, BEVERAGES, BUNDLE)",
+                        "name": "category",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Filtered food items",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/domain.FoodItem"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/food/items/by-type": {
+            "get": {
+                "description": "Get food items filtered by type (POPCORN, DRINK, COMBO)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "food"
+                ],
+                "summary": "List food items by type",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Food type (POPCORN, DRINK, COMBO)",
+                        "name": "type",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Filtered food items",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/domain.FoodItem"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/food/items/{food_id}": {
+            "get": {
+                "description": "Get detailed information about a specific food item",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "food"
+                ],
+                "summary": "Get food item details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Food Item ID",
+                        "name": "food_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Food item details",
+                        "schema": {
+                            "$ref": "#/definitions/domain.FoodItem"
+                        }
+                    },
+                    "404": {
+                        "description": "Food item not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/showtimes": {
             "get": {
                 "description": "Get a list of all available showtimes",
@@ -359,13 +518,20 @@ const docTemplate = `{
                 "expires_at": {
                     "type": "string"
                 },
+                "food_items": {
+                    "description": "Optional food/beverage items",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.BookingFoodItem"
+                    }
+                },
                 "id": {
                     "type": "string"
                 },
                 "seat_ids": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "type": "integer"
                     }
                 },
                 "showtime_id": {
@@ -384,23 +550,93 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "domain.BookingFoodItem": {
+            "type": "object",
+            "properties": {
+                "food_item_id": {
                     "type": "string"
+                },
+                "price": {
+                    "description": "Price at time of booking",
+                    "type": "number"
+                },
+                "quantity": {
+                    "type": "integer"
                 }
             }
         },
         "domain.BookingStatus": {
-            "type": "integer",
+            "type": "string",
             "enum": [
-                0,
-                1,
-                2,
-                3
+                "PENDING",
+                "CONFIRMED",
+                "CANCELLED",
+                "FAILED"
             ],
             "x-enum-varnames": [
                 "BookingStatusPending",
                 "BookingStatusConfirmed",
                 "BookingStatusCancelled",
                 "BookingStatusFailed"
+            ]
+        },
+        "domain.FoodCategory": {
+            "type": "string",
+            "enum": [
+                "SNACKS",
+                "BEVERAGES",
+                "BUNDLE"
+            ],
+            "x-enum-varnames": [
+                "FoodCategorySnacks",
+                "FoodCategoryBeverages",
+                "FoodCategoryBundle"
+            ]
+        },
+        "domain.FoodItem": {
+            "type": "object",
+            "properties": {
+                "available": {
+                    "type": "boolean"
+                },
+                "category": {
+                    "$ref": "#/definitions/domain.FoodCategory"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "type": {
+                    "$ref": "#/definitions/domain.FoodType"
+                }
+            }
+        },
+        "domain.FoodType": {
+            "type": "string",
+            "enum": [
+                "POPCORN",
+                "DRINK",
+                "COMBO"
+            ],
+            "x-enum-varnames": [
+                "FoodTypePopcorn",
+                "FoodTypeDrink",
+                "FoodTypeCombo"
             ]
         },
         "domain.PaymentWebhookRequest": {
@@ -590,13 +826,15 @@ const docTemplate = `{
             }
         },
         "domain.TicketStatus": {
-            "type": "integer",
+            "type": "string",
             "enum": [
-                1,
-                2,
-                3
+                "pending",
+                "active",
+                "used",
+                "cancelled"
             ],
             "x-enum-varnames": [
+                "TicketStatusPending",
                 "TicketStatusActive",
                 "TicketStatusUsed",
                 "TicketStatusCancelled"
@@ -613,9 +851,29 @@ const docTemplate = `{
                 }
             }
         },
+        "handler.createBookingFoodRequest": {
+            "type": "object",
+            "properties": {
+                "food_item_id": {
+                    "type": "string",
+                    "example": "food123"
+                },
+                "quantity": {
+                    "type": "integer",
+                    "example": 2
+                }
+            }
+        },
         "handler.createBookingRequest": {
             "type": "object",
             "properties": {
+                "food_items": {
+                    "description": "Optional food/beverage items",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.createBookingFoodRequest"
+                    }
+                },
                 "seat_ids": {
                     "type": "array",
                     "items": {
