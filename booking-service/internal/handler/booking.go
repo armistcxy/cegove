@@ -10,6 +10,7 @@ import (
 	"github.com/armistcxy/cegove/booking-service/internal/repository"
 	"github.com/armistcxy/cegove/booking-service/pkg/httphelp"
 	"github.com/armistcxy/cegove/booking-service/pkg/logging"
+	"github.com/spf13/cast"
 )
 
 // @BasePath /api/v1
@@ -61,10 +62,15 @@ func (h *BookingHandler) HandleCreateBooking(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Build booking domain object
+	seatID := make([]int, 0, len(req.SeatIDs))
+	for _, s := range req.SeatIDs {
+		seatID = append(seatID, cast.ToInt(s))
+	}
 	booking := domain.Booking{
-		UserID:     req.UserID,
+		UserID:     cast.ToInt(req.UserID),
 		ShowtimeID: req.ShowtimeID,
-		SeatIDs:    req.SeatIDs,
+		SeatIDs:    seatID,
+		Status:     domain.BookingStatusPending,
 	}
 
 	// Execute booking insertion
@@ -224,7 +230,7 @@ func (h *BookingHandler) HandlePaymentWebhook(w http.ResponseWriter, r *http.Req
 		h.logger.Info("Booking information", "booking", booking)
 
 		// get user email
-		email, err := h.userRepo.GetUserEmail(ctx, booking.UserID)
+		email, err := h.userRepo.GetUserEmail(ctx, cast.ToString(booking.UserID))
 		if err != nil {
 			h.logger.Error("Failed to get user email", err)
 			httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)

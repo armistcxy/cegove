@@ -2,12 +2,13 @@ package domain
 
 import "time"
 
-type TicketStatus int
+type TicketStatus string
 
 const (
-	TicketStatusActive    TicketStatus = 1
-	TicketStatusUsed      TicketStatus = 2
-	TicketStatusCancelled TicketStatus = 3
+	TicketStatusPending   TicketStatus = "pending"
+	TicketStatusActive    TicketStatus = "active"
+	TicketStatusUsed      TicketStatus = "used"
+	TicketStatusCancelled TicketStatus = "cancelled"
 )
 
 type Ticket struct {

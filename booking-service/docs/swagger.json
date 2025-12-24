@@ -9,7 +9,7 @@
         },
         "version": "1.0"
     },
-    "host": "localhost:8080",
+    "host": "booking.cegove.cloud",
     "basePath": "/api",
     "paths": {
         "/bookings": {
@@ -179,6 +179,38 @@
                             "type": "array",
                             "items": {
                                 "$ref": "#/definitions/domain.Showtime"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create showtimes",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "showtimes"
+                ],
+                "summary": "Create showtimes",
+                "parameters": [
+                    {
+                        "description": "Showtimes creation request",
+                        "name": "showtimes",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.CreateShowtimesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Showtimes created successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
                             }
                         }
                     }
@@ -461,8 +493,14 @@
         "domain.Showtime": {
             "type": "object",
             "properties": {
+                "auditorium_id": {
+                    "type": "string"
+                },
                 "base_price": {
                     "type": "number"
+                },
+                "cinema_id": {
+                    "type": "string"
                 },
                 "end_time": {
                     "type": "string"
@@ -473,14 +511,8 @@
                 "movie_id": {
                     "type": "string"
                 },
-                "screen_id": {
-                    "type": "string"
-                },
                 "start_time": {
                     "type": "string"
-                },
-                "status": {
-                    "type": "integer"
                 }
             }
         },
@@ -496,6 +528,12 @@
                 "seat_id": {
                     "type": "string"
                 },
+                "seat_number": {
+                    "type": "string"
+                },
+                "seat_type": {
+                    "type": "string"
+                },
                 "showtime_id": {
                     "type": "string"
                 },
@@ -507,6 +545,9 @@
         "domain.Ticket": {
             "type": "object",
             "properties": {
+                "auditorium_name": {
+                    "type": "string"
+                },
                 "booking_id": {
                     "type": "string"
                 },
@@ -528,13 +569,7 @@
                 "qr_code": {
                     "type": "string"
                 },
-                "screen_name": {
-                    "type": "string"
-                },
                 "seat_number": {
-                    "type": "integer"
-                },
-                "seat_row": {
                     "type": "string"
                 },
                 "showtime": {
@@ -551,15 +586,26 @@
         "domain.TicketStatus": {
             "type": "integer",
             "enum": [
-                0,
                 1,
-                2
+                2,
+                3
             ],
             "x-enum-varnames": [
                 "TicketStatusActive",
                 "TicketStatusUsed",
                 "TicketStatusCancelled"
             ]
+        },
+        "handler.CreateShowtimesRequest": {
+            "type": "object",
+            "properties": {
+                "showtimes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Showtime"
+                    }
+                }
+            }
         },
         "handler.createBookingRequest": {
             "type": "object",

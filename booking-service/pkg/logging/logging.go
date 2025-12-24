@@ -54,7 +54,7 @@ func NewLogger(cfg Config) (*Logger, error) {
 	zapCfg.Level = zap.NewAtomicLevelAt(cfg.LogLevel)
 	zapCfg.EncoderConfig.TimeKey = "timestamp"
 	zapCfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-	zapCfg.DisableCaller = true
+	zapCfg.EncoderConfig.CallerKey = "caller"
 
 	logger, err := zapCfg.Build(zap.AddCallerSkip(1))
 	if err != nil {

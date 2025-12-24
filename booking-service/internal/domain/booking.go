@@ -2,20 +2,20 @@ package domain
 
 import "time"
 
-type BookingStatus int
+type BookingStatus string
 
 const (
-	BookingStatusPending BookingStatus = iota
-	BookingStatusConfirmed
-	BookingStatusCancelled
-	BookingStatusFailed
+	BookingStatusPending   BookingStatus = "PENDING"
+	BookingStatusConfirmed BookingStatus = "CONFIRMED"
+	BookingStatusCancelled BookingStatus = "CANCELLED"
+	BookingStatusFailed    BookingStatus = "FAILED"
 )
 
 type Booking struct {
 	ID         string   `json:"id"`
-	UserID     string   `json:"user_id"`
+	UserID     int      `json:"user_id"`
 	ShowtimeID string   `json:"showtime_id"`
-	SeatIDs    []string `json:"seat_ids"`
+	SeatIDs    []int    `json:"seat_ids"`
 	Tickets    []Ticket `json:"tickets"`
 
 	TotalPrice float64       `json:"total_price"`
