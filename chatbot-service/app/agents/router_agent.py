@@ -3,13 +3,25 @@ from app.agents.base import BaseAgent
 from app.models.agent_state import AgentState, AgentType
 from app.services.gemini_service import gemini_service
 from app.services.api_client import api_client
+from app.services.knowledge_service import knowledge_service
 from app.agents.movie_agent import MovieAgent
 from app.agents.booking_agent import BookingAgent
 from app.agents.context_agent import ContextAgent
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import json
 import time
 import re
+import logging
+
+# Setup logger with color
+logger = logging.getLogger("RouterAgent")
+logger.setLevel(logging.DEBUG)
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter(
+        '\033[92m[%(name)s]\033[0m %(levelname)s: %(message)s'
+    ))
+    logger.addHandler(handler)
 
 class RouterAgent(BaseAgent):
     """
@@ -33,33 +45,39 @@ class RouterAgent(BaseAgent):
         self.context_agent = ContextAgent()
         
         # System instruction cho intent analysis
-        self.intent_instruction = """Bạn là trợ lý AI cho hệ thống đặt vé xem phim.
+        self.intent_instruction = """Bạn là trợ lý AI phân tích ý định người dùng cho hệ thống đặt vé phim.
 
-NGUYÊN TẮC BẮT BUỘC:
-1. KHÔNG BỊA ĐẶT - Chỉ làm việc với dữ liệu CÓ THẬT từ database
-2. CĂN CỨ DỮ LIỆU - Mọi thông tin phải từ API
-3. ĐA NGÔN NGỮ - Hỗ trợ Tiếng Việt, Tiếng Anh, và trộn lẫn
+NHIỆM VỤ: Phân loại câu hỏi và trích xuất thông tin chính xác.
 
-Phân tích ý định và xác định agent:
-- "movie": Tìm kiếm phim, thông tin chi tiết, gợi ý phim (Scenario 1, 2)
-- "booking": Đặt vé, chọn ghế, xem suất chiếu (Scenario 3, 4, 8)
-- "context": Hỏi về thông tin VỪA NÓI, phim thứ N, lịch sử chat (Scenario 5)
-- "showtime": Hỏi lịch chiếu, giá vé cụ thể (Scenario 3)
-- "availability": Hỏi còn ghế không, ghế VIP (Scenario 8)
-- "history": Hỏi lịch sử đặt vé cá nhân (Scenario 5)
-- "general": Chào hỏi, cảm ơn, hỏi chức năng
+PHÂN LOẠI Ý ĐỊNH:
+- "showtime": Hỏi PHIM GÌ ĐANG CHIẾU, lịch chiếu, giá vé (kể cả không nói tên phim cụ thể)
+- "movie": Tìm kiếm phim THEO TÊN hoặc THỂ LOẠI cụ thể ("có phim Batman không", "phim hành động")
+- "booking": Đặt vé, mua vé ("đặt vé", "book vé")
+- "context": Hỏi về phim VỪA ĐỀ CẬP ("phim thứ 2", "cái đầu tiên")
+- "cinema": Hỏi về rạp chiếu ("rạp ở đâu", "CGV nào")
+- "general": Chào hỏi, cảm ơn, câu hỏi chung
+
+QUAN TRỌNG - PHÂN BIỆT:
+- "tôi muốn xem các phim đang chiếu" → showtime (hỏi DANH SÁCH phim đang chiếu)
+- "có phim Batman không" → movie (tìm phim CỤ THỂ tên Batman)
+- "phim hành động" → movie (tìm theo THỂ LOẠI)
+- "lịch chiếu phim Avatar" → showtime + movie_name: "Avatar"
+
+TRÍCH XUẤT MOVIE_NAME:
+- CHỈ trích xuất TÊN PHIM THỰC SỰ
+- "có phim Batman không" → movie_name: "Batman"
+- "lịch chiếu The Godfather" → movie_name: "The Godfather"
+- "phim gì đang chiếu" → movie_name: null (không có tên cụ thể)
+- KHÔNG đưa các từ "có", "không", "nào", "gì", "đang" vào movie_name
 
 Trả về JSON:
 {
-    "intent": "movie|booking|context|showtime|availability|history|general",
+    "intent": "showtime|movie|booking|context|cinema|general",
     "confidence": 0.0-1.0,
     "extracted_info": {
-        "movie_name": "tên phim nếu có",
-        "genre": "thể loại nếu có",
-        "date": "ngày nếu có",
-        "cinema": "rạp nếu có",
-        "num_tickets": số vé nếu có,
-        "seat_type": "loại ghế nếu có"
+        "movie_name": "TÊN PHIM CỤ THỂ hoặc null",
+        "genre": "thể loại tiếng Anh nếu có",
+        "date": "ngày nếu có"
     }
 }"""
 
@@ -89,8 +107,16 @@ Trả lời bằng tiếng Việt, thân thiện."""
     async def process(self, message: str, state: AgentState) -> Dict[str, Any]:
         """Phân tích và route message - Hỗ trợ tất cả scenarios"""
         
+        logger.info(f"{'='*60}")
+        logger.info(f"ROUTER AGENT - Incoming message: '{message}'")
+        logger.info(f"Session: {state.session_id}, User: {state.user_id}")
+        logger.info(f"Current agent: {state.current_agent}")
+        logger.info(f"Has booking_state: {state.booking_state is not None}")
+        logger.info(f"Has focused_movie: {state.focused_movie.movie_title if state.focused_movie else 'None'}")
+        
         # Empty check
         if not message or len(message.strip()) == 0:
+            logger.warning("Empty message received")
             return {
                 "response": "Bạn chưa nhập gì cả. Hãy cho tôi biết bạn cần gì nhé!",
                 "agent": self.name,
@@ -101,17 +127,73 @@ Trả lời bằng tiếng Việt, thân thiện."""
         
         # === SCENARIO 6: Kiểm tra thay đổi ý định giữa booking flow ===
         if state.current_agent == AgentType.BOOKING and state.booking_state:
+            logger.info(f"📦 In BOOKING flow - step: {state.booking_state.step}")
+            
             # Check if user wants to change/cancel
             change_keywords = ["đổi", "thay đổi", "change", "hủy", "cancel", "không", "thôi", "quay lại"]
             if any(kw in message_lower for kw in change_keywords):
-                return await self._handle_booking_change(message, state)
+                logger.info(f"⚠️ Change/cancel keyword detected in booking flow")
+                return await self.booking_agent.process(message, state)
             
-            # Continue booking flow
+            # Check if user is asking a NEW question (not providing movie name)
+            # These patterns indicate user wants info, not providing movie name
+            exit_booking_patterns = [
+                r"có phim (gì|nào)",      # "có phim gì đang chiếu"
+                r"phim (gì|nào) đang",    # "phim gì đang chiếu"
+                r"những phim.*chiếu",     # "những phim đang chiếu"
+                r"các phim.*chiếu",       # "các phim đang chiếu"
+                r"danh sách phim",        # "danh sách phim"
+                r"gợi ý phim",            # "gợi ý phim"
+                r"phim.*hot",             # "phim hot"
+                r"phim.*hay",             # "phim hay"
+                r"lịch chiếu",            # "lịch chiếu"
+            ]
+            if any(re.search(p, message_lower) for p in exit_booking_patterns):
+                print(f"[Router] User asking info during booking, exiting booking flow")
+                state.current_agent = AgentType.ROUTER
+                state.booking_state = None
+                # Re-route to appropriate handler
+                # Don't return to booking, process as new query
+            else:
+                # Continue booking flow
+                return await self.booking_agent.process(message, state)
+        
+        # === Check for SPECIFIC intents FIRST (before context) ===
+        
+        # Handle "phim hot", "phim hay" BEFORE showtime check
+        vague_movie_patterns = ["phim.*hot", "phim.*hay", "phim nào hay", "có phim gì", "có phim nào"]
+        if any(re.search(p, message_lower) for p in vague_movie_patterns):
+            logger.info(f"🌟 Vague movie request detected: {message}")
+            # Route to _handle_general which has better movie suggestion
+            return await self._handle_general(message, state)
+        
+        # Showtime keywords - HIGH PRIORITY (but more specific)
+        # "đang chiếu" alone is showtime, but "phim nào hot" is NOT
+        showtime_patterns = [
+            r"lịch chiếu",           # explicit showtime
+            r"suất chiếu",           # explicit showtime
+            r"phim gì chiếu",        # what's showing
+            r"chiếu phim gì",        # what's showing
+            r"phim nào chiếu",       # what's showing  
+            r"các phim đang chiếu",  # movies currently showing
+            r"những phim đang chiếu" # movies currently showing
+        ]
+        if any(re.search(p, message_lower) for p in showtime_patterns):
+            logger.info(f"📅 SHOWTIME query detected: {message}")
+            intent_result = self._rule_based_intent(message)
+            return await self._handle_showtime_inquiry(message, state, intent_result.get("extracted_info", {}))
+        
+        # Booking keywords - HIGH PRIORITY  
+        booking_patterns = ["đặt.*vé", "mua.*vé", "book.*vé", "đặt cho.*vé"]
+        if any(re.search(p, message_lower) for p in booking_patterns):
+            logger.info(f"🎫 BOOKING pattern detected: {message}")
+            logger.info(f"   Has focused_movie: {state.focused_movie.movie_title if state.focused_movie else 'None'}")
+            state.current_agent = AgentType.BOOKING
             return await self.booking_agent.process(message, state)
         
-        # === SCENARIO 5: Context-based questions (ƯU TIÊN CAO) ===
+        # === SCENARIO 5: Context-based questions (ONLY for true context refs) ===
         if await self.context_agent.can_handle(message, state):
-            print(f"[Router] Routing to ContextAgent for: {message}")
+            logger.info(f"📚 CONTEXT query detected: {message}")
             return await self.context_agent.process(message, state)
         
         # === SCENARIO 8: Real-time availability check ===
@@ -122,38 +204,50 @@ Trả lời bằng tiếng Việt, thân thiện."""
         # === SCENARIO 5: User booking history ===
         history_keywords = ["lịch sử", "đã đặt", "đã xem", "tuần trước", "tháng trước", "vé của tôi"]
         if any(kw in message_lower for kw in history_keywords):
+            logger.info(f"📜 HISTORY query detected")
             return await self._handle_user_history(message, state)
         
         # === Phân tích intent ===
+        logger.debug(f"Analyzing intent with AI...")
         try:
             intent_result = await self._analyze_intent(message, state)
         except Exception as e:
-            print(f"[Router] Intent analysis failed: {e}, using rule-based")
+            logger.warning(f"Intent analysis failed: {e}, using rule-based")
             intent_result = self._rule_based_intent(message)
         
         intent = intent_result.get("intent", "general")
         confidence = intent_result.get("confidence", 0.5)
         extracted_info = intent_result.get("extracted_info", {})
         
-        print(f"[Router] Intent: {intent}, Confidence: {confidence}")
+        logger.info(f"🎯 Intent analysis result:")
+        logger.info(f"   Intent: {intent}")
+        logger.info(f"   Confidence: {confidence}")
+        logger.info(f"   Extracted: {extracted_info}")
         
         # === Route theo intent ===
         
         # SCENARIO 4: Booking flow
         if intent == "booking" and confidence > 0.7:
+            logger.info(f"→ Routing to BOOKING agent")
             state.current_agent = AgentType.BOOKING
             state.context.update(extracted_info)
             return await self.booking_agent.process(message, state)
         
         # SCENARIO 3: Showtime/pricing inquiry (có thể dẫn đến booking)
         if intent == "showtime" and confidence > 0.6:
+            logger.info(f"→ Routing to SHOWTIME handler")
             return await self._handle_showtime_inquiry(message, state, extracted_info)
         
         # SCENARIO 1, 2: Movie search/info
         if intent == "movie" and confidence > 0.6:
+            logger.info(f"→ Routing to MOVIE agent")
             state.current_agent = AgentType.MOVIE
             state.context.update(extracted_info)
             return await self.movie_agent.process(message, state)
+        
+        # CINEMA: Cinema queries
+        if intent == "cinema" and confidence > 0.6:
+            return await self._handle_cinema_query(message, state, extracted_info)
         
         # Default: General handler
         return await self._handle_general(message, state)
@@ -172,9 +266,25 @@ Trả lời bằng tiếng Việt, thân thiện."""
             return {"intent": "booking", "confidence": 0.95, "extracted_info": extracted_info}
         
         # === SHOWTIME/PRICING INTENT (Scenario 3) ===
-        showtime_keywords = ["lịch chiếu", "suất chiếu", "giờ chiếu", "giá vé", "bảng giá", "mấy giờ", "chiếu lúc"]
-        if any(word in message_lower for word in showtime_keywords):
-            return {"intent": "showtime", "confidence": 0.9, "extracted_info": extracted_info}
+        showtime_keywords = ["lịch chiếu", "suất chiếu", "giờ chiếu", "giá vé", "bảng giá", "mấy giờ", "chiếu lúc", "chiếu hôm nay", "đang chiếu", "phim gì chiếu", "các phim chiếu", "phim nào chiếu"]
+        # Also detect "muốn xem các phim đang chiếu" pattern
+        showing_patterns = ["phim đang chiếu", "các phim đang", "những phim đang", "muốn xem.*đang chiếu"]
+        is_showing_query = any(word in message_lower for word in showtime_keywords) or \
+                           any(re.search(p, message_lower) for p in showing_patterns)
+        
+        if is_showing_query:
+            # Try to extract movie name from message
+            movie_name = self._extract_movie_name(message)
+            if movie_name:
+                extracted_info["movie_name"] = movie_name
+            # Check for date
+            date = api_client.parse_date_from_text(message)
+            if date:
+                extracted_info["date"] = date
+            elif "hôm nay" in message_lower or "today" in message_lower:
+                from datetime import datetime
+                extracted_info["date"] = datetime.now().strftime("%Y-%m-%d")
+            return {"intent": "showtime", "confidence": 0.95, "extracted_info": extracted_info}
         
         # === AVAILABILITY INTENT (Scenario 8) ===
         availability_keywords = ["còn ghế", "còn chỗ", "ghế vip", "ghế trống", "hết chưa", "còn không"]
@@ -195,16 +305,78 @@ Trả lời bằng tiếng Việt, thân thiện."""
             return {"intent": "context", "confidence": 0.9, "extracted_info": {"type": "context_question"}}
         
         # === MOVIE INTENT (Scenario 1, 2) ===
-        movie_keywords = ["phim", "movie", "xem", "tìm", "gợi ý", "thể loại", "diễn viên", "đạo diễn", "nội dung"]
+        movie_keywords = ["phim", "movie", "tìm phim", "gợi ý", "thể loại", "diễn viên", "đạo diễn", "nội dung", "phim hay", "phim nào"]
+        
+        # Check for vague "xem phim" without specific movie - should be general
+        vague_patterns = ["muốn xem phim", "muốn xem", "xem phim gì", "xem gì"]
+        if any(p in message_lower for p in vague_patterns):
+            return {"intent": "general", "confidence": 0.9, "extracted_info": {"type": "movie_suggestion_needed"}}
+        
         if any(word in message_lower for word in movie_keywords):
             # Extract count if exists (Scenario 2)
             count_match = re.search(r'(\d+)\s*phim', message_lower)
             if count_match:
                 extracted_info["count"] = int(count_match.group(1))
             
+            # Extract movie name if searching for specific movie
+            movie_name = self._extract_movie_name(message)
+            if movie_name:
+                extracted_info["movie_name"] = movie_name
+            
             return {"intent": "movie", "confidence": 0.85, "extracted_info": extracted_info}
         
+        # === CINEMA INTENT ===
+        cinema_keywords = ["rạp", "cgv", "lotte", "cinema", "galaxy", "địa chỉ rạp", "rạp ở", "rạp nào"]
+        if any(word in message_lower for word in cinema_keywords):
+            # Extract city if exists
+            cities = knowledge_service.get_unique_cities()
+            for city in cities:
+                if city.lower() in message_lower:
+                    extracted_info["city"] = city
+                    break
+            return {"intent": "cinema", "confidence": 0.9, "extracted_info": extracted_info}
+        
         return {"intent": "general", "confidence": 0.9, "extracted_info": {}}
+    
+    def _extract_movie_name(self, message: str) -> Optional[str]:
+        """Extract movie name from message using patterns"""
+        message_lower = message.lower()
+        
+        # Skip if asking about "đang chiếu" without specific movie
+        if re.search(r'(phim|các|những)\s*(gì|nào)?\s*đang\s*chiếu', message_lower):
+            return None
+        
+        # Patterns to extract movie name - ORDER MATTERS (more specific first)
+        patterns = [
+            # "lịch chiếu phim The Godfather" → "The Godfather"
+            r"lịch chiếu\s+(?:phim\s+)?([A-Za-z][A-Za-z0-9\s:]+?)(?:\s+hôm|\s+ngày|\s+tại|$)",
+            # "suất chiếu phim Avatar" → "Avatar"
+            r"suất chiếu\s+(?:phim\s+)?([A-Za-z][A-Za-z0-9\s:]+?)(?:\s+hôm|\s+ngày|$)",
+            # "phim The Dark Knight" → "The Dark Knight"
+            r"phim\s+([A-Z][A-Za-z0-9\s:]+?)(?:\s+chiếu|\s+có|\s+lịch|\s+suất|\s+giá|$)",
+            # "đặt vé Inception" → "Inception"
+            r"đặt vé\s+(?:phim\s+)?([A-Za-z][A-Za-z0-9\s:]+?)(?:\s+lúc|\s+suất|$)",
+            # "xem phim Avatar" → "Avatar"
+            r"xem\s+(?:phim\s+)?([A-Z][A-Za-z0-9\s:]+?)(?:\s+lúc|\s+chiếu|$)",
+            # Lowercase fallback "phim batman" → "batman"
+            r"phim\s+([a-z][a-z0-9\s]+?)(?:\s+chiếu|\s+có|\s+lịch|\s+suất|\s+giá|$)",
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, message, re.IGNORECASE if 'A-Z' not in pattern else 0)
+            if not match:
+                match = re.search(pattern, message_lower)
+            if match:
+                name = match.group(1).strip()
+                # Filter out noise words
+                noise = ["gì", "nào", "hay", "hôm nay", "ngày mai", "này", "đó", "ở", "tại", "đang", "các", "những"]
+                # Clean trailing noise
+                for n in noise:
+                    name = re.sub(rf'\s+{n}$', '', name, flags=re.IGNORECASE)
+                if name and name.lower() not in noise and len(name) > 1:
+                    return name
+        
+        return None
     
     async def _analyze_intent(self, message: str, state: AgentState) -> Dict[str, Any]:
         """AI-based intent analysis với context"""
@@ -249,8 +421,54 @@ Xác định intent và trích xuất thông tin. Trả về JSON."""
         """Handle showtime/pricing inquiry - Scenario 3"""
         
         # Extract movie name if mentioned
-        movie_name = extracted_info.get("movie_name")
+        movie_name = extracted_info.get("movie_name") or self._extract_movie_name(message)
         date = extracted_info.get("date") or api_client.parse_date_from_text(message)
+        
+        # If asking "phim gì chiếu hôm nay" without specific movie
+        message_lower = message.lower()
+        asking_whats_showing = any(p in message_lower for p in ["phim gì chiếu", "chiếu phim gì", "đang chiếu", "phim nào chiếu"])
+        
+        if asking_whats_showing and not movie_name:
+            # Get all showtimes for today
+            if not date:
+                from datetime import datetime
+                date = datetime.now().strftime("%Y-%m-%d")
+            
+            showtimes = await api_client.get_showtimes(date=date)
+            
+            if not showtimes:
+                return {
+                    "response": f"📅 Không có suất chiếu nào cho ngày {date}.\n\nBạn muốn xem ngày khác không?",
+                    "agent": self.name,
+                    "metadata": {"intent": "showtime", "no_showtimes": True}
+                }
+            
+            # Group by movie
+            movies_showing = {}
+            for st in showtimes:
+                movie_id = st.get("movie_id")
+                if movie_id not in movies_showing:
+                    movies_showing[movie_id] = {
+                        "movie_id": movie_id,
+                        "showtimes": []
+                    }
+                movies_showing[movie_id]["showtimes"].append(st)
+            
+            # Get movie details and format
+            response_lines = [f"🎬 **Phim đang chiếu ngày {date}:**\n"]
+            for i, (movie_id, data) in enumerate(list(movies_showing.items())[:10], 1):
+                movie = await api_client.get_movie_detail(movie_id)
+                title = movie.get("series_title", f"Phim #{movie_id}") if movie else f"Phim #{movie_id}"
+                num_shows = len(data["showtimes"])
+                response_lines.append(f"{i}. **{title}** - {num_shows} suất chiếu")
+            
+            response_lines.append("\n💡 Nói \"Lịch chiếu phim [tên]\" để xem chi tiết!")
+            
+            return {
+                "response": "\n".join(response_lines),
+                "agent": self.name,
+                "metadata": {"intent": "showtime", "movies_count": len(movies_showing)}
+            }
         
         if movie_name:
             # Search movie first
@@ -273,13 +491,14 @@ Xác định intent và trích xuất thông tin. Trả về JSON."""
             
             movie = movies[0]
             movie_id = movie.get("id")
+            movie_title = movie.get("series_title")
             
             # Get showtimes
             showtimes = await api_client.get_showtimes(movie_id=int(movie_id), date=date)
             
             if not showtimes:
                 return {
-                    "response": f"""{confirm_msg}📽️ Phim **{movie.get('series_title')}** hiện không có suất chiếu{f' ngày {date}' if date else ''}.
+                    "response": f"""{confirm_msg}📽️ Phim **{movie_title}** hiện không có suất chiếu{f' ngày {date}' if date else ''}.
 
 Bạn muốn:
 🔍 Xem suất chiếu ngày khác?
@@ -288,11 +507,21 @@ Bạn muốn:
                     "metadata": {"intent": "showtime", "no_showtimes": True}
                 }
             
+            # *** SET FOCUSED MOVIE ***
+            # Khi user xem lịch chiếu phim, set phim đó làm focused movie
+            state.set_focused_movie(
+                movie_id=str(movie_id),
+                movie_title=movie_title,
+                showtimes=showtimes
+            )
+            logger.info(f"🎯 SET FOCUSED MOVIE: {movie_title} (ID: {movie_id})")
+            logger.info(f"   Showtimes loaded: {len(showtimes)}")
+            
             # Format showtimes
             showtimes_text = self._format_showtimes(showtimes[:8])
             
             return {
-                "response": f"""{confirm_msg}📅 **Lịch chiếu phim {movie.get('series_title')}**{f' ngày {date}' if date else ''}:
+                "response": f"""{confirm_msg}📅 **Lịch chiếu phim {movie_title}**{f' ngày {date}' if date else ''}:
 
 {showtimes_text}
 
@@ -301,7 +530,9 @@ Bạn muốn:
                 "metadata": {
                     "intent": "showtime",
                     "movie_id": movie_id,
-                    "showtimes_count": len(showtimes)
+                    "movie_title": movie_title,
+                    "showtimes_count": len(showtimes),
+                    "focused_movie": movie_title
                 }
             }
         
@@ -521,9 +752,35 @@ Hoặc tiếp tục đặt vé?""",
         
         message_lower = message.lower()
         
-        # Greetings
+        # Greetings (có thể kèm theo request)
         greetings = ["xin chào", "hello", "hi", "chào", "hey"]
-        if any(g in message_lower for g in greetings):
+        has_greeting = any(g in message_lower for g in greetings)
+        
+        # Check if greeting + movie request (including "hot", "hay", etc.)
+        movie_interest = ["phim", "xem", "hot", "hay", "chiếu"]
+        if has_greeting and any(w in message_lower for w in movie_interest):
+            # Get some movie suggestions
+            movies = await api_client.get_movies(page=1, page_size=5, sort_by="imdb_rating")
+            movies_list = movies.get("items", [])
+            
+            if movies_list:
+                movie_text = "\n".join([f"{i}. **{m.get('series_title')}** ({m.get('released_year', 'N/A')}) - ⭐ {m.get('imdb_rating', 'N/A')}" for i, m in enumerate(movies_list, 1)])
+                return {
+                    "response": f"""Xin chào! 👋 Rất vui được hỗ trợ bạn!
+
+🎬 **Một số phim hay đang có:**
+{movie_text}
+
+💡 Bạn muốn:
+- Xem chi tiết phim nào? (VD: "Phim số 1")
+- Xem lịch chiếu? (VD: "Lịch chiếu phim [tên]")
+- Đặt vé? (VD: "Đặt vé phim [tên]")""",
+                    "agent": self.name,
+                    "metadata": {"intent": "greeting_with_movies"}
+                }
+        
+        # Pure greeting
+        if has_greeting:
             return {
                 "response": """Xin chào! 👋 Tôi là trợ lý đặt vé phim.
 
@@ -546,6 +803,27 @@ Bạn muốn làm gì?""",
                 "agent": self.name,
                 "metadata": {"intent": "thanks"}
             }
+        
+        # Vague movie requests - suggest movies
+        vague_movie = ["muốn xem phim", "muốn xem", "xem phim gì", "xem gì", "phim hay", "gợi ý phim", "phim hot", "phim nào hot", "phim gì hay", "có phim gì", "có phim nào"]
+        if any(v in message_lower for v in vague_movie):
+            movies = await api_client.get_movies(page=1, page_size=5, sort_by="imdb_rating")
+            movies_list = movies.get("items", [])
+            
+            if movies_list:
+                movie_text = "\n".join([f"{i}. **{m.get('series_title')}** ({m.get('released_year', 'N/A')}) - ⭐ {m.get('imdb_rating', 'N/A')}" for i, m in enumerate(movies_list, 1)])
+                return {
+                    "response": f"""🎬 **Gợi ý phim hay cho bạn:**
+
+{movie_text}
+
+💡 Bạn muốn:
+- Xem chi tiết? Nói "Kể về phim số 1"
+- Xem lịch chiếu? Nói "Lịch chiếu phim [tên]"
+- Tìm thể loại khác? Nói "Phim hành động" hoặc "Phim kinh dị\"""",
+                    "agent": self.name,
+                    "metadata": {"intent": "movie_suggestion"}
+                }
         
         # Use AI for other general questions
         context = self._build_gemini_context(state.history[-6:] if state.history else [])
@@ -573,11 +851,102 @@ Bạn muốn làm gì?""",
 🎬 Tìm phim: "Gợi ý phim hành động"
 🎟️ Đặt vé: "Đặt vé phim Avatar"
 📅 Lịch chiếu: "Lịch chiếu phim Inception"
+🏢 Rạp chiếu: "Rạp ở Hà Nội"
 
 Bạn cần gì?""",
                 "agent": self.name,
                 "metadata": {"intent": "general", "fallback": True}
             }
+    
+    async def _handle_cinema_query(self, message: str, state: AgentState, extracted_info: Dict) -> Dict[str, Any]:
+        """Handle cinema-related queries"""
+        message_lower = message.lower()
+        
+        # Check if asking about specific city
+        city = extracted_info.get("city")
+        if city:
+            cinemas = knowledge_service.get_cinemas_by_city(city)
+            if cinemas:
+                cinema_list = knowledge_service.get_cinema_list_text(cinemas)
+                return {
+                    "response": f"🎬 **Danh sách rạp CGV tại {city}:**\n\n{cinema_list}",
+                    "agent": self.name,
+                    "metadata": {"intent": "cinema", "city": city, "count": len(cinemas)}
+                }
+            else:
+                return {
+                    "response": f"❌ Không tìm thấy rạp CGV tại {city}.\n\nCác thành phố có rạp: {', '.join(knowledge_service.get_unique_cities()[:10])}",
+                    "agent": self.name,
+                    "metadata": {"intent": "cinema", "city": city, "found": False}
+                }
+        
+        # Check if asking about specific cinema by name
+        cinema_patterns = [
+            r"rạp\s+(.+?)(?:\s+có|\s+chiếu|\s+ở|$)",
+            r"cgv\s+(.+?)(?:\s+có|\s+chiếu|\s+ở|$)",
+            r"địa chỉ\s+(?:rạp\s+)?(.+?)$"
+        ]
+        
+        for pattern in cinema_patterns:
+            match = re.search(pattern, message_lower)
+            if match:
+                cinema_name = match.group(1).strip()
+                cinemas = knowledge_service.search_cinema(cinema_name)
+                if cinemas:
+                    cinema = cinemas[0]
+                    cinema_info = knowledge_service.format_cinema_info(cinema)
+                    
+                    # Check if user wants showtimes at this cinema
+                    if "chiếu" in message_lower or "lịch" in message_lower:
+                        showtimes = await api_client.get_showtimes(cinema_id=cinema.get("id"))
+                        if showtimes:
+                            st_text = self._format_showtimes(showtimes[:5])
+                            return {
+                                "response": f"{cinema_info}\n\n📅 **Lịch chiếu hôm nay:**\n{st_text}",
+                                "agent": self.name,
+                                "metadata": {"intent": "cinema", "cinema_id": cinema.get("id")}
+                            }
+                    
+                    return {
+                        "response": f"🏢 **Thông tin rạp:**\n\n{cinema_info}\n\n💡 Muốn xem lịch chiếu? Hỏi \"Rạp này chiếu phim gì?\"",
+                        "agent": self.name,
+                        "metadata": {"intent": "cinema", "cinema_id": cinema.get("id")}
+                    }
+        
+        # Check if asking for all cinemas
+        if "tất cả" in message_lower or "danh sách" in message_lower:
+            all_cinemas = knowledge_service.cinemas
+            cities = knowledge_service.get_unique_cities()
+            
+            return {
+                "response": f"""🎬 **Hệ thống rạp CGV:**
+
+📍 Tổng số rạp: {len(all_cinemas)}
+🏙️ Các thành phố: {', '.join(cities[:10])}{'...' if len(cities) > 10 else ''}
+
+💡 Để xem rạp theo thành phố, hỏi:
+- "Rạp ở Hà Nội"
+- "CGV Hồ Chí Minh"
+- "Rạp ở Đà Nẵng\"""",
+                "agent": self.name,
+                "metadata": {"intent": "cinema", "total": len(all_cinemas)}
+            }
+        
+        # Default: show available cities
+        cities = knowledge_service.get_unique_cities()
+        return {
+            "response": f"""🎬 Bạn muốn tìm rạp chiếu phim?
+
+📍 Các thành phố có rạp CGV:
+{', '.join(cities[:10])}{'...' if len(cities) > 10 else ''}
+
+💡 Ví dụ:
+- "Rạp ở Hà Nội"
+- "CGV Times City"
+- "Địa chỉ rạp Vincom Đồng Khởi\"""",
+            "agent": self.name,
+            "metadata": {"intent": "cinema"}
+        }
     
     def _format_showtimes(self, showtimes: list) -> str:
         """Format showtimes for display"""

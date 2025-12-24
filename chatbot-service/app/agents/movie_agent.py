@@ -22,21 +22,29 @@ class MovieAgent(BaseAgent):
 
 {knowledge_service.get_genre_mapping_text()}
 
-NHIỆM VỤ: Trích xuất thông tin TÌM KIẾM từ câu hỏi user.
+NHIỆM VỤ: Trích xuất TÊN PHIM hoặc THỂ LOẠI từ câu hỏi tự nhiên.
 
-QUY TẮC:
-1. Nếu user NÓI TÊN PHIM cụ thể → dùng "query"
-2. Nếu user chỉ nói THỂ LOẠI → dùng "genre" (tiếng Anh)
-3. Nếu user hỏi LỊCH CHIẾU/GIÁ VÉ → đánh dấu "want_showtime": true
-4. Nếu user yêu cầu SỐ LƯỢNG cụ thể → dùng "limit"
+QUY TẮC QUAN TRỌNG:
+1. CHỈ trích xuất TÊN PHIM THỰC SỰ - KHÔNG lấy các từ hỏi/phụ
+2. Loại bỏ: "có", "không", "nào", "về", "muốn", "xem", "tìm", "gì", "đang", "chiếu"
+3. Nếu hỏi "phim đang chiếu" / "phim gì chiếu" → KHÔNG có query, chỉ want_showtime: true
+4. Nếu hỏi về THỂ LOẠI (hành động, kinh dị...) → dùng "genre" (tiếng Anh)
 
-Ví dụ:
+VÍ DỤ QUAN TRỌNG:
+- "có phim nào về Batman không" → {{"query": "Batman"}}
 - "phim batman" → {{"query": "batman"}}
-- "gợi ý 3 phim hành động" → {{"genre": "Action", "limit": 3}}
+- "tìm phim The Godfather" → {{"query": "The Godfather"}}
+- "có phim hành động nào hay không" → {{"genre": "Action"}}
+- "phim gì đang chiếu" → {{"want_showtime": true}}
+- "tôi muốn xem các phim đang chiếu" → {{"want_showtime": true}}
 - "lịch chiếu phim Avatar" → {{"query": "Avatar", "want_showtime": true}}
-- "giá vé rạp CGV hôm nay" → {{"want_showtime": true, "date": "today"}}
+- "gợi ý 3 phim hành động" → {{"genre": "Action", "limit": 3}}
 
-CHỈ trả JSON, KHÔNG giải thích."""
+SAI - KHÔNG LÀM:
+- "có phim nào về Batman không" → {{"query": "có nào về batman không"}} ❌
+- "tôi muốn xem các phim đang chiếu" → {{"query": "đang"}} ❌
+
+CHỈ trả JSON ngắn gọn."""
         
         self.response_instruction = f"""Bạn là chuyên gia tư vấn phim ảnh thân thiện.
 
@@ -60,9 +68,20 @@ Trả lời bằng tiếng Việt."""
     async def process(self, message: str, state: AgentState) -> Dict[str, Any]:
         """Xử lý yêu cầu về phim"""
         
+        message_lower = message.lower()
+        
+        # Handle vague requests FIRST - "phim hot", "phim hay", "có phim gì"
+        vague_patterns = ["phim hot", "phim hay", "phim nào hot", "phim gì hay", "có phim gì", "có phim nào"]
+        if any(p in message_lower for p in vague_patterns):
+            return await self._handle_movie_suggestion(state)
+        
         # Extract search parameters
         params = await self._extract_search_params(message)
         print(f"[MovieAgent] Extracted params: {params}")
+        
+        # If no params extracted or empty query, show suggestions
+        if not params or (not params.get("query") and not params.get("genre") and not params.get("want_showtime")):
+            return await self._handle_movie_suggestion(state)
         
         # Translate Vietnamese genre to English
         if params.get("genre"):
@@ -95,6 +114,38 @@ Trả lời bằng tiếng Việt."""
                 "movies_count": len(movies_data.get("movies", [])),
                 "search_params": params
             }
+        }
+    
+    async def _handle_movie_suggestion(self, state: AgentState) -> Dict[str, Any]:
+        """Handle vague movie requests with top suggestions"""
+        movies = await api_client.get_movies(page=1, page_size=5, sort_by="imdb_rating")
+        movies_list = movies.get("items", [])
+        
+        if movies_list:
+            # Save to context
+            self._save_movie_context(movies_list, state)
+            
+            movie_text = "\n".join([
+                f"{i}. 🎬 **{m.get('series_title')}** ({m.get('released_year', 'N/A')}) - ⭐ {m.get('imdb_rating', 'N/A')}"
+                for i, m in enumerate(movies_list, 1)
+            ])
+            return {
+                "response": f"""🔥 **Top phim hay nhất:**
+
+{movie_text}
+
+💡 Bạn muốn:
+- Xem chi tiết? Nói "Kể về phim số 1"
+- Xem lịch chiếu? Nói "Lịch chiếu phim [tên]"
+- Tìm thể loại khác? Nói "Phim hành động" hoặc "Phim kinh dị\"""",
+                "agent": self.name,
+                "metadata": {"intent": "movie_suggestion", "count": len(movies_list)}
+            }
+        
+        return {
+            "response": "Hiện không có phim nào trong hệ thống. Vui lòng thử lại sau!",
+            "agent": self.name,
+            "metadata": {"error": "no_movies"}
         }
     
     async def can_handle(self, message: str, state: AgentState) -> bool:
@@ -234,9 +285,15 @@ Trả về JSON ngắn gọn."""
         return self._simple_extraction(message)
     
     def _simple_extraction(self, message: str) -> Dict[str, Any]:
-        """FALLBACK: Rule-based extraction"""
+        """FALLBACK: Rule-based extraction - smarter"""
         message_lower = message.lower()
         params = {}
+        
+        # Detect "đang chiếu" intent FIRST - this is showtime query, not movie search
+        showing_patterns = ["đang chiếu", "phim gì chiếu", "chiếu phim gì", "các phim chiếu", "phim nào chiếu"]
+        if any(p in message_lower for p in showing_patterns):
+            params["want_showtime"] = True
+            return params  # Return early - don't try to extract movie name
         
         # Detect genre
         genre_map = {
@@ -261,13 +318,52 @@ Trả về JSON ngắn gọn."""
         if any(w in message_lower for w in ["lịch chiếu", "giá vé", "suất chiếu", "chiếu lúc"]):
             params["want_showtime"] = True
         
-        # If no specific params, use message as query
-        if not params:
-            query = message_lower.replace("phim", "").replace("tìm", "").strip()
-            if query:
+        # Extract movie name - remove noise words
+        if not params.get("genre"):
+            query = self._extract_movie_query(message)
+            if query and len(query) > 1:
                 params["query"] = query
         
         return params
+    
+    def _extract_movie_query(self, message: str) -> Optional[str]:
+        """Extract actual movie name from natural question"""
+        
+        # Noise words to remove
+        noise_words = [
+            "có", "không", "nào", "về", "muốn", "xem", "tìm", "gì", 
+            "đang", "chiếu", "phim", "hay", "tôi", "mình", "bạn",
+            "cho", "biết", "được", "ơi", "à", "ạ", "nhé", "nha",
+            "thế", "thì", "là", "và", "hoặc", "với", "của", "các",
+            "những", "một", "cái", "bộ", "lịch", "suất", "vé", "giá"
+        ]
+        
+        # Try pattern matching first for "về X", "phim X"
+        patterns = [
+            r'về\s+([A-Za-z0-9\s]+?)(?:\s+không|\s+nào|$)',
+            r'phim\s+([A-Za-z][A-Za-z0-9\s:]+?)(?:\s+có|\s+không|\s+chiếu|$)',
+            r'lịch chiếu\s+(?:phim\s+)?([A-Za-z][A-Za-z0-9\s:]+?)(?:\s+hôm|\s+ngày|$)',
+            r'tìm\s+(?:phim\s+)?([A-Za-z][A-Za-z0-9\s:]+?)(?:\s+có|\s+không|$)',
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, message, re.IGNORECASE)
+            if match:
+                name = match.group(1).strip()
+                # Clean trailing noise
+                for word in noise_words:
+                    name = re.sub(rf'\s+{word}$', '', name, flags=re.IGNORECASE)
+                if name and len(name) > 1:
+                    return name
+        
+        # Fallback: remove all noise words
+        words = message.lower().split()
+        clean_words = [w for w in words if w not in noise_words and len(w) > 1]
+        
+        if clean_words:
+            return ' '.join(clean_words)
+        
+        return None
     
     async def _search_movies(self, params: Dict[str, Any], original_message: str) -> Dict[str, Any]:
         """Search movies with multiple strategies"""
