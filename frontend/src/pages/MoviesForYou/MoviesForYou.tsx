@@ -56,7 +56,7 @@ export default function MoviesForYou() {
   };
 
   const handleDetailClick = (movieId: number) => {
-    navigate(`/movie/${movieId}`);
+    navigate(`/MovieDetail/${movieId}`);
   };
 
   if (loading) {
