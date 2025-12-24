@@ -216,7 +216,15 @@ export default function MyTickets() {
               </h2>
               <div className={styles.ticketGrid}>
                 {upcomingTickets.map((ticket) => (
-                  <div key={ticket.id} className={`${styles.ticketCard} ${styles.upcoming}`}>
+                  <div
+                    key={ticket.id}
+                    className={`${styles.ticketCard} ${styles.upcoming}`}
+                    style={{
+                      border: '3px solid #f4433633',
+                      borderRadius: 16,
+                      background: '#fff',
+                    }}
+                  >
                     <div className={styles.ticketHeader}>
                       <h3 
                         className={`${styles.movieTitle} ${ticket.movieId ? styles.clickable : ''}`}
@@ -280,7 +288,15 @@ export default function MyTickets() {
               </h2>
               <div className={styles.ticketGrid}>
                 {pastTickets.map((ticket) => (
-                  <div key={ticket.id} className={`${styles.ticketCard} ${styles.past}`}>
+                  <div
+                    key={ticket.id}
+                    className={`${styles.ticketCard} ${styles.past}`}
+                    style={{
+                      border: '2px solid #f4433633',
+                      borderRadius: 16,
+                      background: '#fff',
+                    }}
+                  >
                     <div className={styles.ticketHeader}>
                       <h3 
                         className={`${styles.movieTitle} ${ticket.movieId ? styles.clickable : ''}`}

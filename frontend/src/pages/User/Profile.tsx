@@ -281,7 +281,14 @@ const Profile = () => {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         {/* Avatar Section */}
                         <div className="lg:col-span-1">
-                            <div className="bg-white rounded-lg shadow-md p-6">
+                                                        <div
+                                                            className="bg-white rounded-lg shadow-md p-6"
+                                                            style={{
+                                                                border: '2px solid #f4433633',
+                                                                borderRadius: 16,
+                                                                background: '#fff',
+                                                            }}
+                                                        >
                                 <div className="text-center">
                                     <div className="relative inline-block">
                                         <img
@@ -357,7 +364,14 @@ const Profile = () => {
 
                         {/* Profile Information */}
                         <div className="lg:col-span-2">
-                            <div className="bg-white rounded-lg shadow-md p-6">
+                                                        <div
+                                                            className="bg-white rounded-lg shadow-md p-6"
+                                                            style={{
+                                                                border: '2px solid #f4433633',
+                                                                borderRadius: 16,
+                                                                background: '#fff',
+                                                            }}
+                                                        >
                                 <div className="flex justify-between items-center mb-6">
                                     <h3 className="text-xl font-semibold text-gray-800">Thông Tin Chi Tiết</h3>
                                     {!isEditing ? (
@@ -408,43 +422,82 @@ const Profile = () => {
                                         <div className="space-y-4">
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-600 mb-1">Họ và tên</label>
-                                                <p className="text-gray-900 bg-gray-50 p-3 rounded-lg min-h-[3rem] flex items-center truncate" title={userProfile?.fullName}>{userProfile?.fullName || 'Chưa cập nhật'}</p>
+                                                                                                <p
+                                                                                                    className="text-gray-900 bg-gray-50 p-3 rounded-lg min-h-[3rem] flex items-center truncate"
+                                                                                                    title={userProfile?.fullName}
+                                                                                                    style={{ border: '1.5px solid #f4433633', borderRadius: 10 }}
+                                                                                                >
+                                                                                                    {userProfile?.fullName || 'Chưa cập nhật'}
+                                                                                                </p>
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-600 mb-1">Email</label>
-                                                <p className="text-gray-900 bg-gray-50 p-3 rounded-lg text-sm min-h-[3rem] flex items-center truncate" title={userProfile?.email}>{userProfile?.email || 'Chưa cập nhật'}</p>
+                                                                                                <p
+                                                                                                    className="text-gray-900 bg-gray-50 p-3 rounded-lg text-sm min-h-[3rem] flex items-center truncate"
+                                                                                                    title={userProfile?.email}
+                                                                                                    style={{ border: '1.5px solid #f4433633', borderRadius: 10 }}
+                                                                                                >
+                                                                                                    {userProfile?.email || 'Chưa cập nhật'}
+                                                                                                </p>
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-600 mb-1">Số điện thoại</label>
-                                                <p className="text-gray-900 bg-gray-50 p-3 rounded-lg min-h-[3rem] flex items-center truncate" title={userProfile?.phone}>{userProfile?.phone || 'Chưa cập nhật'}</p>
+                                                                                                <p
+                                                                                                    className="text-gray-900 bg-gray-50 p-3 rounded-lg min-h-[3rem] flex items-center truncate"
+                                                                                                    title={userProfile?.phone}
+                                                                                                    style={{ border: '1.5px solid #f4433633', borderRadius: 10 }}
+                                                                                                >
+                                                                                                    {userProfile?.phone || 'Chưa cập nhật'}
+                                                                                                </p>
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-600 mb-1">Giới tính</label>
-                                                <p className="text-gray-900 bg-gray-50 p-3 rounded-lg min-h-[3rem] flex items-center">
-                                                    {userProfile?.gender === 'MALE' ? 'Nam' : userProfile?.gender === 'FEMALE' ? 'Nữ' : 'Chưa cập nhật'}
-                                                </p>
+                                                                                                <p
+                                                                                                    className="text-gray-900 bg-gray-50 p-3 rounded-lg min-h-[3rem] flex items-center"
+                                                                                                    style={{ border: '1.5px solid #f4433633', borderRadius: 10 }}
+                                                                                                >
+                                                                                                    {userProfile?.gender === 'MALE' ? 'Nam' : userProfile?.gender === 'FEMALE' ? 'Nữ' : 'Chưa cập nhật'}
+                                                                                                </p>
                                             </div>
                                         </div>
                                         <div className="space-y-4">
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-600 mb-1">Ngày sinh</label>
-                                                <p className="text-gray-900 bg-gray-50 p-3 rounded-lg min-h-[3rem] flex items-center">
-                                                    {userProfile?.dob ? new Date(userProfile.dob).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}
-                                                </p>
+                                                                                                <p
+                                                                                                    className="text-gray-900 bg-gray-50 p-3 rounded-lg min-h-[3rem] flex items-center"
+                                                                                                    style={{ border: '1.5px solid #f4433633', borderRadius: 10 }}
+                                                                                                >
+                                                                                                    {userProfile?.dob ? new Date(userProfile.dob).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}
+                                                                                                </p>
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-600 mb-1">Địa chỉ</label>
-                                                <div className="text-gray-900 bg-gray-50 p-3 rounded-lg min-h-[3rem] flex items-start">
-                                                    <p className="line-clamp-2 leading-relaxed" title={userProfile?.address}>{userProfile?.address || 'Chưa cập nhật'}</p>
-                                                </div>
+                                                                                                <div
+                                                                                                    className="text-gray-900 bg-gray-50 p-3 rounded-lg min-h-[3rem] flex items-start"
+                                                                                                    style={{ border: '1.5px solid #f4433633', borderRadius: 10 }}
+                                                                                                >
+                                                                                                    <p className="line-clamp-2 leading-relaxed" title={userProfile?.address}>{userProfile?.address || 'Chưa cập nhật'}</p>
+                                                                                                </div>
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-600 mb-1">Quận/Huyện</label>
-                                                <p className="text-gray-900 bg-gray-50 p-3 rounded-lg min-h-[3rem] flex items-center truncate" title={userProfile?.district}>{userProfile?.district || 'Chưa cập nhật'}</p>
+                                                                                                <p
+                                                                                                    className="text-gray-900 bg-gray-50 p-3 rounded-lg min-h-[3rem] flex items-center truncate"
+                                                                                                    title={userProfile?.district}
+                                                                                                    style={{ border: '1.5px solid #f4433633', borderRadius: 10 }}
+                                                                                                >
+                                                                                                    {userProfile?.district || 'Chưa cập nhật'}
+                                                                                                </p>
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-600 mb-1">Thành phố</label>
-                                                <p className="text-gray-900 bg-gray-50 p-3 rounded-lg min-h-[3rem] flex items-center truncate" title={userProfile?.city}>{userProfile?.city || 'Chưa cập nhật'}</p>
+                                                                                                <p
+                                                                                                    className="text-gray-900 bg-gray-50 p-3 rounded-lg min-h-[3rem] flex items-center truncate"
+                                                                                                    title={userProfile?.city}
+                                                                                                    style={{ border: '1.5px solid #f4433633', borderRadius: 10 }}
+                                                                                                >
+                                                                                                    {userProfile?.city || 'Chưa cập nhật'}
+                                                                                                </p>
                                             </div>
                                         </div>
                                     </div>

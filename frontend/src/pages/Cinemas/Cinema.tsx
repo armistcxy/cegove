@@ -69,7 +69,16 @@ export default function Cinema() {
       </div>
 
       {/* Filter */}
-      <div className={styles.filterSection}>
+      <div
+        className={styles.filterSection}
+        style={{
+          border: '2px solid #f4433633', // viền đỏ dày như thẻ rạp
+          borderRadius: 12,
+          padding: 16,
+          marginBottom: 24,
+          background: '#fff',
+        }}
+      >
         <div className={styles.filterGroup}>
           <label>Chọn thành phố:</label>
           <select 
@@ -111,7 +120,15 @@ export default function Cinema() {
             </div>
           ) : (
             filteredCinemas.map((cinema) => (
-              <div key={cinema.id} className={styles.cinemaCard}>
+              <div
+                key={cinema.id}
+                className={styles.cinemaCard}
+                style={{
+                  border: '2px solid #f4433633', // viền đỏ dày hơn
+                  boxShadow: '0 2px 8px 0 rgba(183,28,28,0.04)', // bóng nhẹ
+                  borderRadius: 12,
+                }}
+              >
                 <div className={styles.cinemaHeader}>
                   <h3>{cinema.name}</h3>
                   <span className={styles.cityBadge}>{cinema.city}</span>

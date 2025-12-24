@@ -19,6 +19,7 @@ interface Comment {
 }
 
 
+
 export default function CinemaDetails() {
   const { id } = useParams<{ id: string }>();
   const [cinema, setCinema] = useState<Cinema | null>(null);
@@ -35,6 +36,11 @@ export default function CinemaDetails() {
   const [insight, setInsight] = useState<any>(null);
   const [insightLoading, setInsightLoading] = useState(false);
   const [insightError, setInsightError] = useState('');
+
+  // Tông màu chủ đạo đỏ đơn giản
+  const mainRed = '#b71c1c'; // đỏ đậm
+  const lightRed = '#fbe9e7'; // đỏ nhạt
+  const borderRed = '#f44336';
 
   // Fetch insight về rạp
   useEffect(() => {
@@ -149,15 +155,29 @@ export default function CinemaDetails() {
   };
 
   return (
-    <div className={styles.container}>
+    <div
+      className={styles.container}
+      style={{
+        boxSizing: 'border-box',
+        maxWidth: 1100, // vừa phải hơn
+        margin: '32px auto',
+        background: lightRed,
+        borderRadius: 16,
+        border: `2px solid ${borderRed}`,
+        boxShadow: '0 4px 24px 0 rgba(183,28,28,0.08)',
+        padding: '32px 48px', // padding vừa phải
+        minHeight: 600,
+        color: mainRed,
+      }}
+    >
       {/* Thông tin rạp */}
       {cinemaLoading ? (
         <div className={styles.loading}>Đang tải thông tin rạp...</div>
       ) : cinemaError ? (
         <div className={styles.error}>{cinemaError}</div>
       ) : cinema ? (
-        <div style={{ marginBottom: 24, borderBottom: '1px solid #eee', paddingBottom: 16 }}>
-          <h2 className={styles.title}>{cinema.name}</h2>
+        <div style={{ marginBottom: 24, borderBottom: `2px solid ${borderRed}33`, paddingBottom: 16 }}>
+          <h2 className={styles.title} style={{ color: mainRed }}>{cinema.name}</h2>
           <div><strong>Địa chỉ:</strong> {cinema.address}, {cinema.district}, {cinema.city}</div>
           {cinema.phone && <div><strong>Điện thoại:</strong> {cinema.phone}</div>}
           {cinema.email && <div><strong>Email:</strong> {cinema.email}</div>}
@@ -171,10 +191,10 @@ export default function CinemaDetails() {
           const avg = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null;
           return (
             <div style={{marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8}}>
-              <b>Đánh giá trung bình:</b>
+              <b style={{ color: mainRed }}>Đánh giá trung bình:</b>
               {avg !== null ? (
                 <>
-                  <span style={{fontWeight: 600, fontSize: 18}}>{avg.toFixed(1)}/5</span>
+                  <span style={{fontWeight: 600, fontSize: 18, color: borderRed}}>{avg.toFixed(1)}/5</span>
                   <StarRating rating={avg} size={24} readOnly />
                   <span style={{color: '#888', fontSize: 13}}>({ratings.length} đánh giá)</span>
                 </>
@@ -188,19 +208,26 @@ export default function CinemaDetails() {
 
       {/* Insight về rạp (dạng mới) */}
       <div style={{ marginBottom: 24 }}>
-        <h3 style={{ fontWeight: 600, fontSize: 18, marginBottom: 8 }}>Nhận xét tổng quan về rạp</h3>
+        <h3 style={{ fontWeight: 600, fontSize: 18, marginBottom: 8, color: mainRed }}>Nhận xét tổng quan về rạp</h3>
         {insightLoading ? (
           <div className={styles.loading}>Đang tải insight...</div>
         ) : insightError ? (
           <div className={styles.error}>{insightError}</div>
         ) : insight ? (
-          <div style={{ background: '#f8f9fa', borderRadius: 8, padding: 16, marginBottom: 8 }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: 8,
+            padding: 16,
+            marginBottom: 8,
+            border: `1.5px solid ${borderRed}33`, // viền nhẹ hơn
+            boxShadow: '0 2px 8px 0 rgba(183,28,28,0.04)', // thêm bóng nhẹ
+          }}>
             {insight.summary && (
-              <div style={{ marginBottom: 8 }}><strong>Tóm tắt:</strong> {insight.summary}</div>
+              <div style={{ marginBottom: 8 }}><strong style={{ color: mainRed }}>Tóm tắt:</strong> {insight.summary}</div>
             )}
             {insight.positive_aspects && insight.positive_aspects.length > 0 && (
               <div style={{ marginBottom: 8 }}>
-                <strong>Điểm mạnh nổi bật:</strong>
+                <strong style={{ color: mainRed }}>Điểm mạnh nổi bật:</strong>
                 <ul style={{ margin: 0, paddingLeft: 20 }}>
                   {insight.positive_aspects.map((item: string, idx: number) => (
                     <li key={idx}>{item}</li>
@@ -210,7 +237,7 @@ export default function CinemaDetails() {
             )}
             {insight.negative_aspects && insight.negative_aspects.length > 0 && (
               <div style={{ marginBottom: 8 }}>
-                <strong>Điểm cần cải thiện:</strong>
+                <strong style={{ color: mainRed }}>Điểm cần cải thiện:</strong>
                 <ul style={{ margin: 0, paddingLeft: 20 }}>
                   {insight.negative_aspects.map((item: string, idx: number) => (
                     <li key={idx}>{item}</li>
@@ -219,21 +246,21 @@ export default function CinemaDetails() {
               </div>
             )}
             {insight.recommendations && (
-              <div style={{ marginBottom: 8 }}><strong>Khuyến nghị:</strong> {insight.recommendations}</div>
+              <div style={{ marginBottom: 8 }}><strong style={{ color: mainRed }}>Khuyến nghị:</strong> {insight.recommendations}</div>
             )}
             <div style={{ fontSize: 14, color: '#666', marginTop: 8 }}>
               <span><strong>Dựa trên:</strong> {insight.based_on_comments ?? 'N/A'} bình luận</span>
               {insight.is_stale && (
-                <span style={{ marginLeft: 16, color: '#d32f2f' }}>(Dữ liệu cũ)</span>
+                <span style={{ marginLeft: 16, color: borderRed }}>(Dữ liệu cũ)</span>
               )}
             </div>
           </div>
         ) : null}
       </div>
 
-      <h2 className={styles.title}>Bình luận về rạp</h2>
+      <h2 className={styles.title} style={{ color: mainRed }}>Bình luận về rạp</h2>
       <CommentForm onSubmit={handleAddComment} loading={commentFormLoading} />
-      {commentError && <div style={{ color: '#d32f2f', marginBottom: 12 }}>{commentError}</div>}
+      {commentError && <div style={{ color: borderRed, marginBottom: 12 }}>{commentError}</div>}
       {loading && <div className={styles.loading}>Đang tải bình luận...</div>}
       {error && <div className={styles.error}>{error}</div>}
       {!loading && !error && (
