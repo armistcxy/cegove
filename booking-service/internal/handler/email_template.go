@@ -1,11 +1,17 @@
 package handler
 
 import (
+	"bytes"
+	"encoding/base64"
 	"fmt"
+	"image/png"
 	"strings"
 	"time"
 
 	"github.com/armistcxy/cegove/booking-service/internal/domain"
+	"github.com/boombuler/barcode"
+	"github.com/boombuler/barcode/code128"
+	"github.com/skip2/go-qrcode"
 )
 
 // GenerateBookingConfirmationEmail generates an HTML email body for booking confirmation with QR codes
@@ -164,12 +170,13 @@ func GenerateBookingConfirmationEmail(booking *domain.Booking, userEmail string)
         }
 
         .qr-code-image {
-            width: 150px;
-            height: 150px;
+            width: 200px;
+            height: 200px;
             border: 2px solid #667eea;
             border-radius: 6px;
             padding: 8px;
             background-color: white;
+            display: inline-block;
         }
 
         .qr-label {
@@ -314,8 +321,8 @@ func GenerateBookingConfirmationEmail(booking *domain.Booking, userEmail string)
             }
 
             .qr-code-image {
-                width: 120px;
-                height: 120px;
+                width: 180px;
+                height: 180px;
             }
         }
     </style>
@@ -355,8 +362,11 @@ func GenerateBookingConfirmationEmail(booking *domain.Booking, userEmail string)
 
             <!-- Booking QR Code -->
             <div style="text-align: center; margin: 30px 0; padding: 20px; background-color: #f9f9f9; border-radius: 6px;">
-                <div style="font-size: 14px; font-weight: 600; color: #333; margin-bottom: 15px;">Your Booking QR Code</div>
+                <div style="font-size: 14px; font-weight: 600; color: #333; margin-bottom: 15px;">Your Booking QR Code & Barcode</div>
+                <div style="font-size: 12px; color: #666; margin-bottom: 10px;">Scan the QR code or barcode at the cinema entrance</div>
                 {{BOOKING_QR_CODE}}
+                {{BOOKING_BARCODE}}
+                <div style="font-size: 11px; color: #999; margin-top: 10px;">Booking ID: {{BOOKING_ID}}</div>
             </div>
 
             <!-- Tickets -->
@@ -427,27 +437,10 @@ func GenerateBookingConfirmationEmail(booking *domain.Booking, userEmail string)
 	bookingDateUTC7 := booking.CreatedAt.In(loc)
 
 	// Generate booking QR code HTML
-	bookingQRCodeHTML := ""
-	if booking.ID != "" {
-		bookingQRCodeHTML = fmt.Sprintf(`
-                <div class="qr-code-container">
-                    <img src="%s" alt="Booking QR Code" class="qr-code-image" />
-                    <div class="qr-label">Scan for Entry</div>
-                </div>
-            `, booking.ID)
-	} else {
-		bookingQRCodeHTML = `
-                <div class="qr-code-container">
-                    <div style="width: 150px; height: 150px; border: 2px solid #ddd; border-radius: 6px; display: flex; align-items: center; justify-content: center; background-color: #f5f5f5; margin: 0 auto;">
-                        <div style="text-align: center; color: #999;">
-                            <p style="font-size: 12px; margin: 0;">QR Code</p>
-                            <p style="font-size: 11px; margin: 5px 0 0 0;">Coming Soon</p>
-                        </div>
-                    </div>
-                    <div class="qr-label">Scan for Entry</div>
-                </div>
-            `
-	}
+	bookingQRCodeHTML := generateBookingQRCode(booking.ID)
+
+	// Generate booking barcode HTML
+	bookingBarcodeHTML := generateBookingBarcode(booking.ID)
 
 	// Replace placeholders
 	html := emailTemplate
@@ -456,6 +449,7 @@ func GenerateBookingConfirmationEmail(booking *domain.Booking, userEmail string)
 	html = strings.ReplaceAll(html, "{{USER_EMAIL}}", userEmail)
 	html = strings.ReplaceAll(html, "{{TICKETS}}", ticketsHTML)
 	html = strings.ReplaceAll(html, "{{BOOKING_QR_CODE}}", bookingQRCodeHTML)
+	html = strings.ReplaceAll(html, "{{BOOKING_BARCODE}}", bookingBarcodeHTML)
 	html = strings.ReplaceAll(html, "{{TICKET_COUNT}}", fmt.Sprintf("%d", len(booking.Tickets)))
 	html = strings.ReplaceAll(html, "{{SUBTOTAL}}", formatPrice(subtotal))
 	html = strings.ReplaceAll(html, "{{TOTAL_PRICE}}", formatPrice(totalPrice))
@@ -465,7 +459,165 @@ func GenerateBookingConfirmationEmail(booking *domain.Booking, userEmail string)
 	return html
 }
 
-// generateTicketsHTML generates HTML for all tickets with QR codes
+// generateBookingQRCode generates a QR code for the booking ID and returns HTML with embedded base64 image
+func generateBookingQRCode(bookingID string) string {
+	if bookingID == "" {
+		return `
+            <div class="qr-code-container">
+                <div style="width: 200px; height: 200px; border: 2px solid #ddd; border-radius: 6px; display: flex; align-items: center; justify-content: center; background-color: #f5f5f5; margin: 0 auto;">
+                    <div style="text-align: center; color: #999;">
+                        <p style="font-size: 12px; margin: 0;">QR Code</p>
+                        <p style="font-size: 11px; margin: 5px 0 0 0;">Invalid Booking ID</p>
+                    </div>
+                </div>
+                <div class="qr-label">Scan for Entry</div>
+            </div>
+        `
+	}
+
+	// Generate QR code as PNG bytes
+	// Size: 256x256 pixels, Medium error correction level
+	qrCode, err := qrcode.Encode(bookingID, qrcode.Medium, 256)
+	if err != nil {
+		// Return placeholder if QR code generation fails
+		return `
+            <div class="qr-code-container">
+                <div style="width: 200px; height: 200px; border: 2px solid #ddd; border-radius: 6px; display: flex; align-items: center; justify-content: center; background-color: #f5f5f5; margin: 0 auto;">
+                    <div style="text-align: center; color: #999;">
+                        <p style="font-size: 12px; margin: 0;">QR Code</p>
+                        <p style="font-size: 11px; margin: 5px 0 0 0;">Generation Failed</p>
+                    </div>
+                </div>
+                <div class="qr-label">Scan for Entry</div>
+            </div>
+        `
+	}
+
+	// Convert to base64
+	base64QR := base64.StdEncoding.EncodeToString(qrCode)
+
+	// Return HTML with embedded image
+	return fmt.Sprintf(`
+        <div class="qr-code-container">
+            <img src="data:image/png;base64,%s" alt="Booking QR Code" class="qr-code-image" />
+            <div class="qr-label">Scan for Entry</div>
+        </div>
+    `, base64QR)
+}
+
+// generateBookingBarcode generates a Code128 barcode for the booking ID and returns HTML with embedded base64 image
+func generateBookingBarcode(bookingID string) string {
+	if bookingID == "" {
+		return `
+            <div class="qr-code-container">
+                <div style="width: 200px; height: 80px; border: 2px solid #ddd; border-radius: 6px; display: flex; align-items: center; justify-content: center; background-color: #f5f5f5; margin: 0 auto;">
+                    <div style="text-align: center; color: #999;">
+                        <p style="font-size: 12px; margin: 0;">Barcode</p>
+                        <p style="font-size: 11px; margin: 5px 0 0 0;">Invalid Booking ID</p>
+                    </div>
+                </div>
+                <div class="qr-label">Booking Barcode</div>
+            </div>
+        `
+	}
+
+	// Generate Code128 barcode
+	bc, err := code128.Encode(bookingID)
+	if err != nil {
+		// Return placeholder if barcode generation fails
+		return `
+            <div class="qr-code-container">
+                <div style="width: 200px; height: 80px; border: 2px solid #ddd; border-radius: 6px; display: flex; align-items: center; justify-content: center; background-color: #f5f5f5; margin: 0 auto;">
+                    <div style="text-align: center; color: #999;">
+                        <p style="font-size: 12px; margin: 0;">Barcode</p>
+                        <p style="font-size: 11px; margin: 5px 0 0 0;">Generation Failed</p>
+                    </div>
+                </div>
+                <div class="qr-label">Booking Barcode</div>
+            </div>
+        `
+	}
+
+	// Scale the barcode to a reasonable size (width: 200, height: 60)
+	scaledBC, err := barcode.Scale(bc, 200, 60)
+	if err != nil {
+		// Return placeholder if scaling fails
+		return `
+            <div class="qr-code-container">
+                <div style="width: 200px; height: 80px; border: 2px solid #ddd; border-radius: 6px; display: flex; align-items: center; justify-content: center; background-color: #f5f5f5; margin: 0 auto;">
+                    <div style="text-align: center; color: #999;">
+                        <p style="font-size: 12px; margin: 0;">Barcode</p>
+                        <p style="font-size: 11px; margin: 5px 0 0 0;">Scaling Failed</p>
+                    </div>
+                </div>
+                <div class="qr-label">Booking Barcode</div>
+            </div>
+        `
+	}
+
+	// Encode to PNG
+	var buf bytes.Buffer
+	err = png.Encode(&buf, scaledBC)
+	if err != nil {
+		// Return placeholder if PNG encoding fails
+		return `
+            <div class="qr-code-container">
+                <div style="width: 200px; height: 80px; border: 2px solid #ddd; border-radius: 6px; display: flex; align-items: center; justify-content: center; background-color: #f5f5f5; margin: 0 auto;">
+                    <div style="text-align: center; color: #999;">
+                        <p style="font-size: 12px; margin: 0;">Barcode</p>
+                        <p style="font-size: 11px; margin: 5px 0 0 0;">Encoding Failed</p>
+                    </div>
+                </div>
+                <div class="qr-label">Booking Barcode</div>
+            </div>
+        `
+	}
+
+	// Convert to base64
+	base64Barcode := base64.StdEncoding.EncodeToString(buf.Bytes())
+
+	// Return HTML with embedded image
+	return fmt.Sprintf(`
+        <div class="qr-code-container">
+            <img src="data:image/png;base64,%s" alt="Booking Barcode" style="width: 200px; height: 60px; border: 1px solid #667eea; border-radius: 4px; display: inline-block;" />
+            <div class="qr-label">Booking Barcode</div>
+        </div>
+    `, base64Barcode)
+}
+
+// generateTicketBarcode generates a Code128 barcode for a ticket and returns HTML with embedded base64 image
+func generateTicketBarcode(ticketID string) string {
+	if ticketID == "" {
+		return ""
+	}
+
+	// Generate Code128 barcode
+	bc, err := code128.Encode(ticketID)
+	if err != nil {
+		return ""
+	}
+
+	// Scale the barcode to a reasonable size (width: 150, height: 50)
+	scaledBC, err := barcode.Scale(bc, 150, 50)
+	if err != nil {
+		return ""
+	}
+
+	// Encode to PNG
+	var buf bytes.Buffer
+	err = png.Encode(&buf, scaledBC)
+	if err != nil {
+		return ""
+	}
+
+	// Convert to base64
+	base64Barcode := base64.StdEncoding.EncodeToString(buf.Bytes())
+
+	// Return HTML with embedded image
+	return fmt.Sprintf(`<img src="data:image/png;base64,%s" alt="Ticket Barcode" style="width: 150px; height: 50px; border: 1px solid #ddd; border-radius: 3px;" />`, base64Barcode)
+}
+ 
+// generateTicketsHTML generates HTML for all tickets
 func generateTicketsHTML(tickets []domain.Ticket) string {
 	var html strings.Builder
 	loc, err := time.LoadLocation("Asia/Bangkok")
@@ -476,6 +628,7 @@ func generateTicketsHTML(tickets []domain.Ticket) string {
 
 	for i, ticket := range tickets {
 		showtimeUTC7 := ticket.Showtime.In(loc)
+		ticketBarcodeHTML := generateTicketBarcode(ticket.ID)
 
 		html.WriteString(fmt.Sprintf(`
     <div class="ticket-card">
@@ -510,13 +663,22 @@ func generateTicketsHTML(tickets []domain.Ticket) string {
                 <div class="ticket-detail-value" style="font-size: 12px; word-break: break-all;">%s</div>
             </div>
         </div>
+
+        %s
+
     </div>
 `, ticket.MovieTitle, ticket.CinemaName, ticket.AuditoriumName,
 			showtimeUTC7.Format("Monday, January 02, 2006 at 15:04"),
 			i+1,
 			ticket.SeatNumber,
 			formatPrice(ticket.Price),
-			ticket.ID))
+			ticket.ID,
+			func() string {
+				if ticketBarcodeHTML != "" {
+					return fmt.Sprintf(`<div style="text-align: center; margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0;">%s<div style="font-size: 11px; color: #999; margin-top: 8px;">Ticket Barcode</div></div>`, ticketBarcodeHTML)
+				}
+				return ""
+			}()))
 	}
 
 	return html.String()
@@ -533,5 +695,5 @@ func calculateSubtotal(tickets []domain.Ticket) float64 {
 
 // formatPrice formats a price as a currency string
 func formatPrice(price float64) string {
-	return fmt.Sprintf("₫%.0f", price) // Vietnamese Dong - adjust as needed
+	return fmt.Sprintf("₫%.0f", price) // Vietnamese Dong
 }

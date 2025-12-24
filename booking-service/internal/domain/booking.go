@@ -18,10 +18,11 @@ type Booking struct {
 	SeatIDs    []int    `json:"seat_ids"`
 	Tickets    []Ticket `json:"tickets"`
 
-	TotalPrice float64       `json:"total_price"`
-	Status     BookingStatus `json:"status"`
-	CreatedAt  time.Time     `json:"created_at"`
-	ExpiresAt  time.Time     `json:"expires_at"`
+	FoodItems  []BookingFoodItem `json:"food_items"` // Optional food/beverage items
+	TotalPrice float64           `json:"total_price"`
+	Status     BookingStatus     `json:"status"`
+	CreatedAt  time.Time         `json:"created_at"`
+	ExpiresAt  time.Time         `json:"expires_at"`
 }
 
 type PaymentWebhookRequest struct {

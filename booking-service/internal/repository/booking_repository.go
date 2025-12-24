@@ -207,6 +207,29 @@ func (r *bookingRepository) InsertBooking(ctx context.Context, booking *domain.B
 		return err
 	}
 
+	// Insert food items if provided
+	if len(booking.FoodItems) > 0 {
+		foodQuery := builder.Insert("booking_food_items").Columns(
+			"id", "booking_id", "food_item_id", "quantity", "price",
+		)
+
+		for _, f := range booking.FoodItems {
+			foodQuery = foodQuery.Values(
+				uuid.New().String(), booking.ID, f.FoodItemID, f.Quantity, f.Price,
+			)
+			// Add food item price to total
+			booking.TotalPrice += f.Price * float64(f.Quantity)
+		}
+		query, args, err := foodQuery.ToSql()
+		if err != nil {
+			return err
+		}
+		if _, err = tx.Exec(ctx, query, args...); err != nil {
+			log.Printf("Failed to insert food items: %v", err)
+			return err
+		}
+	}
+
 	bQuery, bArgs, err = builder.Update("bookings").
 		Set("total_price", booking.TotalPrice).
 		Where(sq.Eq{"id": booking.ID}).
@@ -400,6 +423,19 @@ func (r *bookingRepository) ProcessPaymentWebhook(ctx context.Context, req domai
 		}
 		if _, err := tx.Exec(ctx, tQuery, tArgs...); err != nil {
 			return fmt.Errorf("update ticket status: %w", err)
+		}
+
+		// Release locked seats if payment failed
+		ssQuery, ssArgs, err := builder.Update("showtime_seats").
+			Set("status", domain.SeatStatusAvailable).
+			Where(sq.Eq{"booking_id": req.BookingID}).
+			ToSql()
+
+		if err != nil {
+			return fmt.Errorf("build update showtime seats status query: %w", err)
+		}
+		if _, err := tx.Exec(ctx, ssQuery, ssArgs...); err != nil {
+			return fmt.Errorf("update showtime seats status: %w", err)
 		}
 
 		bQuery, bArgs, err := builder.Update("bookings").

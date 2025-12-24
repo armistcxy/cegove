@@ -4,6 +4,7 @@ go 1.25.3
 
 require (
 	github.com/Masterminds/squirrel v1.5.4
+	github.com/boombuler/barcode v1.0.0
 	github.com/felixge/httpsnoop v1.0.4
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/google/uuid v1.6.0
@@ -12,6 +13,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rs/cors v1.11.1
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/spf13/cast v1.10.0
 	github.com/spf13/viper v1.21.0
 	github.com/swaggo/http-swagger v1.3.4

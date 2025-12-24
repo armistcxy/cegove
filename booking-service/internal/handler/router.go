@@ -26,8 +26,9 @@ func NewBookingRouter(pool *pgxpool.Pool, logger *logging.Logger) *BookingRouter
 
 	bookingRepo := repository.NewBookingRepository(pool, logger)
 	userRepo := repository.NewUserRepository(pool)
+	foodRepo := repository.NewFoodRepository(pool, logger)
 
-	bookingHandler := NewBookingHandler(bookingRepo, userRepo, logger)
+	bookingHandler := NewBookingHandler(bookingRepo, userRepo, foodRepo, logger)
 	// Showtime routes
 	showtimeRepo := repository.NewShowtimeRepository(pool)
 	seatRepo := repository.NewSeatRepository(pool)

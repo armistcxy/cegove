@@ -27,20 +27,28 @@ type BookingHandler struct {
 	logger      *logging.Logger
 	bookingRepo repository.BookingRepository
 	userRepo    repository.UserRepository
+	foodRepo    repository.FoodRepository
 }
 
-func NewBookingHandler(bookingRepo repository.BookingRepository, userRepo repository.UserRepository, logger *logging.Logger) *BookingHandler {
+func NewBookingHandler(bookingRepo repository.BookingRepository, userRepo repository.UserRepository, foodRepo repository.FoodRepository, logger *logging.Logger) *BookingHandler {
 	return &BookingHandler{
 		logger:      logger,
 		bookingRepo: bookingRepo,
 		userRepo:    userRepo,
+		foodRepo:    foodRepo,
 	}
 }
 
 type createBookingRequest struct {
-	UserID     string   `json:"user_id" example:"user123"`
-	ShowtimeID string   `json:"showtime_id" example:"showtime123"`
-	SeatIDs    []string `json:"seat_ids" example:"seat1,seat2"`
+	UserID     string                     `json:"user_id" example:"user123"`
+	ShowtimeID string                     `json:"showtime_id" example:"showtime123"`
+	SeatIDs    []string                   `json:"seat_ids" example:"seat1,seat2"`
+	FoodItems  []createBookingFoodRequest `json:"food_items,omitempty"` // Optional food/beverage items
+}
+
+type createBookingFoodRequest struct {
+	FoodItemID string `json:"food_item_id" example:"food123"`
+	Quantity   int    `json:"quantity" example:"2"`
 }
 
 // @Summary Create a new booking
@@ -71,6 +79,30 @@ func (h *BookingHandler) HandleCreateBooking(w http.ResponseWriter, r *http.Requ
 		ShowtimeID: req.ShowtimeID,
 		SeatIDs:    seatID,
 		Status:     domain.BookingStatusPending,
+	}
+
+	// Process optional food items
+	if len(req.FoodItems) > 0 {
+		foodItems := make([]domain.BookingFoodItem, 0, len(req.FoodItems))
+		for _, f := range req.FoodItems {
+			foodItem, err := h.foodRepo.GetFoodItem(ctx, f.FoodItemID)
+			if err != nil {
+				h.logger.Error("Failed to get food item", err)
+				httphelp.EncodeJSONError(w, r, http.StatusBadRequest, err)
+				return
+			}
+			if !foodItem.Available {
+				httphelp.EncodeJSONError(w, r, http.StatusBadRequest, errors.New("food item not available"))
+				return
+			}
+			bookingFood := domain.BookingFoodItem{
+				FoodItemID: foodItem.ID,
+				Quantity:   f.Quantity,
+				Price:      foodItem.Price,
+			}
+			foodItems = append(foodItems, bookingFood)
+		}
+		booking.FoodItems = foodItems
 	}
 
 	// Execute booking insertion
