@@ -22,7 +22,7 @@ public class SeatService {
         reposistory.saveAll(seats);
     }
 
-    public void updateSeats(Auditorium auditorium) {
+    public List<Seat> updateSeats(Auditorium auditorium) {
         // Remove existing seats
         reposistory.deleteAllByAuditorium(auditorium);
 
@@ -32,6 +32,6 @@ public class SeatService {
             seat.setAuditorium(auditorium);
             auditorium.getSeats().add(seat);
         }
-        reposistory.saveAll(newSeats);
+        return reposistory.saveAll(newSeats);
     }
 }

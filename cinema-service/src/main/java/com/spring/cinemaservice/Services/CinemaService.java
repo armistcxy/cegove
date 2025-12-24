@@ -123,7 +123,7 @@ public class CinemaService {
                 .collect(Collectors.toList());
     }
 
-    public List<CinemaRevenueMonthlyDTO> getRevenueByMonth(Long cinemaId, int year, int month) {
+    public CinemaRevenueMonthlyDTO getRevenueByMonth(Long cinemaId, int year, int month) {
 
         OffsetDateTime start = LocalDate.of(year, month, 1)
                 .atStartOfDay()

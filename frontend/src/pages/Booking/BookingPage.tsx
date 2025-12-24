@@ -128,7 +128,7 @@ const BookingPage = ({ showtimeId }) => {
                         col,
                         type: apiSeat?.seat_type?.toLowerCase() || type,
                         isCouple: true,
-                        status: apiSeat?.status === 1 ? "booked" : "available",
+                        status: apiSeat?.status !== 0 ? "booked" : "available",
                         price: apiSeat?.price || 0,
                         seat_id: apiSeat?.seat_id
                     });
@@ -144,7 +144,7 @@ const BookingPage = ({ showtimeId }) => {
                         col,
                         type: apiSeat?.seat_type?.toLowerCase() || type,
                         isCouple: false,
-                        status: apiSeat?.status === 1 ? "booked" : "available",
+                        status: apiSeat?.status !== 0 ? "booked" : "available",
                         price: apiSeat?.price || 0,
                         seat_id: apiSeat?.seat_id
                     });

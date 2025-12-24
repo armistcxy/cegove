@@ -78,8 +78,8 @@ export default function AdminLayout() {
       {/* Sidebar */}
       <aside className={styles.sidebar}>
         <div className={styles.logo}>
-          <h2>CGV Admin</h2>
-          <p className={styles.adminBadge}>LOCAL_ADMIN</p>
+          <h2>Cegove Admin</h2>
+          <p className={styles.adminBadge}>ADMIN</p>
         </div>
 
         <nav className={styles.nav}>
