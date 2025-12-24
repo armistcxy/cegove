@@ -54,3 +54,14 @@ export async function updateCinema(id: number, cinema: {
   });
   return res.data;
 }
+
+
+export async function getRevenueByCinema(id: number, month: number, year: number) {
+    const token = localStorage.getItem('access-token') || '';
+    const res = await axios.get(`https://cinema.cegove.cloud/cinemas/${id}/revenue?month=${month}&year=${year}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+        }
+    });
+    return res.data;
+}

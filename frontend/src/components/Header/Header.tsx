@@ -1,4 +1,3 @@
-import React from "react";
 import { Link } from 'react-router-dom';
 import logo from '../../assets/cgvlogo.png';
 import muaVeNgay from '../../assets/mua-ve_ngay.png';
@@ -75,9 +74,9 @@ export default function Header() {
               phim
               <ul className="child-menu">
                 <li><Link to="/movie" className="hover-red">Danh sách phim</Link></li>
-                <li><Link to="/movies-for-you" className="hover-red">Dành cho bạn</Link></li>
                 <li><Link to="/recent-movie" className="hover-red">Phim đang chiếu</Link></li>
-              </ul> 
+                <li><Link to="/movies-for-you" className="hover-red">Dành cho bạn</Link></li>
+              </ul>
             </li>
             <li className="hover-effect">
               rạp cgv
