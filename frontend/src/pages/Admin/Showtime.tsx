@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import styles from './Admin.module.css';
 import { fetchCinemas } from '../Cinemas/CinemaLogic';
 import type { Cinema } from '../Cinemas/CinemaLogic';
-import { fetchMovies } from '../Movies/MovieLogic';
 
 interface Showtime {
   id: string;
@@ -14,9 +13,7 @@ interface Showtime {
   base_price: number;
 }
 
-interface MovieMap {
-  [id: string]: string; // movie_id -> movie_title
-}
+
 
 export default function ShowtimeManage() {
   const [cinemas, setCinemas] = useState<Cinema[]>([]);
@@ -24,7 +21,7 @@ export default function ShowtimeManage() {
   const [showtimes, setShowtimes] = useState<Showtime[]>([]);
   const [loadingCinemas, setLoadingCinemas] = useState(true);
   const [loadingShowtimes, setLoadingShowtimes] = useState(false);
-  const [movieMap, setMovieMap] = useState<MovieMap>({});
+
   const [cities, setCities] = useState<string[]>([]);
   const [selectedCity, setSelectedCity] = useState<string>('');
 
@@ -47,15 +44,24 @@ export default function ShowtimeManage() {
     loadCinemas();
   }, []);
 
+
+
+  // Cache tên phim động theo movie_id (fetch từng cái nếu chưa có)
+  const [movieMap, setMovieMap] = useState<{ [id: string]: string }>({});
   useEffect(() => {
-    async function loadMovies() {
-      const response = await fetchMovies(1, 1000); // lấy nhiều phim để map
-      const map: MovieMap = {};
-      response.items.forEach(m => { map[m.id.toString()] = m.series_title; });
-      setMovieMap(map);
-    }
-    loadMovies();
-  }, []);
+    // Lấy tất cả movie_id chưa có tên
+    const missingIds = Array.from(new Set(showtimes.map(st => String(st.movie_id)))).filter(id => !movieMap[id]);
+    if (missingIds.length === 0) return;
+    missingIds.forEach(id => {
+      fetch(`https://movies.cegove.cloud/api/v1/movies/${id}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data && data.series_title) {
+            setMovieMap(prev => ({ ...prev, [id]: data.series_title }));
+          }
+        });
+    });
+  }, [showtimes]);
 
   useEffect(() => {
     async function loadShowtimes() {
@@ -133,7 +139,7 @@ export default function ShowtimeManage() {
                 showtimes.map(st => (
                   <tr key={st.id}>
                     <td style={{ textAlign: 'center' }}>{st.id}</td>
-                    <td style={{ textAlign: 'center' }}>{movieMap[st.movie_id] ?? st.movie_id}</td>
+                    <td style={{ textAlign: 'center' }}>{movieMap[String(st.movie_id)] ?? st.movie_id}</td>
                     <td style={{ textAlign: 'center' }}>{new Date(st.start_time).toLocaleString()}</td>
                     <td style={{ textAlign: 'center' }}>{new Date(st.end_time).toLocaleString()}</td>
                     <td style={{ textAlign: 'center' }}>{st.base_price.toLocaleString()} đ</td>
