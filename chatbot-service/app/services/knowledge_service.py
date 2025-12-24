@@ -156,10 +156,19 @@ class KnowledgeService:
         """Get all cinemas"""
         return self._cinemas
     
-    def get_cinema_by_id(self, cinema_id: int) -> Optional[Dict[str, Any]]:
-        """Get cinema by ID"""
+    def get_cinema_by_id(self, cinema_id) -> Optional[Dict[str, Any]]:
+        """Get cinema by ID (handles both int and string IDs)"""
+        if cinema_id is None:
+            return None
+        
+        # Convert to int for comparison
+        try:
+            target_id = int(cinema_id)
+        except (ValueError, TypeError):
+            return None
+        
         for cinema in self._cinemas:
-            if cinema.get('id') == cinema_id:
+            if cinema.get('id') == target_id:
                 return cinema
         return None
     

@@ -224,14 +224,27 @@ Trả về JSON:
             movie_name = self._extract_movie_name_rule(message, state)
         
         # LAST RESORT: If message is short (1-3 words) and not a question,
-        # treat it as a movie name directly
+        # treat it as a movie name directly - BUT exclude common booking phrases
         if not movie_name:
             cleaned = message.strip().strip('?!.')
             words = cleaned.split()
-            is_question = any(q in message.lower() for q in ["có gì", "phím nào", "những", "các", "danh sách", "?"])
-            if 1 <= len(words) <= 5 and not is_question and len(cleaned) >= 2:
-                movie_name = cleaned
-                logger.info(f"Using raw message as movie name: '{movie_name}'")
+            message_lower = message.lower()
+            
+            # Phrases that are NOT movie names
+            not_movie_phrases = [
+                "đặt vé", "mua vé", "book vé", "xem phim", "đặt vé xem phim",
+                "mua vé xem phim", "đặt vé phim", "mua vé phim", "muốn đặt vé",
+                "muốn xem phim", "muốn xem", "vé xem phim", "phim", "vé"
+            ]
+            
+            is_question = any(q in message_lower for q in ["có gì", "phím nào", "những", "các", "danh sách", "?"])
+            is_booking_phrase = any(p in message_lower for p in not_movie_phrases) and len(words) <= 4
+            
+            if 1 <= len(words) <= 5 and not is_question and not is_booking_phrase and len(cleaned) >= 2:
+                # Additional check: must start with uppercase (looks like movie title)
+                if cleaned[0].isupper():
+                    movie_name = cleaned
+                    logger.info(f"Using raw message as movie name: '{movie_name}'")
         
         logger.info(f"Final movie_name after all extractions: '{movie_name}'")
         
@@ -779,14 +792,28 @@ Hãy nói rõ hơn (VD: "suất 1", "suất 19:00")""",
     # ==================== STEP 4: VIEW SEATS (PATTERN) ====================
     
     async def _handle_view_seats(self, message: str, state: AgentState) -> Dict[str, Any]:
-        """Step 4: Show seat pattern image"""
+        """Step 4: Show seat pattern image and seat availability"""
         
-        # Get seat availability
-        seat_info = await api_client.get_available_seats_count(state.booking_state.showtime_id)
-        total_available = seat_info.get("total_available", 0)
-        by_type = seat_info.get("by_type", {})
+        logger.info(f"_handle_view_seats() - Showtime ID: {state.booking_state.showtime_id}")
         
-        if total_available == 0:
+        # Get all seats with status
+        seats = await api_client.get_showtime_seats_v2(state.booking_state.showtime_id)
+        logger.info(f"   Total seats fetched: {len(seats)}")
+        
+        if not seats:
+            return {
+                "response": """❌ Không thể tải thông tin ghế. Vui lòng thử lại sau.
+
+Nói "đổi suất" để chọn suất khác.""",
+                "agent": self.name,
+                "metadata": {"step": "select_showtime", "seats_error": True}
+            }
+        
+        # Analyze seat availability
+        seat_analysis = self._analyze_seats(seats)
+        logger.info(f"   Seat analysis: {seat_analysis['summary']}")
+        
+        if seat_analysis["available_count"] == 0:
             return {
                 "response": f"""❌ Suất chiếu này đã **HẾT GHẾ**!
 
@@ -797,19 +824,17 @@ Bạn muốn:
                 "metadata": {"step": "select_showtime", "sold_out": True}
             }
         
-        # Get seats data for pattern detection
-        seats = await api_client.get_showtime_seats_v2(state.booking_state.showtime_id)
+        # Detect pattern and get image
         pattern = self._detect_seat_pattern(seats)
-        
-        # Format seat types
-        type_text = self._format_seat_types(by_type)
-        
-        # Get pattern image path
         pattern_image = self.SEAT_PATTERNS.get(pattern, "pattern1.jpg")
         image_path = str(self.knowledge_dir / pattern_image)
         
         state.booking_state.step = "select_seats"
         state.booking_state.seat_pattern = pattern
+        state.booking_state.available_seats = seats  # Save for later use
+        
+        # Format seat map
+        seat_map_text = self._format_seat_map(seat_analysis)
         
         return {
             "response": f"""✅ **Đã chọn suất chiếu:**
@@ -818,22 +843,119 @@ Bạn muốn:
 📅 {self._format_time(state.booking_state.showtime_info.get('start_time'))}
 🏢 {state.booking_state.cinema_name or 'Rạp chiếu'}
 
-🪑 **Sơ đồ ghế:** (Còn **{total_available}** ghế trống)
-{type_text}
+{seat_map_text}
 
-📷 Xem sơ đồ ghế bên dưới và chọn ghế bạn muốn:
-- Nói mã ghế (VD: "A1, A2", "B5 B6 B7")
-- Hoặc nói số lượng (VD: "2 ghế VIP", "3 ghế thường")
+💡 **Cách chọn ghế:**
+- Nói mã ghế: "A1, A2" hoặc "B5 B6 B7"
+- Nói số lượng: "2 ghế" hoặc "3 ghế VIP"
+- Tôi sẽ tự động chọn ghế tốt nhất cho bạn!
 
-⚠️ Ghế màu xám = đã bán, ghế màu = còn trống""",
+⚠️ 🟢 = Trống | 🔴 = Đã đặt""",
             "agent": self.name,
             "metadata": {
                 "step": "select_seats",
-                "available_seats": total_available,
+                "available_seats": seat_analysis["available_count"],
+                "sold_seats": seat_analysis["sold_count"],
                 "seat_pattern": pattern,
-                "image_path": image_path
+                "image_path": image_path,
+                "by_type": seat_analysis["by_type"]
             }
         }
+    
+    def _analyze_seats(self, seats: List[Dict]) -> Dict[str, Any]:
+        """Analyze seat availability and organize by row"""
+        
+        available_count = 0
+        sold_count = 0
+        locked_count = 0
+        by_type = {}
+        by_row = {}
+        
+        for seat in seats:
+            status = seat.get("status_text", "").lower()
+            seat_type = seat.get("metadata", {}).get("type_code", "STANDARD")
+            row = seat.get("position", {}).get("row", "?")
+            number = seat.get("position", {}).get("number", 0)
+            label = seat.get("label", f"{row}{number}")
+            
+            # Initialize row
+            if row not in by_row:
+                by_row[row] = {"available": [], "sold": [], "all": []}
+            
+            seat_info = {
+                "label": label,
+                "number": number,
+                "type": seat_type,
+                "status": status,
+                "id": seat.get("id"),
+                "price": seat.get("pricing", {}).get("amount", 0)
+            }
+            
+            by_row[row]["all"].append(seat_info)
+            
+            if status == "available":
+                available_count += 1
+                by_row[row]["available"].append(seat_info)
+                by_type[seat_type] = by_type.get(seat_type, 0) + 1
+            elif status == "sold":
+                sold_count += 1
+                by_row[row]["sold"].append(seat_info)
+            else:  # locked or other
+                locked_count += 1
+        
+        # Sort seats in each row by number
+        for row in by_row:
+            by_row[row]["all"].sort(key=lambda x: x["number"])
+            by_row[row]["available"].sort(key=lambda x: x["number"])
+        
+        return {
+            "available_count": available_count,
+            "sold_count": sold_count,
+            "locked_count": locked_count,
+            "total": len(seats),
+            "by_type": by_type,
+            "by_row": by_row,
+            "summary": f"Available: {available_count}, Sold: {sold_count}, Total: {len(seats)}"
+        }
+    
+    def _format_seat_map(self, analysis: Dict) -> str:
+        """Format seat map for display"""
+        
+        lines = []
+        lines.append(f"🪑 **Sơ đồ ghế:** (Còn **{analysis['available_count']}** / {analysis['total']} ghế)")
+        lines.append("")
+        
+        # Format by type
+        type_names = {"STANDARD": "🟢 Thường", "VIP": "🟡 VIP", "COUPLE": "💜 Đôi"}
+        for seat_type, count in analysis["by_type"].items():
+            type_name = type_names.get(seat_type, seat_type)
+            lines.append(f"  {type_name}: **{count}** ghế trống")
+        
+        lines.append("")
+        lines.append("📍 **Chi tiết theo hàng:**")
+        
+        # Show first few rows with most availability
+        by_row = analysis["by_row"]
+        sorted_rows = sorted(by_row.keys())
+        
+        # Show up to 6 rows
+        for row in sorted_rows[:6]:
+            row_data = by_row[row]
+            available_labels = [s["label"] for s in row_data["available"][:8]]
+            sold_count = len(row_data["sold"])
+            
+            if available_labels:
+                labels_str = ", ".join(available_labels)
+                if len(row_data["available"]) > 8:
+                    labels_str += f"... (+{len(row_data['available']) - 8})"
+                lines.append(f"  Hàng {row}: 🟢 {labels_str}")
+            else:
+                lines.append(f"  Hàng {row}: 🔴 Hết ghế")
+        
+        if len(sorted_rows) > 6:
+            lines.append(f"  ... và {len(sorted_rows) - 6} hàng khác")
+        
+        return "\n".join(lines)
     
     def _detect_seat_pattern(self, seats: List[Dict]) -> str:
         """Detect which seat pattern to show based on seat data"""
@@ -865,19 +987,34 @@ Bạn muốn:
     # ==================== STEP 5: SELECT SEATS ====================
     
     async def _handle_select_seats(self, message: str, state: AgentState) -> Dict[str, Any]:
-        """Step 5: Select specific seats"""
+        """Step 5: Select specific seats
+        
+        Handles:
+        - Specific codes: "A1 A2", "B5, B6"
+        - Number only: "2", "3 ghế"
+        - Type preference: "2 ghế VIP", "3 ghế thường"
+        """
         
         message_lower = message.lower().strip()
         extraction = await self._extract_info(message)
         
-        # Get available seats
-        seats = await api_client.get_showtime_seats_v2(state.booking_state.showtime_id)
+        logger.info(f"_handle_select_seats() - Message: '{message}'")
+        
+        # Get available seats (use cached if available)
+        seats = state.booking_state.available_seats
+        if not seats:
+            seats = await api_client.get_showtime_seats_v2(state.booking_state.showtime_id)
+        
         available = [s for s in seats if s.get("status_text", "").lower() == "available"]
+        sold = [s for s in seats if s.get("status_text", "").lower() == "sold"]
+        
+        logger.info(f"   Seats status: {len(available)} available, {len(sold)} sold, {len(seats)} total")
         
         # 1. Try to extract seat codes first (e.g., "A1 A2", "B5, B6")
         seat_codes = extraction.get("seat_codes") or self._extract_seat_codes(message)
+        logger.debug(f"   Extracted seat codes: {seat_codes}")
         
-        # 2. Try to parse number of seats from short messages
+        # 2. Try to parse number of seats
         num_seats = extraction.get("num_seats") or state.booking_state.num_seats
         
         # Parse number from short messages like "2", "3 ghế", "2 vé", "hai ghế"
@@ -896,60 +1033,122 @@ Bạn muốn:
                         num_seats = num
                         break
         
+        # 3. Detect seat type preference
+        prefer_type = None
+        if any(w in message_lower for w in ["vip", "v.i.p"]):
+            prefer_type = "VIP"
+        elif any(w in message_lower for w in ["thường", "standard", "bình thường"]):
+            prefer_type = "STANDARD"
+        elif any(w in message_lower for w in ["đôi", "couple", "cặp"]):
+            prefer_type = "COUPLE"
+        
+        logger.info(f"   Parsed: num_seats={num_seats}, prefer_type={prefer_type}")
+        
         num_seats = max(1, min(num_seats or 1, 10))
         state.booking_state.num_seats = num_seats
         
         # Check availability
         if len(available) < num_seats:
+            # Show which seats are sold
+            sold_preview = ", ".join([s.get("label", "?") for s in sold[:10]])
             return {
                 "response": f"""❌ Chỉ còn **{len(available)}** ghế trống, không đủ {num_seats} ghế.
 
+🔴 Ghế đã bán: {sold_preview}{"..." if len(sold) > 10 else ""}
+
 Bạn muốn:
-1️⃣ Giảm số vé
+1️⃣ Giảm số vé (VD: "2 ghế")
 2️⃣ Chọn suất khác (nói "đổi suất")""",
                 "agent": self.name,
                 "metadata": {"step": "select_seats", "insufficient_seats": True}
             }
         
         selected = []
+        
+        # 4. If user specified seat codes
         if seat_codes:
-            for code in seat_codes:
-                for seat in available:
-                    if seat.get("label", "").upper() == code.upper():
-                        selected.append(seat)
-                        break
+            logger.info(f"   User specified seats: {seat_codes}")
+            invalid_codes = []
+            already_sold = []
             
-            if len(selected) < len(seat_codes):
-                available_labels = ', '.join([s.get('label') for s in available[:20]])
+            for code in seat_codes:
+                found = False
+                for seat in seats:
+                    if seat.get("label", "").upper() == code.upper():
+                        found = True
+                        if seat.get("status_text", "").lower() == "available":
+                            selected.append(seat)
+                        else:
+                            already_sold.append(code)
+                        break
+                if not found:
+                    invalid_codes.append(code)
+            
+            if already_sold or invalid_codes:
+                # Show available seats nearby
+                available_labels = ", ".join([s.get("label") for s in available[:15]])
+                error_msg = ""
+                if already_sold:
+                    error_msg += f"🔴 Ghế đã đặt: **{', '.join(already_sold)}**\n"
+                if invalid_codes:
+                    error_msg += f"❌ Ghế không tồn tại: **{', '.join(invalid_codes)}**\n"
+                
                 return {
-                    "response": f"""❌ Một số ghế bạn chọn không khả dụng.
+                    "response": f"""{error_msg}
+🟢 Ghế còn trống: {available_labels}
 
-Ghế còn trống: {available_labels}
-
-Hãy chọn lại hoặc nói số lượng (VD: "3 ghế")""",
+Hãy chọn lại hoặc nói số lượng để tôi tự chọn (VD: "3 ghế")""",
                     "agent": self.name,
-                    "metadata": {"step": "select_seats"}
+                    "metadata": {"step": "select_seats", "invalid_seats": True}
                 }
         
-        # 3. If no seat codes but have number, or just a number message, auto-select
+        # 5. Auto-select if no specific codes or need more
         if not selected and num_seats > 0:
-            selected = self._auto_select_seats(available, num_seats)
+            logger.info(f"   Auto-selecting {num_seats} seats, prefer_type={prefer_type}")
+            selected = self._auto_select_seats(available, num_seats, prefer_type)
         
         if not selected:
+            # Show available options
+            available_by_type = {}
+            for s in available:
+                t = s.get("metadata", {}).get("type_code", "STANDARD")
+                if t not in available_by_type:
+                    available_by_type[t] = []
+                available_by_type[t].append(s.get("label"))
+            
+            type_info = "\n".join([
+                f"  {t}: {', '.join(labels[:5])}{'...' if len(labels) > 5 else ''}"
+                for t, labels in available_by_type.items()
+            ])
+            
             return {
-                "response": """Vui lòng cho tôi biết bạn muốn chọn ghế nào:
-- Mã ghế cụ thể (VD: "A1 A2", "B5, B6")
-- Hoặc số lượng (VD: "2 ghế", "3 ghế VIP")""",
+                "response": f"""Vui lòng chọn ghế:
+
+🟢 **Ghế còn trống theo loại:**
+{type_info}
+
+💡 Nói mã ghế (VD: "A1, A2") hoặc số lượng (VD: "2 ghế VIP")""",
                 "agent": self.name,
                 "metadata": {"step": "select_seats"}
             }
         
+        # Calculate total price
         total_price = sum(s.get("pricing", {}).get("amount", 0) for s in selected)
+        seat_labels = [s.get("label") for s in selected]
+        
+        logger.info(f"   ✅ Selected seats: {seat_labels}, total_price={total_price}")
         
         state.booking_state.seat_ids = [s.get("id") for s in selected]
-        state.booking_state.seat_names = [s.get("label") for s in selected]
+        state.booking_state.seat_names = seat_labels
         state.booking_state.total_price = total_price
         state.booking_state.step = "confirm"
+        
+        # Show seat details
+        seat_details = []
+        for s in selected:
+            seat_type = s.get("metadata", {}).get("display_name", "Thường")
+            price = s.get("pricing", {}).get("amount", 0)
+            seat_details.append(f"{s.get('label')} ({seat_type}) - {price:,.0f}đ")
         
         return {
             "response": f"""✅ **Đã chọn ghế thành công!**
@@ -959,36 +1158,142 @@ Hãy chọn lại hoặc nói số lượng (VD: "3 ghế")""",
 🎬 Phim: **{state.booking_state.movie_title}**
 📅 Suất: {self._format_time(state.booking_state.showtime_info.get('start_time'))}
 🏢 Rạp: {state.booking_state.cinema_name or 'N/A'}
-🪑 Ghế: **{', '.join(state.booking_state.seat_names)}**
-💰 Tổng tiền: **{total_price:,.0f} VNĐ**
+
+🪑 **Chi tiết ghế:**
+{chr(10).join(['  • ' + d for d in seat_details])}
+
+💰 **Tổng tiền: {total_price:,.0f} VNĐ**
 ━━━━━━━━━━━━━━━━━━━━━
 
 ✅ **Xác nhận đặt vé?** (Có/Không)""",
             "agent": self.name,
-            "metadata": {"step": "confirm", "total_price": total_price}
+            "metadata": {
+                "step": "confirm",
+                "total_price": total_price,
+                "selected_seats": seat_labels
+            }
         }
     
-    def _auto_select_seats(self, available: List[Dict], num_seats: int) -> List[Dict]:
-        """Auto-select best adjacent seats"""
+    def _auto_select_seats(self, available: List[Dict], num_seats: int, prefer_type: str = None) -> List[Dict]:
+        """
+        Auto-select best adjacent seats intelligently.
+        
+        Strategy:
+        1. Prefer middle rows (best viewing experience)
+        2. Find adjacent seats in the same row
+        3. Prefer center seats within a row
+        4. If requested type (VIP, STANDARD), filter first
+        """
         if not available or num_seats <= 0:
             return []
         
-        # Sort by row and number
-        sorted_seats = sorted(available, key=lambda s: (
+        logger.info(f"_auto_select_seats() - Selecting {num_seats} seats from {len(available)} available")
+        
+        # Filter by type if requested
+        if prefer_type:
+            typed_seats = [s for s in available if s.get("metadata", {}).get("type_code", "").upper() == prefer_type.upper()]
+            if len(typed_seats) >= num_seats:
+                available = typed_seats
+                logger.info(f"   Filtered to {len(available)} {prefer_type} seats")
+        
+        # Group by row
+        rows = {}
+        for seat in available:
+            row = seat.get("position", {}).get("row", "Z")
+            if row not in rows:
+                rows[row] = []
+            rows[row].append(seat)
+        
+        # Sort seats within each row by number (left to right)
+        for row in rows:
+            rows[row].sort(key=lambda s: s.get("position", {}).get("number", 0))
+        
+        # Sort rows: prefer middle rows (D, E, F are usually best for cinema)
+        # Assuming rows are A-Z, middle rows are better
+        sorted_row_names = sorted(rows.keys())
+        num_rows = len(sorted_row_names)
+        
+        if num_rows > 0:
+            # Calculate middle index and sort by distance from middle
+            middle_idx = num_rows // 2
+            sorted_row_names = sorted(
+                sorted_row_names,
+                key=lambda r: abs(sorted_row_names.index(r) - middle_idx)
+            )
+        
+        logger.info(f"   Rows prioritized: {sorted_row_names[:5]}...")
+        
+        # Try to find adjacent seats in each row, starting from best rows
+        for row_name in sorted_row_names:
+            row_seats = rows[row_name]
+            
+            if len(row_seats) < num_seats:
+                continue
+            
+            # Find consecutive seats
+            consecutive_groups = self._find_consecutive_seats(row_seats, num_seats)
+            
+            if consecutive_groups:
+                # Pick the group closest to center
+                best_group = self._pick_center_group(consecutive_groups, row_seats)
+                logger.info(f"   ✅ Selected {num_seats} seats in row {row_name}: {[s.get('label') for s in best_group]}")
+                return best_group
+        
+        # Fallback: no consecutive seats found, just take first available
+        logger.warning(f"   ⚠️ No consecutive seats found, taking first {num_seats} available")
+        all_sorted = sorted(available, key=lambda s: (
             s.get("position", {}).get("row", "Z"),
             s.get("position", {}).get("number", 0)
         ))
+        return all_sorted[:num_seats]
+    
+    def _find_consecutive_seats(self, row_seats: List[Dict], num_needed: int) -> List[List[Dict]]:
+        """Find all groups of consecutive seats in a row"""
+        groups = []
         
-        # Try to find adjacent seats
-        for i in range(len(sorted_seats) - num_seats + 1):
-            candidate = sorted_seats[i:i + num_seats]
-            # Check if same row
-            rows = set(s.get("position", {}).get("row") for s in candidate)
-            if len(rows) == 1:
-                return candidate
+        for i in range(len(row_seats) - num_needed + 1):
+            candidate = row_seats[i:i + num_needed]
+            
+            # Check if seats are consecutive (numbers differ by 1)
+            is_consecutive = True
+            for j in range(1, len(candidate)):
+                prev_num = candidate[j-1].get("position", {}).get("number", 0)
+                curr_num = candidate[j].get("position", {}).get("number", 0)
+                if curr_num - prev_num != 1:
+                    is_consecutive = False
+                    break
+            
+            if is_consecutive:
+                groups.append(candidate)
         
-        # Fallback: just take first available
-        return sorted_seats[:num_seats]
+        return groups
+    
+    def _pick_center_group(self, groups: List[List[Dict]], all_row_seats: List[Dict]) -> List[Dict]:
+        """Pick the group of seats closest to center of the row"""
+        if not groups:
+            return []
+        
+        if len(groups) == 1:
+            return groups[0]
+        
+        # Calculate center position of the row
+        all_numbers = [s.get("position", {}).get("number", 0) for s in all_row_seats]
+        row_center = (min(all_numbers) + max(all_numbers)) / 2
+        
+        # Find group closest to center
+        best_group = groups[0]
+        best_distance = float('inf')
+        
+        for group in groups:
+            group_numbers = [s.get("position", {}).get("number", 0) for s in group]
+            group_center = sum(group_numbers) / len(group_numbers)
+            distance = abs(group_center - row_center)
+            
+            if distance < best_distance:
+                best_distance = distance
+                best_group = group
+        
+        return best_group
     
     def _extract_seat_codes(self, message: str) -> List[str]:
         """Extract seat codes from message (A1, B2, etc.)"""
@@ -1161,9 +1466,16 @@ Trả về JSON với các trường:
         """Rule-based movie name extraction"""
         message_lower = message.lower()
         
-        # Skip if asking question
-        question_patterns = [r"có phim", r"phim (gì|nào)", r"những phim", r"các phim", r"danh sách"]
-        if any(re.search(p, message_lower) for p in question_patterns):
+        # Skip if asking question or vague request
+        skip_patterns = [
+            r"có phim", r"phim (gì|nào)", r"những phim", r"các phim", r"danh sách",
+            r"^đặt\s*vé\s*(xem\s*)?(phim)?$",  # "đặt vé", "đặt vé xem phim", "đặt vé phim"
+            r"^mua\s*vé\s*(xem\s*)?(phim)?$",  # "mua vé", "mua vé xem phim"
+            r"^book\s*(vé)?\s*(xem\s*)?(phim)?$",  # "book vé", "book vé xem phim"
+            r"^muốn\s*(đặt\s*)?vé\s*(xem\s*)?(phim)?$",  # "muốn đặt vé xem phim"
+            r"xem\s*phim\s*(gì|nào)?$",  # "xem phim", "xem phim gì"
+        ]
+        if any(re.search(p, message_lower) for p in skip_patterns):
             return None
         
         # Check reference words
@@ -1172,25 +1484,36 @@ Trả về JSON với các trường:
         
         # Remove booking keywords
         patterns = [
-            r'đặt\s*vé\s*(phim\s*)?', r'mua\s*vé\s*(phim\s*)?',
-            r'book\s*(vé\s*)?(phim\s*)?', r'muốn\s*xem\s*(phim\s*)?'
+            r'đặt\s*vé\s*(xem\s*)?(phim\s*)?', 
+            r'mua\s*vé\s*(xem\s*)?(phim\s*)?',
+            r'book\s*(vé\s*)?(xem\s*)?(phim\s*)?', 
+            r'muốn\s*(đặt\s*)?(xem\s*)?(phim\s*)?'
         ]
         
         movie_name = message
         for p in patterns:
             movie_name = re.sub(p, '', movie_name, flags=re.IGNORECASE)
         
-        # Remove noise words
-        noise = ['này', 'đó', 'tôi', 'cho', 'gì', 'nào', 'có', 'đang', 'chiếu']
+        # Remove noise words - includes common non-movie words
+        noise = [
+            'này', 'đó', 'tôi', 'cho', 'gì', 'nào', 'có', 'đang', 'chiếu',
+            'xem', 'phim', 'vé', 'muốn', 'cần', 'giúp', 'với', 'đi', 'nha', 'nhé'
+        ]
         for w in noise:
             movie_name = re.sub(rf'\b{w}\b', '', movie_name, flags=re.IGNORECASE)
         
         movie_name = movie_name.strip().strip('?!.,')
         
-        if not movie_name or movie_name.lower() in ['phim', 'vé', '']:
+        # Final check - reject if result is empty or just noise
+        if not movie_name or movie_name.lower() in noise or len(movie_name) <= 1:
             return self._get_movie_from_context(state)
         
-        return movie_name if len(movie_name) > 1 else None
+        # Also reject if result looks like "xem phim" variants
+        reject_patterns = [r'^xem\s*phim$', r'^phim$', r'^vé$', r'^xem$']
+        if any(re.match(p, movie_name.lower()) for p in reject_patterns):
+            return None
+        
+        return movie_name
     
     def _has_reference_word(self, message: str) -> bool:
         """Check for reference words"""
@@ -1272,13 +1595,28 @@ Trả về JSON với các trường:
         return None
     
     def _format_showtimes(self, showtimes: List[Dict]) -> str:
-        """Format showtimes list"""
+        """Format showtimes list with cinema info"""
         lines = []
         for i, st in enumerate(showtimes, 1):
             time_str = self._format_time(st.get('start_time'))
             price = st.get('base_price', 0)
-            cinema = st.get('cinema_name', '')
-            lines.append(f"{i}️⃣ {time_str} | 💰 {price:,.0f}đ" + (f" | 🏢 {cinema}" if cinema else ""))
+            
+            # Get cinema name - from showtime data or lookup by ID
+            cinema_name = st.get('cinema_name', '')
+            cinema_id = st.get('cinema_id')
+            
+            if not cinema_name and cinema_id:
+                cinema = knowledge_service.get_cinema_by_id(cinema_id)
+                if cinema:
+                    cinema_name = cinema.get('name', '')
+                else:
+                    # Fallback: show cinema_id if not found in knowledge base
+                    cinema_name = f"Rạp #{cinema_id}"
+            
+            if cinema_name:
+                lines.append(f"{i}️⃣ 🕐 {time_str} | 🏢 {cinema_name} | 💰 {price:,.0f}đ")
+            else:
+                lines.append(f"{i}️⃣ 🕐 {time_str} | 💰 {price:,.0f}đ")
         return "\n".join(lines)
     
     def _format_time(self, time_str: str) -> str:

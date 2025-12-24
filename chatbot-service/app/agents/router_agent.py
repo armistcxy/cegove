@@ -342,39 +342,68 @@ Trả lời bằng tiếng Việt, thân thiện."""
         """Extract movie name from message using patterns"""
         message_lower = message.lower()
         
-        # Skip if asking about "đang chiếu" without specific movie
-        if re.search(r'(phim|các|những)\s*(gì|nào)?\s*đang\s*chiếu', message_lower):
-            return None
+        # Skip patterns - queries that DON'T have specific movie names
+        skip_patterns = [
+            r'(phim|các|những)\s*(gì|nào)?\s*đang\s*chiếu',  # "phim gì đang chiếu"
+            r'lịch\s*chiếu\s*phim\s*(hôm\s*nay|ngày\s*mai|tuần|tháng)$',  # "lịch chiếu phim hôm nay"
+            r'lịch\s*chiếu\s*(hôm\s*nay|ngày\s*mai)$',  # "lịch chiếu hôm nay"
+            r'suất\s*chiếu\s*(hôm\s*nay|ngày\s*mai)$',  # "suất chiếu hôm nay"
+            r'^lịch\s*chiếu\s*phim\s*$',  # just "lịch chiếu phim"
+            r'^phim\s*(hôm\s*nay|ngày\s*mai|chiếu)$',  # "phim hôm nay", "phim chiếu"
+            r'phim\s*(gì|nào)\s*(hay|hot)',  # "phim gì hay", "phim nào hot"
+        ]
+        
+        for skip_pattern in skip_patterns:
+            if re.search(skip_pattern, message_lower):
+                return None
+        
+        # Words that are NOT movie names
+        noise_words = [
+            "gì", "nào", "hay", "hôm nay", "ngày mai", "này", "đó", "ở", "tại", 
+            "đang", "các", "những", "chiếu", "hot", "mới", "phim", "vé"
+        ]
         
         # Patterns to extract movie name - ORDER MATTERS (more specific first)
+        # Use GREEDY matching (+) and then trim, rather than non-greedy (+?)
         patterns = [
-            # "lịch chiếu phim The Godfather" → "The Godfather"
-            r"lịch chiếu\s+(?:phim\s+)?([A-Za-z][A-Za-z0-9\s:]+?)(?:\s+hôm|\s+ngày|\s+tại|$)",
+            # "lịch chiếu phim Zootopia 2" → "Zootopia 2"
+            # "lịch chiếu phim The Godfather hôm nay" → "The Godfather"
+            r"lịch\s+chiếu\s+(?:phim\s+)?([A-Z][A-Za-z0-9\s:'\-]+?)(?:\s+hôm\s+nay|\s+ngày\s+mai|\s+ngày|\s+tại|\s+ở|$)",
             # "suất chiếu phim Avatar" → "Avatar"
-            r"suất chiếu\s+(?:phim\s+)?([A-Za-z][A-Za-z0-9\s:]+?)(?:\s+hôm|\s+ngày|$)",
-            # "phim The Dark Knight" → "The Dark Knight"
-            r"phim\s+([A-Z][A-Za-z0-9\s:]+?)(?:\s+chiếu|\s+có|\s+lịch|\s+suất|\s+giá|$)",
-            # "đặt vé Inception" → "Inception"
-            r"đặt vé\s+(?:phim\s+)?([A-Za-z][A-Za-z0-9\s:]+?)(?:\s+lúc|\s+suất|$)",
+            r"suất\s+chiếu\s+(?:phim\s+)?([A-Z][A-Za-z0-9\s:'\-]+?)(?:\s+hôm|\s+ngày|$)",
+            # "phim The Dark Knight chiếu" → "The Dark Knight"
+            r"phim\s+([A-Z][A-Za-z0-9\s:'\-]+?)(?:\s+chiếu|\s+có|\s+lịch|\s+suất|\s+giá)",
+            # "đặt vé Inception" or "đặt vé phim Zootopia 2" → "Inception" / "Zootopia 2"
+            r"đặt\s+vé\s+(?:phim\s+)?([A-Z][A-Za-z0-9\s:'\-]+?)(?:\s+lúc|\s+suất|$)",
             # "xem phim Avatar" → "Avatar"
-            r"xem\s+(?:phim\s+)?([A-Z][A-Za-z0-9\s:]+?)(?:\s+lúc|\s+chiếu|$)",
-            # Lowercase fallback "phim batman" → "batman"
-            r"phim\s+([a-z][a-z0-9\s]+?)(?:\s+chiếu|\s+có|\s+lịch|\s+suất|\s+giá|$)",
+            r"xem\s+(?:phim\s+)?([A-Z][A-Za-z0-9\s:'\-]+?)(?:\s+lúc|\s+chiếu|$)",
+            # Vietnamese movie names: "phim Hai Phượng" → "Hai Phượng"
+            r"phim\s+([A-ZÀÁẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬĐÈÉẺẼẸÊẾỀỂỄỆÌÍỈĨỊÒÓỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÙÚỦŨỤƯỨỪỬỮỰỲÝỶỸỴ][a-zA-Z0-9ÀÁẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬĐÈÉẺẼẸÊẾỀỂỄỆÌÍỈĨỊÒÓỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÙÚỦŨỤƯỨỪỬỮỰỲÝỶỸỴàáảãạăắằẳẵặâấầẩẫậđèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵ\s]+?)(?:\s+chiếu|\s+có|\s+lịch|\s+suất|\s+giá|$)",
         ]
         
         for pattern in patterns:
-            match = re.search(pattern, message, re.IGNORECASE if 'A-Z' not in pattern else 0)
-            if not match:
-                match = re.search(pattern, message_lower)
+            match = re.search(pattern, message)
             if match:
                 name = match.group(1).strip()
-                # Filter out noise words
-                noise = ["gì", "nào", "hay", "hôm nay", "ngày mai", "này", "đó", "ở", "tại", "đang", "các", "những"]
-                # Clean trailing noise
-                for n in noise:
+                # Clean trailing noise words
+                for n in noise_words:
                     name = re.sub(rf'\s+{n}$', '', name, flags=re.IGNORECASE)
-                if name and name.lower() not in noise and len(name) > 1:
+                # Validate: not a noise word and has reasonable length
+                if name and name.lower() not in noise_words and len(name) > 1:
+                    logger.debug(f"Extracted movie name: '{name}' from pattern: {pattern[:50]}...")
                     return name
+        
+        # Fallback: Try to extract anything after "phim" that looks like a title
+        # "lịch chiếu phim Zootopia 2" - last resort
+        fallback_match = re.search(r'(?:lịch\s+chiếu|suất\s+chiếu|đặt\s+vé|xem)\s+(?:phim\s+)?(.+)$', message, re.IGNORECASE)
+        if fallback_match:
+            name = fallback_match.group(1).strip()
+            # Remove date suffixes
+            name = re.sub(r'\s+(hôm\s+nay|ngày\s+mai|ngày\s+\d+).*$', '', name, flags=re.IGNORECASE)
+            # Check if first char is uppercase (looks like a title)
+            if name and name[0].isupper() and name.lower() not in noise_words and len(name) > 1:
+                logger.debug(f"Extracted movie name (fallback): '{name}'")
+                return name
         
         return None
     
@@ -426,7 +455,23 @@ Xác định intent và trích xuất thông tin. Trả về JSON."""
         
         # If asking "phim gì chiếu hôm nay" without specific movie
         message_lower = message.lower()
-        asking_whats_showing = any(p in message_lower for p in ["phim gì chiếu", "chiếu phim gì", "đang chiếu", "phim nào chiếu"])
+        
+        # Patterns that mean "what movies are showing" (no specific movie name)
+        asking_whats_showing_patterns = [
+            "phim gì chiếu", "chiếu phim gì", "đang chiếu", "phim nào chiếu",
+            "lịch chiếu phim hôm nay", "lịch chiếu hôm nay", "suất chiếu hôm nay",
+            "lịch chiếu phim ngày", "phim chiếu hôm nay", "hôm nay chiếu phim",
+            "có phim gì", "những phim chiếu", "các phim chiếu"
+        ]
+        asking_whats_showing = any(p in message_lower for p in asking_whats_showing_patterns)
+        
+        # Also check: if message is just "lịch chiếu phim" + date word without movie name
+        if not asking_whats_showing and not movie_name:
+            date_words = ["hôm nay", "ngày mai", "hôm qua", "tuần này", "cuối tuần"]
+            has_date_word = any(d in message_lower for d in date_words)
+            is_generic_showtime = re.search(r'^lịch\s*chiếu\s*(phim)?\s*', message_lower)
+            if is_generic_showtime and has_date_word:
+                asking_whats_showing = True
         
         if asking_whats_showing and not movie_name:
             # Get all showtimes for today
@@ -949,7 +994,7 @@ Bạn cần gì?""",
         }
     
     def _format_showtimes(self, showtimes: list) -> str:
-        """Format showtimes for display"""
+        """Format showtimes for display with cinema info"""
         if not showtimes:
             return "Không có suất chiếu"
         
@@ -966,7 +1011,23 @@ Bạn cần gì?""",
                     pass
             
             price = st.get("base_price", 0)
-            formatted.append(f"{i}. 🕐 {start_time} | 💰 {price:,.0f}đ")
+            
+            # Get cinema name - from showtime data or lookup by ID
+            cinema_name = st.get("cinema_name", "")
+            cinema_id = st.get("cinema_id")
+            
+            if not cinema_name and cinema_id:
+                cinema = knowledge_service.get_cinema_by_id(cinema_id)
+                if cinema:
+                    cinema_name = cinema.get("name", "")
+                else:
+                    # Fallback: show cinema_id if not found in knowledge base
+                    cinema_name = f"Rạp #{cinema_id}"
+            
+            if cinema_name:
+                formatted.append(f"{i}. 🕐 {start_time} | 🏢 {cinema_name} | 💰 {price:,.0f}đ")
+            else:
+                formatted.append(f"{i}. 🕐 {start_time} | 💰 {price:,.0f}đ")
         
         return "\n".join(formatted)
     
