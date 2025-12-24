@@ -70,6 +70,17 @@ export default function BookingPopup({ isOpen, onClose, movieTitle, movieId }: B
         return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     };
 
+    const isShowtimeHidden = (showtime: Showtime) => {
+        const now = new Date();
+        const showtimeDate = new Date(showtime.start_time);
+        const isToday = showtimeDate.toDateString() === now.toDateString();
+        return isToday && showtimeDate <= now;
+    };
+
+    const validShowtimes = showtimes
+        .filter(showtime => !isShowtimeHidden(showtime))
+        .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+
     useEffect(() => {
         if (isOpen) {
             loadCities();
@@ -295,15 +306,21 @@ export default function BookingPopup({ isOpen, onClose, movieTitle, movieId }: B
                                                                 </div>
                                                             ) : showtimes.length > 0 ? (
                                                                 <div className={styles.showtimeGrid}>
-                                                                    {showtimes.map((showtime) => (
-                                                                        <button
-                                                                            key={showtime.id}
-                                                                            className={`${styles.showtimeBtn} ${selectedShowtime === showtime.id ? styles.selected : ''}`}
-                                                                            onClick={(e) => handleShowtimeSelect(showtime.id, e)}
-                                                                        >
-                                                                            {formatTime(showtime.start_time)}
-                                                                        </button>
-                                                                    ))}
+                                                                    {validShowtimes.length > 0 ? (
+                                                                        validShowtimes.map((showtime) => (
+                                                                            <button
+                                                                                key={showtime.id}
+                                                                                className={`${styles.showtimeBtn} ${selectedShowtime === showtime.id ? styles.selected : ''}`}
+                                                                                onClick={(e) => handleShowtimeSelect(showtime.id, e)}
+                                                                            >
+                                                                                {formatTime(showtime.start_time)}
+                                                                            </button>
+                                                                        ))
+                                                                    ) : (
+                                                                        <p className={styles.noShowtimes}>
+                                                                            Không có suất chiếu nào cho ngày này
+                                                                        </p>
+                                                                    )}
                                                                 </div>
                                                             ) : (
                                                                 <p className={styles.noShowtimes}>
