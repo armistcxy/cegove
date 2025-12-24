@@ -172,9 +172,31 @@ export default function MyTickets() {
       </div>
 
       {loading ? (
-        <div className={styles.loading}>
-          <div className={styles.spinner}></div>
-          <p>Đang tải danh sách vé...</p>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: 320,
+          width: '100%',
+          marginTop: 48,
+        }}>
+          <div style={{
+            width: 64,
+            height: 64,
+            border: '6px solid #ffe5e9',
+            borderTop: '6px solid #e50914',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            marginBottom: 18,
+          }} />
+          <div style={{color: '#b20710', fontWeight: 700, fontSize: '1.1em'}}>Đang tải danh sách vé...</div>
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
         </div>
       ) : tickets.length === 0 ? (
         <div className={styles.empty}>
