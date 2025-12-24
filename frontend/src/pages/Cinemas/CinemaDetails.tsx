@@ -47,7 +47,7 @@ export default function CinemaDetails() {
         return res.json();
       })
       .then(data => setInsight(data))
-      .catch(() => setInsightError('Không thể tải insight về rạp.'))
+      .catch(() => setInsightError('Cần tối thiểu 3 comments để tổng hợp.'))
       .finally(() => setInsightLoading(false));
   }, [id]);
   // Load cinema info
@@ -164,6 +164,28 @@ export default function CinemaDetails() {
         </div>
       ) : null}
 
+      {/* Đánh giá trung bình luôn hiển thị */}
+      <div style={{ marginBottom: 16 }}>
+        {(() => {
+          const ratings = comments.map((c: any) => c.rating).filter((r: any) => typeof r === 'number') as number[];
+          const avg = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null;
+          return (
+            <div style={{marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8}}>
+              <b>Đánh giá trung bình:</b>
+              {avg !== null ? (
+                <>
+                  <span style={{fontWeight: 600, fontSize: 18}}>{avg.toFixed(1)}/5</span>
+                  <StarRating rating={avg} size={24} readOnly />
+                  <span style={{color: '#888', fontSize: 13}}>({ratings.length} đánh giá)</span>
+                </>
+              ) : (
+                <span style={{color: '#aaa'}}>Chưa có đánh giá</span>
+              )}
+            </div>
+          );
+        })()}
+      </div>
+
       {/* Insight về rạp (dạng mới) */}
       <div style={{ marginBottom: 24 }}>
         <h3 style={{ fontWeight: 600, fontSize: 18, marginBottom: 8 }}>Nhận xét tổng quan về rạp</h3>
@@ -173,25 +195,6 @@ export default function CinemaDetails() {
           <div className={styles.error}>{insightError}</div>
         ) : insight ? (
           <div style={{ background: '#f8f9fa', borderRadius: 8, padding: 16, marginBottom: 8 }}>
-            {/* Đánh giá trung bình */}
-            {(() => {
-              const ratings = comments.map(c => c.rating).filter(r => typeof r === 'number') as number[];
-              const avg = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null;
-              return (
-                <div style={{marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8}}>
-                  <b>Đánh giá trung bình:</b>
-                  {avg !== null ? (
-                    <>
-                      <span style={{fontWeight: 600, fontSize: 18}}>{avg.toFixed(1)}/5</span>
-                      <StarRating rating={avg} size={24} readOnly />
-                      <span style={{color: '#888', fontSize: 13}}>({ratings.length} đánh giá)</span>
-                    </>
-                  ) : (
-                    <span style={{color: '#aaa'}}>Chưa có đánh giá</span>
-                  )}
-                </div>
-              );
-            })()}
             {insight.summary && (
               <div style={{ marginBottom: 8 }}><strong>Tóm tắt:</strong> {insight.summary}</div>
             )}
