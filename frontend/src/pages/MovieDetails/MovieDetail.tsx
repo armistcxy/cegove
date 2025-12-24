@@ -363,7 +363,11 @@ export default function MovieDetail() {
           <div className={styles.actions}>
             <button 
               className={styles.buyButton}
-              onClick={() => setIsBookingPopupOpen(true)}
+              onClick={() => {
+                setSelectedMovieTitle(movie.series_title);
+                setSelectedMovieId(movie.id);
+                setIsBookingPopupOpen(true);
+              }}
             >
               Mua vé
             </button>
