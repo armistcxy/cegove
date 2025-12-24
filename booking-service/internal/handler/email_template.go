@@ -99,8 +99,9 @@ func GenerateBookingConfirmationEmail(booking *domain.Booking, userEmail string)
         .info-row {
             display: flex;
             justify-content: space-between;
-            padding: 8px 0;
+            padding: 12px 0;
             border-bottom: 1px solid #e0e0e0;
+            gap: 20px;
         }
 
         .info-row:last-child {
@@ -112,12 +113,14 @@ func GenerateBookingConfirmationEmail(booking *domain.Booking, userEmail string)
             color: #666;
             font-size: 13px;
             text-transform: uppercase;
+            min-width: 120px;
         }
 
         .info-value {
             color: #333;
             font-size: 14px;
             text-align: right;
+            flex: 1;
         }
 
         .tickets-container {
@@ -330,7 +333,7 @@ func GenerateBookingConfirmationEmail(booking *domain.Booking, userEmail string)
             <!-- Confirmation Message -->
             <div class="confirmation-message">
                 <h2>Thank you for your booking!</h2>
-                <p>Your booking has been confirmed. Below you'll find all the details and QR codes for your tickets. Please present these QR codes at the cinema entrance.</p>
+                <p>Your booking has been confirmed. Below you'll find all the details. Please present your QR code at the cinema entrance.</p>
             </div>
 
             <!-- Booking Details -->
@@ -350,6 +353,12 @@ func GenerateBookingConfirmationEmail(booking *domain.Booking, userEmail string)
                 </div>
             </div>
 
+            <!-- Booking QR Code -->
+            <div style="text-align: center; margin: 30px 0; padding: 20px; background-color: #f9f9f9; border-radius: 6px;">
+                <div style="font-size: 14px; font-weight: 600; color: #333; margin-bottom: 15px;">Your Booking QR Code</div>
+                {{BOOKING_QR_CODE}}
+            </div>
+
             <!-- Tickets -->
             <div class="section-title">Your Tickets</div>
             <div class="tickets-container">
@@ -361,10 +370,6 @@ func GenerateBookingConfirmationEmail(booking *domain.Booking, userEmail string)
                 <div class="price-row">
                     <span>Subtotal ({{TICKET_COUNT}} tickets)</span>
                     <span>{{SUBTOTAL}}</span>
-                </div>
-                <div class="price-row">
-                    <span>Service Fee</span>
-                    <span>{{SERVICE_FEE}}</span>
                 </div>
                 <div class="price-row total">
                     <span>Total Amount</span>
@@ -411,18 +416,48 @@ func GenerateBookingConfirmationEmail(booking *domain.Booking, userEmail string)
 
 	// Calculate totals
 	subtotal := calculateSubtotal(booking.Tickets)
-	serviceFee := subtotal * 0.05 // 5% service fee example
 	totalPrice := booking.TotalPrice
+
+	// Convert to UTC+7 timezone
+	loc, err := time.LoadLocation("Asia/Bangkok")
+	if err != nil {
+		// Fallback to UTC if location cannot be loaded
+		loc = time.UTC
+	}
+	bookingDateUTC7 := booking.CreatedAt.In(loc)
+
+	// Generate booking QR code HTML
+	bookingQRCodeHTML := ""
+	if booking.ID != "" {
+		bookingQRCodeHTML = fmt.Sprintf(`
+                <div class="qr-code-container">
+                    <img src="%s" alt="Booking QR Code" class="qr-code-image" />
+                    <div class="qr-label">Scan for Entry</div>
+                </div>
+            `, booking.ID)
+	} else {
+		bookingQRCodeHTML = `
+                <div class="qr-code-container">
+                    <div style="width: 150px; height: 150px; border: 2px solid #ddd; border-radius: 6px; display: flex; align-items: center; justify-content: center; background-color: #f5f5f5; margin: 0 auto;">
+                        <div style="text-align: center; color: #999;">
+                            <p style="font-size: 12px; margin: 0;">QR Code</p>
+                            <p style="font-size: 11px; margin: 5px 0 0 0;">Coming Soon</p>
+                        </div>
+                    </div>
+                    <div class="qr-label">Scan for Entry</div>
+                </div>
+            `
+	}
 
 	// Replace placeholders
 	html := emailTemplate
 	html = strings.ReplaceAll(html, "{{BOOKING_ID}}", booking.ID)
-	html = strings.ReplaceAll(html, "{{BOOKING_DATE}}", booking.CreatedAt.Format("January 02, 2006 at 15:04"))
+	html = strings.ReplaceAll(html, "{{BOOKING_DATE}}", bookingDateUTC7.Format("January 02, 2006 at 15:04"))
 	html = strings.ReplaceAll(html, "{{USER_EMAIL}}", userEmail)
 	html = strings.ReplaceAll(html, "{{TICKETS}}", ticketsHTML)
+	html = strings.ReplaceAll(html, "{{BOOKING_QR_CODE}}", bookingQRCodeHTML)
 	html = strings.ReplaceAll(html, "{{TICKET_COUNT}}", fmt.Sprintf("%d", len(booking.Tickets)))
 	html = strings.ReplaceAll(html, "{{SUBTOTAL}}", formatPrice(subtotal))
-	html = strings.ReplaceAll(html, "{{SERVICE_FEE}}", formatPrice(serviceFee))
 	html = strings.ReplaceAll(html, "{{TOTAL_PRICE}}", formatPrice(totalPrice))
 	html = strings.ReplaceAll(html, "{{BOOKING_URL}}", fmt.Sprintf("https://cegove.cinema/bookings/%s", booking.ID))
 	html = strings.ReplaceAll(html, "{{CURRENT_YEAR}}", fmt.Sprintf("%d", time.Now().Year()))
@@ -433,8 +468,15 @@ func GenerateBookingConfirmationEmail(booking *domain.Booking, userEmail string)
 // generateTicketsHTML generates HTML for all tickets with QR codes
 func generateTicketsHTML(tickets []domain.Ticket) string {
 	var html strings.Builder
+	loc, err := time.LoadLocation("Asia/Bangkok")
+	if err != nil {
+		// Fallback to UTC if location cannot be loaded
+		loc = time.UTC
+	}
 
 	for i, ticket := range tickets {
+		showtimeUTC7 := ticket.Showtime.In(loc)
+
 		html.WriteString(fmt.Sprintf(`
     <div class="ticket-card">
         <div class="ticket-header">
@@ -450,39 +492,31 @@ func generateTicketsHTML(tickets []domain.Ticket) string {
             </div>
         </div>
 
-        <div style="display: flex; justify-content: space-between; gap: 20px; align-items: center;">
-            <div class="ticket-details">
-                <div class="ticket-detail">
-                    <div class="ticket-detail-label">Seat</div>
-                    <div class="ticket-seat">%s</div>
-                </div>
-                <div class="ticket-detail">
-                    <div class="ticket-detail-label">Price</div>
-                    <div class="ticket-detail-value">%s</div>
-                </div>
-                <div class="ticket-detail">
-                    <div class="ticket-detail-label">Status</div>
-                    <div class="ticket-detail-value" style="color: #28a745;">Active</div>
-                </div>
-                <div class="ticket-detail">
-                    <div class="ticket-detail-label">Ticket ID</div>
-                    <div class="ticket-detail-value" style="font-size: 12px; word-break: break-all;">%s</div>
-                </div>
+        <div class="ticket-details">
+            <div class="ticket-detail">
+                <div class="ticket-detail-label">Seat</div>
+                <div class="ticket-seat">%s</div>
             </div>
-
-            <div class="qr-code-container">
-                <img src="%s" alt="QR Code" class="qr-code-image" />
-                <div class="qr-label">Scan for Entry</div>
+            <div class="ticket-detail">
+                <div class="ticket-detail-label">Price</div>
+                <div class="ticket-detail-value">%s</div>
+            </div>
+            <div class="ticket-detail">
+                <div class="ticket-detail-label">Status</div>
+                <div class="ticket-detail-value" style="color: #28a745;">Active</div>
+            </div>
+            <div class="ticket-detail">
+                <div class="ticket-detail-label">Ticket ID</div>
+                <div class="ticket-detail-value" style="font-size: 12px; word-break: break-all;">%s</div>
             </div>
         </div>
     </div>
 `, ticket.MovieTitle, ticket.CinemaName, ticket.AuditoriumName,
-			ticket.Showtime.Format("Monday, January 02, 2006 at 15:04"),
+			showtimeUTC7.Format("Monday, January 02, 2006 at 15:04"),
 			i+1,
 			ticket.SeatNumber,
 			formatPrice(ticket.Price),
-			ticket.ID,
-			ticket.QRCode))
+			ticket.ID))
 	}
 
 	return html.String()

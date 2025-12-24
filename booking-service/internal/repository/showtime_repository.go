@@ -74,7 +74,7 @@ func (r *showtimeRepository) ListShowtimes(ctx context.Context, movieID, cinemaI
 func (r *showtimeRepository) GetShowtimeSeats(ctx context.Context, showtimeID string) ([]domain.ShowtimeSeat, error) {
 	builder := r.queryBuilder.Select(
 		"seat_id", "showtime_id", "status", "price", "coalesce(booking_id, '') as booking_id", "seat_number", "seat_type",
-	).From("showtime_seats").Join("seats ON seats.id::text = showtime_seats.seat_id")
+	).From("showtime_seats").Join("seats ON seats.id = showtime_seats.seat_id")
 	builder = builder.Where(squirrel.Eq{"showtime_id": showtimeID})
 	query, args, err := builder.ToSql()
 	if err != nil {
