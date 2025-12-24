@@ -9,6 +9,7 @@ import MovieDetail from './pages/MovieDetails/MovieDetail.tsx';
 import Cinema from './pages/Cinemas/Cinema.tsx';
 import CinemaDetails from './pages/Cinemas/CinemaDetails.tsx';
 import MyTickets from './pages/MyTickets/MyTickets.tsx';
+import MyTicketDetail from './pages/MyTickets/MyTicketDetail.tsx';
 import NotAvailable from './pages/NotAvailable/NotAvailable.tsx';
 import AuthPage from "./pages/Auth/AuthPage.tsx";
 import ForgotPassword from "./pages/Auth/ForgotPassword.tsx";
@@ -61,6 +62,7 @@ function AppContent() {
                   <Route path="/cinema" element={<Cinema />} />
                   <Route path="/CinemaDetails/:id" element={<CinemaDetails />} />
                   <Route path="/my-tickets" element={<MyTickets />} />
+                  <Route path="/my-tickets/:id" element={<MyTicketDetail />} />
                   <Route path="/MovieDetail/:id" element={<MovieDetail />} />
                   <Route path="/NotAvailable" element={<NotAvailable />} />
                   <Route path="/login" element={<AuthPage />} />

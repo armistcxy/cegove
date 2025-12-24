@@ -1,3 +1,110 @@
+.ticketDetailCard {
+  max-width: 500px;
+  margin: 40px auto 0 auto;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(229, 9, 20, 0.08), 0 1.5px 8px rgba(0,0,0,0.08);
+  padding: 36px 28px 32px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  animation: fadeInUp 0.5s cubic-bezier(.39,.575,.565,1) both;
+}
+
+@keyframes fadeInUp {
+  0% { opacity: 0; transform: translateY(40px); }
+  100% { opacity: 1; transform: none; }
+}
+
+.ticketDetailCard h2 {
+  color: #e50914;
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 18px;
+  text-align: center;
+}
+
+.ticketDetailCard .infoRow {
+  margin-bottom: 10px;
+  font-size: 1.08rem;
+  color: #222;
+}
+
+.ticketDetailCard .infoRow b {
+  min-width: 110px;
+  display: inline-block;
+  color: #b20710;
+}
+
+.ticketDetailCard h3 {
+  margin: 24px 0 10px 0;
+  color: #e50914;
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.ticketTable {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #faf7f7;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(229,9,20,0.06);
+  margin-bottom: 10px;
+}
+.ticketTable th, .ticketTable td {
+  padding: 12px 10px;
+  text-align: center;
+}
+.ticketTable th {
+  background: #e50914;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1rem;
+}
+.ticketTable tr:nth-child(even) td {
+  background: #f7eaea;
+}
+.ticketTable tr:nth-child(odd) td {
+  background: #fff;
+}
+.ticketTable td {
+  font-size: 1.05rem;
+  color: #222;
+}
+
+.backButton {
+  display: inline-block;
+  margin-bottom: 18px;
+  background: none;
+  border: none;
+  color: #e50914;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s;
+  padding: 0 0 0 2px;
+}
+.backButton:hover {
+  color: #b20710;
+  text-decoration: underline;
+}
+
+@media (max-width: 600px) {
+  .ticketDetailCard {
+    padding: 18px 6px 18px 6px;
+    max-width: 98vw;
+  }
+  .ticketDetailCard h2 {
+    font-size: 1.3rem;
+  }
+  .ticketTable th, .ticketTable td {
+    padding: 8px 4px;
+    font-size: 0.98rem;
+  }
+}
 .container {
   max-width: 1400px;
   margin: 0 auto;

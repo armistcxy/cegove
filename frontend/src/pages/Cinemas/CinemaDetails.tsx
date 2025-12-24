@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import CommentList from '../../components/CommentList/CommentList';
 import CommentForm from '../../components/CommentList/CommentForm';
 import styles from './CinemaDetails.module.css';
+import StarRating from '../../components/StarRating';
 import { fetchCinemaById } from './CinemaLogic';
 import type { Cinema } from './CinemaLogic';
 
@@ -29,6 +30,26 @@ export default function CinemaDetails() {
   const [error, setError] = useState('');
   const [commentFormLoading, setCommentFormLoading] = useState(false);
   const [commentError, setCommentError] = useState<string | null>(null);
+
+  // State cho insight
+  const [insight, setInsight] = useState<any>(null);
+  const [insightLoading, setInsightLoading] = useState(false);
+  const [insightError, setInsightError] = useState('');
+
+  // Fetch insight về rạp
+  useEffect(() => {
+    if (!id) return;
+    setInsightLoading(true);
+    setInsightError('');
+    fetch(`https://comment-service-pf4q4c6zkq-pd.a.run.app/api/v1/sentiment/insights/theater/${id}?force_refresh=false&max_comments=50`)
+      .then(res => {
+        if (!res.ok) throw new Error('Không thể tải insight.');
+        return res.json();
+      })
+      .then(data => setInsight(data))
+      .catch(() => setInsightError('Không thể tải insight về rạp.'))
+      .finally(() => setInsightLoading(false));
+  }, [id]);
   // Load cinema info
   useEffect(() => {
     if (!id) return;
@@ -142,6 +163,70 @@ export default function CinemaDetails() {
           {cinema.email && <div><strong>Email:</strong> {cinema.email}</div>}
         </div>
       ) : null}
+
+      {/* Insight về rạp (dạng mới) */}
+      <div style={{ marginBottom: 24 }}>
+        <h3 style={{ fontWeight: 600, fontSize: 18, marginBottom: 8 }}>Nhận xét tổng quan về rạp</h3>
+        {insightLoading ? (
+          <div className={styles.loading}>Đang tải insight...</div>
+        ) : insightError ? (
+          <div className={styles.error}>{insightError}</div>
+        ) : insight ? (
+          <div style={{ background: '#f8f9fa', borderRadius: 8, padding: 16, marginBottom: 8 }}>
+            {/* Đánh giá trung bình */}
+            {(() => {
+              const ratings = comments.map(c => c.rating).filter(r => typeof r === 'number') as number[];
+              const avg = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null;
+              return (
+                <div style={{marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8}}>
+                  <b>Đánh giá trung bình:</b>
+                  {avg !== null ? (
+                    <>
+                      <span style={{fontWeight: 600, fontSize: 18}}>{avg.toFixed(1)}/5</span>
+                      <StarRating rating={avg} size={24} readOnly />
+                      <span style={{color: '#888', fontSize: 13}}>({ratings.length} đánh giá)</span>
+                    </>
+                  ) : (
+                    <span style={{color: '#aaa'}}>Chưa có đánh giá</span>
+                  )}
+                </div>
+              );
+            })()}
+            {insight.summary && (
+              <div style={{ marginBottom: 8 }}><strong>Tóm tắt:</strong> {insight.summary}</div>
+            )}
+            {insight.positive_aspects && insight.positive_aspects.length > 0 && (
+              <div style={{ marginBottom: 8 }}>
+                <strong>Điểm mạnh nổi bật:</strong>
+                <ul style={{ margin: 0, paddingLeft: 20 }}>
+                  {insight.positive_aspects.map((item: string, idx: number) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {insight.negative_aspects && insight.negative_aspects.length > 0 && (
+              <div style={{ marginBottom: 8 }}>
+                <strong>Điểm cần cải thiện:</strong>
+                <ul style={{ margin: 0, paddingLeft: 20 }}>
+                  {insight.negative_aspects.map((item: string, idx: number) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {insight.recommendations && (
+              <div style={{ marginBottom: 8 }}><strong>Khuyến nghị:</strong> {insight.recommendations}</div>
+            )}
+            <div style={{ fontSize: 14, color: '#666', marginTop: 8 }}>
+              <span><strong>Dựa trên:</strong> {insight.based_on_comments ?? 'N/A'} bình luận</span>
+              {insight.is_stale && (
+                <span style={{ marginLeft: 16, color: '#d32f2f' }}>(Dữ liệu cũ)</span>
+              )}
+            </div>
+          </div>
+        ) : null}
+      </div>
 
       <h2 className={styles.title}>Bình luận về rạp</h2>
       <CommentForm onSubmit={handleAddComment} loading={commentFormLoading} />

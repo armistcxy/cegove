@@ -1,6 +1,14 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './MyTickets.module.css';
+
+interface TicketDetail {
+  id: string;
+  bookingId: string;
+  seatNumber: string;
+  price: number;
+}
 
 interface Ticket {
   id: string;
@@ -10,57 +18,124 @@ interface Ticket {
   cinemaAddress: string;
   date: string;
   showtime: string;
+  endTime: string;
   bookingDate: string;
+  totalPrice: number;
+  tickets: TicketDetail[];
 }
 
 export default function MyTickets() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  // Lưu map movieTitle -> movieId
+  const [movieIdMap, setMovieIdMap] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  const handleMovieClick = (movieId?: number) => {
-    if (movieId) {
-      navigate(`/MovieDetail/${movieId}`);
+  const handleMovieClick = (movieTitle?: string, movieId?: number) => {
+    // Ưu tiên movieId, nếu không có thì thử lấy từ map
+    const id = movieId ?? (movieTitle ? movieIdMap[movieTitle] : undefined);
+    if (id) {
+      navigate(`/MovieDetail/${id}`);
+    } else {
+      alert('Không tìm thấy thông tin phim!');
+    }
+  };
+  // Hàm lấy movieId từ API theo tên phim
+  const fetchMovieIdByTitle = async (title: string): Promise<number | undefined> => {
+    try {
+      const resp = await fetch(`https://movies.cegove.cloud/api/v1/movies/search?q=${encodeURIComponent(title)}&limit=1`, {
+        headers: { 'accept': 'application/json' }
+      });
+      if (!resp.ok) return undefined;
+      const data = await resp.json();
+      if (Array.isArray(data) && data.length > 0 && data[0].id) {
+        return data[0].id;
+      }
+      // Nếu data có dạng { data: [...] }
+      if (data.data && Array.isArray(data.data) && data.data.length > 0 && data.data[0].id) {
+        return data.data[0].id;
+      }
+      return undefined;
+    } catch {
+      return undefined;
     }
   };
 
-  const handleCancelTicket = (ticketId: string, movieTitle: string) => {
-    const confirmed = window.confirm(`Bạn có chắc chắn muốn hủy vé phim "${movieTitle}" không?`);
-    
-    if (confirmed) {
-      try {
-        const updatedTickets = tickets.filter(ticket => ticket.id !== ticketId);
-        setTickets(updatedTickets);
-        localStorage.setItem('myTickets', JSON.stringify(updatedTickets));
-        alert('Hủy vé thành công!');
-      } catch (error) {
-        console.error('Error canceling ticket:', error);
-        alert('Có lỗi xảy ra khi hủy vé. Vui lòng thử lại.');
-      }
-    }
-  };
+
+
 
   useEffect(() => {
-    loadTickets();
+    fetchTickets();
+    // eslint-disable-next-line
   }, []);
 
-  const loadTickets = () => {
+  const fetchTickets = async () => {
     setLoading(true);
     try {
-      const savedTickets = localStorage.getItem('myTickets');
-      if (savedTickets) {
-        const parsedTickets = JSON.parse(savedTickets);
-        // Sort by booking date (newest first)
-        parsedTickets.sort((a: Ticket, b: Ticket) => 
-          new Date(b.bookingDate).getTime() - new Date(a.bookingDate).getTime()
-        );
-        setTickets(parsedTickets);
+      const token = localStorage.getItem('access-token');
+      if (!token) {
+        setTickets([]);
+        setLoading(false);
+        return;
       }
+      const response = await fetch('https://user.cegove.cloud/users/booking-history', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch tickets');
+      const data = await response.json();
+      // data is an array of bookings
+      const ticketsData = (Array.isArray(data) ? data : []).map((b: any) => ({
+        id: b.id,
+        movieTitle: b.movieTitle || '',
+        movieId: undefined, // sẽ cập nhật sau
+        cinema: b.cinemaName || '',
+        cinemaAddress: b.auditoriumName || '',
+        date: formatDate(b.startTime),
+        showtime: formatTime(b.startTime),
+        endTime: formatTime(b.endTime),
+        bookingDate: b.createdAt || '',
+        totalPrice: b.totalPrice || 0,
+        tickets: Array.isArray(b.tickets) ? b.tickets.map((t: any) => ({
+          id: t.id,
+          bookingId: t.bookingId,
+          seatNumber: t.seatNumber,
+          price: t.price
+        })) : [],
+      }));
+      // Sort by booking date (newest first)
+      ticketsData.sort((a: Ticket, b: Ticket) => new Date(b.bookingDate).getTime() - new Date(a.bookingDate).getTime());
+      setTickets(ticketsData);
+
+      // Tìm movieId cho từng movieTitle (nếu chưa có)
+      const uniqueTitles = Array.from(new Set(ticketsData.map(t => t.movieTitle).filter(Boolean)));
+      const idMap: Record<string, number> = {};
+      await Promise.all(uniqueTitles.map(async (title) => {
+        const id = await fetchMovieIdByTitle(title);
+        if (id) idMap[title] = id;
+      }));
+      setMovieIdMap(idMap);
     } catch (error) {
-      console.error('Error loading tickets:', error);
+      console.error('Error fetching tickets:', error);
+      setTickets([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper to format ISO date string to DD/MM/YYYY
+  const formatDate = (isoString: string) => {
+    const date = new Date(isoString);
+    return date.toLocaleDateString('vi-VN');
+  };
+
+  // Helper to format ISO date string to HH:mm
+  const formatTime = (isoString: string) => {
+    const date = new Date(isoString);
+    return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
   };
 
   const formatBookingDate = (dateString: string) => {
@@ -78,11 +153,9 @@ export default function MyTickets() {
     // Parse date string (format: DD/MM/YYYY)
     const [day, month, year] = dateString.split('/').map(Number);
     const ticketDate = new Date(year, month - 1, day);
-    
     // Parse showtime (format: HH:MM)
     const [hours, minutes] = showtime.split(':').map(Number);
     ticketDate.setHours(hours, minutes, 0, 0);
-    
     // Compare with current date and time
     const now = new Date();
     return ticketDate > now;
@@ -125,13 +198,12 @@ export default function MyTickets() {
                     <div className={styles.ticketHeader}>
                       <h3 
                         className={`${styles.movieTitle} ${ticket.movieId ? styles.clickable : ''}`}
-                        onClick={() => handleMovieClick(ticket.movieId)}
+                        onClick={() => handleMovieClick(ticket.movieTitle, ticket.movieId)}
                       >
                         {ticket.movieTitle}
                       </h3>
                       <span className={styles.statusBadge}>Sắp chiếu</span>
                     </div>
-                    
                     <div className={styles.ticketInfo}>
                       <div className={styles.infoRow}>
                         <svg className={styles.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -143,17 +215,15 @@ export default function MyTickets() {
                           <p className={styles.address}>{ticket.cinemaAddress}</p>
                         </div>
                       </div>
-                      
                       <div className={styles.infoRow}>
                         <svg className={styles.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                         <p className={styles.datetime}>
                           <span className={styles.date}>{ticket.date}</span>
-                          <span className={styles.time}>{ticket.showtime}</span>
+                          <span className={styles.time}>{ticket.showtime} - {ticket.endTime}</span>
                         </p>
                       </div>
-                      
                       <div className={styles.infoRow}>
                         <svg className={styles.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
@@ -162,22 +232,17 @@ export default function MyTickets() {
                           Đặt vào: {formatBookingDate(ticket.bookingDate)}
                         </p>
                       </div>
+                      <div className={styles.infoRow}>
+                        <span className={styles.label}>Tổng tiền:</span>
+                        <span>{ticket.totalPrice.toLocaleString('vi-VN')} đ</span>
+                      </div>
                     </div>
-                    
                     <div className={styles.ticketActions}>
-                      {ticket.movieId && (
-                        <button 
-                          className={styles.detailButton}
-                          onClick={() => handleMovieClick(ticket.movieId)}
-                        >
-                          Xem chi tiết phim
-                        </button>
-                      )}
                       <button 
-                        className={styles.cancelButton}
-                        onClick={() => handleCancelTicket(ticket.id, ticket.movieTitle)}
+                        className={styles.detailButton}
+                        onClick={() => navigate(`/my-tickets/${ticket.id}`)}
                       >
-                        Hủy vé
+                        Xem chi tiết
                       </button>
                     </div>
                   </div>
@@ -197,13 +262,12 @@ export default function MyTickets() {
                     <div className={styles.ticketHeader}>
                       <h3 
                         className={`${styles.movieTitle} ${ticket.movieId ? styles.clickable : ''}`}
-                        onClick={() => handleMovieClick(ticket.movieId)}
+                        onClick={() => handleMovieClick(ticket.movieTitle, ticket.movieId)}
                       >
                         {ticket.movieTitle}
                       </h3>
                       <span className={styles.statusBadge}>Đã xem</span>
                     </div>
-                    
                     <div className={styles.ticketInfo}>
                       <div className={styles.infoRow}>
                         <svg className={styles.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -215,17 +279,15 @@ export default function MyTickets() {
                           <p className={styles.address}>{ticket.cinemaAddress}</p>
                         </div>
                       </div>
-                      
                       <div className={styles.infoRow}>
                         <svg className={styles.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                         <p className={styles.datetime}>
                           <span className={styles.date}>{ticket.date}</span>
-                          <span className={styles.time}>{ticket.showtime}</span>
+                          <span className={styles.time}>{ticket.showtime} - {ticket.endTime}</span>
                         </p>
                       </div>
-                      
                       <div className={styles.infoRow}>
                         <svg className={styles.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
@@ -234,16 +296,19 @@ export default function MyTickets() {
                           Đặt vào: {formatBookingDate(ticket.bookingDate)}
                         </p>
                       </div>
+                      <div className={styles.infoRow}>
+                        <span className={styles.label}>Tổng tiền:</span>
+                        <span>{ticket.totalPrice.toLocaleString('vi-VN')} đ</span>
+                      </div>
                     </div>
-                    
-                    {ticket.movieId && (
+                    <div className={styles.ticketActions}>
                       <button 
                         className={styles.detailButton}
-                        onClick={() => handleMovieClick(ticket.movieId)}
+                        onClick={() => navigate(`/my-tickets/${ticket.id}`)}
                       >
-                        Xem chi tiết phim
+                        Xem chi tiết
                       </button>
-                    )}
+                    </div>
                   </div>
                 ))}
               </div>

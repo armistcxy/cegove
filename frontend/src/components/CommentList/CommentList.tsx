@@ -1,7 +1,17 @@
 import React from 'react';
+function LoadingSpinner() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 50 50" style={{ verticalAlign: 'middle' }}>
+      <circle cx="25" cy="25" r="20" fill="none" stroke="#ef4444" strokeWidth="5" strokeDasharray="31.4 31.4" strokeLinecap="round">
+        <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.8s" repeatCount="indefinite" />
+      </circle>
+    </svg>
+  );
+}
 import styles from './CommentList.module.css';
 
 import type { Comment } from './CommentList.types';
+import StarRating from '../StarRating';
 
 interface CommentListProps {
   comments: Comment[];
@@ -26,12 +36,7 @@ function getToken() {
   return localStorage.getItem('access-token') || '';
 }
 
-const likeIcon = (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 10v12"/><path d="M19 7c0-1.1-.9-2-2-2h-5.31a2 2 0 0 0-1.9 1.37l-3.34 9.94A2 2 0 0 0 8.31 20H17a2 2 0 0 0 2-2v-7z"/></svg>
-);
-const dislikeIcon = (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 14V2"/><path d="M5 17c0 1.1.9 2 2 2h5.31a2 2 0 0 0 1.9-1.37l3.34-9.94A2 2 0 0 0 15.69 4H7a2 2 0 0 0-2 2v7z"/></svg>
-);
+// ...
 
 
 const CommentList: React.FC<CommentListProps> = ({ comments, userAvatars, reloadComments }) => {
@@ -59,7 +64,6 @@ const CommentList: React.FC<CommentListProps> = ({ comments, userAvatars, reload
   }, [menuOpen]);
   const [pending, setPending] = useState<{[id: number]: boolean}>({});
   const [localLikes, setLocalLikes] = useState<{[id: number]: boolean}>({});
-  // Số lượng like/dislike lấy từ comment nếu có
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editLoading, setEditLoading] = useState(false);
 
@@ -141,6 +145,8 @@ const CommentList: React.FC<CommentListProps> = ({ comments, userAvatars, reload
         setLocalLikes(prev => ({ ...prev, [id]: true }));
       }
       if (reloadComments) reloadComments();
+      // Đảm bảo loading hiển thị tối thiểu 1000ms
+      await new Promise(res => setTimeout(res, 1100));
     } catch (err) {
       // Ưu tiên báo lỗi đúng trạng thái
       const comment = comments.find(c => c.id === id);
@@ -164,7 +170,7 @@ const CommentList: React.FC<CommentListProps> = ({ comments, userAvatars, reload
             <div className={styles.avatarWrap}>
               <img
                 src={(() => {
-                  const img = userAvatars && userAvatars[comment.user_id];
+                  const img = userAvatars && comment.user_id !== undefined ? userAvatars[comment.user_id] : undefined;
                   if (img && img !== 'null' && img !== '' && !img.includes('default-avatar')) {
                     return img;
                   }
@@ -175,7 +181,39 @@ const CommentList: React.FC<CommentListProps> = ({ comments, userAvatars, reload
               />
             </div>
             <div className={styles.contentWrap}>
-              <div className={styles.username}>{comment.fullName || comment.user_name || comment.user_email || 'Người dùng'}</div>
+              <div className={styles.username} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>{comment.fullName || comment.user_name || comment.user_email || 'Người dùng'}</span>
+                <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {comment.rating == null && <span style={{ color: '#aaa', fontSize: 12 }}>Chưa đánh giá</span>}
+                  <StarRating
+                    rating={typeof comment.rating === 'number' ? comment.rating : null}
+                    size={28}
+                    readOnly={comment.user_id !== userProfile?.id}
+                    onRate={async (star) => {
+                      if (comment.user_id !== userProfile?.id) return;
+                      const token = getToken();
+                      setPending(prev => ({ ...prev, [comment.id]: true }));
+                      try {
+                        const res = await fetch(`https://comment-service-pf4q4c6zkq-pd.a.run.app/api/v1/comments/${comment.id}/rating`, {
+                          method: 'PATCH',
+                          headers: {
+                            'accept': 'application/json',
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({ rating: star })
+                        });
+                        if (!res.ok) throw new Error('Đánh giá thất bại');
+                        if (reloadComments) reloadComments();
+                      } catch (e) {
+                        alert('Đánh giá thất bại');
+                      } finally {
+                        setPending(prev => ({ ...prev, [comment.id]: false }));
+                      }
+                    }}
+                  />
+                </span>
+              </div>
               {editingId === comment.id ? (
                 <EditCommentForm
                   initialContent={comment.content}
@@ -189,7 +227,7 @@ const CommentList: React.FC<CommentListProps> = ({ comments, userAvatars, reload
               <div className={styles.date}>{new Date(comment.created_at).toLocaleString()}</div>
               <div className={styles.actionsRow}>
                 <button className={styles.iconBtn} onClick={() => handleLike(comment.id)} title={localLikes[comment.id] ? "Hủy like" : "Like"} disabled={pending[comment.id]}>
-                  <HeartIcon filled={comment.user_has_liked ?? !!localLikes[comment.id]} /> <span>{comment.likes_count ?? comment.like_count ?? 0}</span>
+                  {pending[comment.id] ? <LoadingSpinner /> : <HeartIcon filled={comment.user_has_liked ?? !!localLikes[comment.id]} />} <span>{comment.likes_count ?? comment.like_count ?? 0}</span>
                 </button>
                 <div className={styles.menuWrap}>
                   <button
@@ -204,7 +242,7 @@ const CommentList: React.FC<CommentListProps> = ({ comments, userAvatars, reload
                   {menuOpen[comment.id] && (
                     <div
                       className={styles.menuDropdown}
-                      ref={el => (menuRefs.current[comment.id] = el)}
+                      ref={el => { menuRefs.current[comment.id] = el; }}
                       onClick={e => e.stopPropagation()}
                     >
                       {comment.user_id === userProfile?.id && (
