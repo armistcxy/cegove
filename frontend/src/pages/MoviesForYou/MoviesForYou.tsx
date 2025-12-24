@@ -11,28 +11,22 @@ export default function MoviesForYou() {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Booking popup state
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [selectedMovieTitle, setSelectedMovieTitle] = useState<string>("");
   const [selectedMovieId, setSelectedMovieId] = useState<number | undefined>(undefined);
-  
+
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isLoggedIn) {
-      navigate('/login');
-      return;
-    }
-
+    if (!isLoggedIn || !userProfile) return;
     const loadPersonalizedMovies = async () => {
       setLoading(true);
       setError(null);
-
       try {
         const userId = userProfile.id || 0;
         const response = await fetchPersonalizedMovies(userId, 20, 0.7, true);
-
         if (response && response.recommendations) {
           setMovies(response.recommendations);
         } else {
@@ -45,9 +39,8 @@ export default function MoviesForYou() {
         setLoading(false);
       }
     };
-
     loadPersonalizedMovies();
-  }, [isLoggedIn, userProfile.id, navigate]);
+  }, [isLoggedIn, userProfile]);
 
   const handleBuyClick = (movieTitle: string, movieId: number) => {
     setSelectedMovieTitle(movieTitle);
@@ -59,43 +52,41 @@ export default function MoviesForYou() {
     navigate(`/MovieDetail/${movieId}`);
   };
 
-  if (loading) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.loading}>
-          <div className={styles.spinner}></div>
-          <p>Đang tải phim dành cho bạn...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.error}>
-          <h2>Lỗi</h2>
-          <p>{error}</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className={styles.moviesSection}>
       <div className={styles.header}>
         <div>
           <h2>Phim dành cho bạn</h2>
           <p className={styles.subtitle}>
-            {movies.length > 0 && movies[0] ? 
-              'Được đề xuất dựa trên sở thích và lịch sử xem phim của bạn' :
-              'Danh sách phim phổ biến dành cho bạn'
-            }
+            {movies.length > 0 && movies[0]
+              ? 'Được đề xuất dựa trên sở thích và lịch sử xem phim của bạn'
+              : 'Danh sách phim phổ biến dành cho bạn'}
           </p>
         </div>
       </div>
 
-      {movies.length === 0 ? (
+      {!isLoggedIn ? (
+        <div className={styles.container}>
+          <div className={styles.error}>
+            <h2>Bạn chưa đăng nhập</h2>
+            <p>Vui lòng <a href="/login">đăng nhập</a> để xem phim đề xuất cho bạn.</p>
+          </div>
+        </div>
+      ) : loading ? (
+        <div className={styles.container}>
+          <div className={styles.loading}>
+            <div className={styles.spinner}></div>
+            <p>Đang tải phim dành cho bạn...</p>
+          </div>
+        </div>
+      ) : error ? (
+        <div className={styles.container}>
+          <div className={styles.error}>
+            <h2>Lỗi</h2>
+            <p>{error}</p>
+          </div>
+        </div>
+      ) : movies.length === 0 ? (
         <div className={styles.noMovies}>
           <p>Chưa có phim đề xuất. Hãy xem và đánh giá một số phim để nhận được gợi ý!</p>
         </div>
@@ -103,10 +94,10 @@ export default function MoviesForYou() {
         <div className={styles.moviesGrid}>
           {movies.map((movie) => (
             <div className={styles.movieCard} key={movie.id}>
-              <img 
-                src={movie.poster_link} 
-                alt={movie.series_title} 
-                className={styles.poster} 
+              <img
+                src={movie.poster_link}
+                alt={movie.series_title}
+                className={styles.poster}
               />
               <div className={styles.movieInfo}>
                 <p className={styles.movieTitle}>{movie.series_title}</p>
@@ -114,13 +105,13 @@ export default function MoviesForYou() {
                   ⭐ {movie.imdb_rating} / 10
                 </div>
                 <div className={styles.movieButtons}>
-                  <button 
+                  <button
                     className={styles.btnBuy}
                     onClick={() => handleBuyClick(movie.series_title, movie.id)}
                   >
                     Mua vé
                   </button>
-                  <button 
+                  <button
                     className={styles.btnDetail}
                     onClick={() => handleDetailClick(movie.id)}
                   >
@@ -133,7 +124,7 @@ export default function MoviesForYou() {
         </div>
       )}
 
-      <BookingPopup 
+      <BookingPopup
         isOpen={isBookingOpen}
         onClose={() => setIsBookingOpen(false)}
         movieTitle={selectedMovieTitle}

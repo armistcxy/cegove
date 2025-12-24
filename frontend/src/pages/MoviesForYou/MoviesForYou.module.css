@@ -8,10 +8,10 @@
 }
 
 .container {
-  padding: 60px 40px;
+  padding: 20px 40px 60px 40px;
   min-height: 100vh;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
 }
 
