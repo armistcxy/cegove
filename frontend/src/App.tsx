@@ -20,7 +20,7 @@ import AdminMovies from './pages/Admin/Movies.tsx';
 import AdminCinemas from './pages/Admin/Cinemas.tsx';
 import AdminAbout from './pages/Admin/About.tsx';
 import BookingPage from "./pages/Booking/BookingPage.tsx";
-import PaymentResult from "./pages/PaymentResult.tsx";
+import PaymentResult from "./pages/PaymentResult/PaymentResult.tsx";
 // import BookingManage from './pages/Admin/BookingManage.tsx';
 import RoomManage from './pages/Admin/RoomManage.tsx';
 
