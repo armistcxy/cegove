@@ -309,7 +309,7 @@ export default function MyTicketDetail() {
                   <div className={styles.infoRow}><b>Rạp:</b> <span style={{color:'#b20710', fontWeight:600}}>{booking.cinemaName}</span></div>
                   <div className={styles.infoRow}><b>Phòng chiếu:</b> <span style={{color:'#b20710', fontWeight:600}}>{booking.auditoriumName}</span></div>
                   <div className={styles.infoRow}><b>Ngày chiếu:</b> <span style={{color:'#b20710', fontWeight:600}}>{formatDate(booking.startTime)}</span></div>
-                  <div className={styles.infoRow}><b>Giờ chiếu:</b> <span style={{color:'#b20710', fontWeight:600}}>{formatTime(booking.startTime)} - {formatTime(booking.endTime)}</span></div>
+                  <div className={styles.infoRow}><b>Giờ chiếu:</b> <span style={{color:'#b20710', fontWeight:600}}>{formatTime(booking.startTime)}</span></div>
                   <div className={styles.infoRow}><b>Ghế:</b> <span style={{fontWeight:800, color:'#e50914', fontSize:'1.2em', letterSpacing:2, textShadow:'0 1px 8px #fff'}}>{ticket.seatNumber}</span></div>
                   <div className={styles.infoRow}><b>Giá:</b> <span style={{color:'#e50914', fontWeight:800, fontSize:'1.1em', textShadow:'0 1px 8px #fff'}}>{ticket.price.toLocaleString('vi-VN')} đ</span></div>
                 </div>
