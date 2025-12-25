@@ -132,8 +132,18 @@ class APIClient:
         date: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
-        Get showtimes with optional filters - Scenario 3, 4
-        API: /api/v1/showtimes?movie_id=X&cinema_id=Y&date=YYYY-MM-DD
+        Get showtimes with optional filters
+        
+        API: GET /api/v1/showtimes?movie_id=X&cinema_id=Y&date=YYYY-MM-DD
+        
+        Returns List of Showtime:
+        - id: showtime ID (string)
+        - movie_id: movie ID (string)
+        - cinema_id: cinema ID (string)
+        - auditorium_id: auditorium ID (string)
+        - start_time: ISO datetime string
+        - end_time: ISO datetime string  
+        - base_price: float
         """
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
@@ -200,11 +210,24 @@ class APIClient:
         )
     
     async def get_showtime_seats(self, showtime_id: str) -> List[Dict[str, Any]]:
-        """Get seats for showtime - Scenario 4, 8"""
+        """
+        Get seats for showtime (V1 - basic data)
+        
+        API: GET /api/v1/showtimes/{showtime_id}/seats
+        
+        Returns List of ShowtimeSeat:
+        - seat_id: string
+        - showtime_id: string
+        - seat_number: string
+        - seat_type: string
+        - status: int (0=Available, 1=Locked, 2=Sold)
+        - price: float
+        - booking_id: string (if booked)
+        """
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(
-                    f"{self.booking_service_url}/api/showtimes/{showtime_id}/seats"
+                    f"{self.booking_service_url}/api/v1/showtimes/{showtime_id}/seats"
                 )
                 response.raise_for_status()
                 return response.json()
@@ -213,7 +236,19 @@ class APIClient:
             return []
     
     async def get_showtime_seats_v2(self, showtime_id: str) -> List[Dict[str, Any]]:
-        """Get seats V2 with rich data - Scenario 4, 8 (Real-time availability)"""
+        """
+        Get seats V2 with rich data - includes pricing, labels, visual metadata
+        
+        API: /api/v1/v2/showtimes/{showtime_id}/seats
+        
+        Returns List of SeatV2Response:
+        - id: seat ID
+        - label: display label (e.g., "A-01")
+        - status_text: "available" | "sold" | "locked"
+        - position: {row, number, grid_x, grid_y}
+        - metadata: {type_code, display_name, color_hex}
+        - pricing: {amount, currency}
+        """
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(
@@ -257,19 +292,52 @@ class APIClient:
         self,
         user_id: str,
         showtime_id: str,
-        seat_ids: List[str]
+        seat_ids: List[str],
+        food_items: Optional[List[Dict[str, Any]]] = None
     ) -> Optional[Dict[str, Any]]:
-        """Create booking - Scenario 4"""
+        """
+        Create a new booking
+        
+        API: POST /api/v1/bookings
+        
+        Request body (createBookingRequest):
+        - user_id: string (required)
+        - showtime_id: string (required)
+        - seat_ids: List[string] (required)
+        - food_items: List[{food_item_id: string, quantity: int}] (optional)
+        
+        Returns Booking:
+        - id: booking ID (string)
+        - user_id: int
+        - showtime_id: string
+        - seat_ids: List[int]
+        - total_price: float
+        - status: "PENDING" | "CONFIRMED" | "CANCELLED" | "FAILED"
+        - tickets: List[Ticket] (with QR codes)
+        - created_at: ISO datetime
+        - expires_at: ISO datetime
+        """
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
+                payload = {
+                    "user_id": user_id,
+                    "showtime_id": showtime_id,
+                    "seat_ids": seat_ids
+                }
+                if food_items:
+                    payload["food_items"] = food_items
+                
+                print(f"[APIClient] Creating booking with payload: {payload}")
+                
                 response = await client.post(
-                    f"{self.booking_service_url}/api/bookings",
-                    json={
-                        "user_id": user_id,
-                        "showtime_id": showtime_id,
-                        "seat_ids": seat_ids
-                    }
+                    f"{self.booking_service_url}/api/v1/bookings",
+                    json=payload
                 )
+                
+                print(f"[APIClient] Response status: {response.status_code}")
+                if response.status_code >= 400:
+                    print(f"[APIClient] Response body: {response.text}")
+                
                 response.raise_for_status()
                 return response.json()
         except Exception as e:
@@ -277,11 +345,17 @@ class APIClient:
             return None
     
     async def get_booking(self, booking_id: str) -> Optional[Dict[str, Any]]:
-        """Get booking detail - Scenario 5 (history)"""
+        """
+        Get booking detail by ID
+        
+        API: GET /api/v1/bookings/{booking_id}
+        
+        Returns Booking with full details including tickets
+        """
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(
-                    f"{self.booking_service_url}/api/bookings/{booking_id}"
+                    f"{self.booking_service_url}/api/v1/bookings/{booking_id}"
                 )
                 response.raise_for_status()
                 return response.json()
@@ -290,17 +364,25 @@ class APIClient:
             return None
     
     async def get_user_bookings(self, user_id: str) -> List[Dict[str, Any]]:
-        """Get user's booking history - Scenario 5"""
+        """
+        Get user's booking history
+        
+        API: GET /api/v1/bookings?user_id=X
+        
+        Returns List of Bookings for the user
+        """
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(
-                    f"{self.booking_service_url}/api/bookings",
+                    f"{self.booking_service_url}/api/v1/bookings",
                     params={"user_id": user_id}
                 )
                 response.raise_for_status()
                 bookings = response.json()
-                # Filter by user_id if needed
-                return [b for b in bookings if b.get("user_id") == user_id]
+                # Filter by user_id if API doesn't filter
+                if isinstance(bookings, list):
+                    return [b for b in bookings if str(b.get("user_id")) == str(user_id)]
+                return []
         except Exception as e:
             print(f"Error getting user bookings: {e}")
             return []
@@ -311,11 +393,21 @@ class APIClient:
         self,
         booking_id: str,
         amount: float,
-        user_id: str
+        provider: str = "vnpay",
+        client_ip: str = "127.0.0.1"
     ) -> Optional[Dict[str, Any]]:
         """
         Create payment for booking
         Returns payment URL or payment info
+        
+        Args:
+            booking_id: The booking ID
+            amount: Payment amount
+            provider: Payment provider (default: vnpay)
+            client_ip: Client IP address
+        
+        Returns:
+            Dict with 'payment' and 'url' fields
         """
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
@@ -324,7 +416,8 @@ class APIClient:
                     json={
                         "booking_id": booking_id,
                         "amount": amount,
-                        "user_id": user_id
+                        "provider": provider,
+                        "client_ip": client_ip
                     }
                 )
                 response.raise_for_status()
