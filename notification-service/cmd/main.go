@@ -10,6 +10,8 @@ import (
 	"syscall"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
@@ -20,6 +22,7 @@ import (
 	"github.com/armistcxy/cegove/notification-service/pkg/httphelp"
 	"github.com/armistcxy/cegove/notification-service/pkg/logging"
 	"github.com/armistcxy/cegove/notification-service/pkg/sms"
+	"github.com/armistcxy/cegove/notification-service/pkg/tracing"
 
 	httpSwagger "github.com/swaggo/http-swagger"
 )
@@ -35,6 +38,31 @@ func main() {
 		fmt.Fprintf(os.Stderr, "failed to initialize logger: %v\n", err)
 		os.Exit(1)
 	}
+	otel.SetTextMapPropagator(
+		propagation.NewCompositeTextMapPropagator(
+			propagation.TraceContext{},
+			propagation.Baggage{},
+		),
+	)
+	// Initialize Jaeger tracing
+	jaegerEndpoint := os.Getenv("JAEGER_ENDPOINT")
+	if jaegerEndpoint == "" {
+		jaegerEndpoint = "localhost:4317" // Default Jaeger gRPC endpoint
+	}
+
+	ctx := context.Background()
+	tp, err := tracing.InitJaegerTracer(ctx, "notification-service", jaegerEndpoint)
+	if err != nil {
+		logger.Fatal("failed to initialize jaeger tracer", err)
+	}
+	defer func() {
+		if err := tp.Shutdown(ctx); err != nil {
+			logger.Error("error shutting down trace provider", err)
+		}
+	}()
+
+	// Set the global tracer provider
+	otel.SetTracerProvider(tp)
 
 	// Get Mailgun configuration from environment
 	mailgunDomain := os.Getenv("MAILGUN_DOMAIN")
@@ -98,7 +126,10 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	srv := httphelp.NewServer()
+	// Get tracer from the global provider
+	tracer := otel.Tracer("notification-service")
+
+	srv := httphelp.NewServer(tracing.HTTPMiddleware(tracer))
 	mux := runtime.NewServeMux()
 
 	// Register gRPC gateway
