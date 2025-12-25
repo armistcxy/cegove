@@ -75,12 +75,18 @@ export const ChatBotProvider: React.FC<{ children: React.ReactNode }> = ({ child
         };
         setMessages(prev => [...prev, userMessage]);
 
+        const token = localStorage.getItem('access-token');
+        const headers: HeadersInit = {
+            'Content-Type': 'application/json',
+        };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
         try {
             const response = await fetch(`${CHATBOT_API_URL}/chat`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers,
                 body: JSON.stringify({
                     user_id: userId,
                     message: message,
