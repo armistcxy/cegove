@@ -4,7 +4,6 @@ from datetime import datetime
 
 class ChatMessage(BaseModel):
     """Message từ user"""
-    user_id: str
     message: str
     session_id: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None

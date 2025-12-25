@@ -15,20 +15,25 @@ router_agent = RouterAgent()
 @router.post("/chat", response_model=ChatResponse)
 async def chat(
     message: ChatMessage,
-    # current_user: dict = Depends(get_current_user)  # Tạm comment để test
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Xử lý tin nhắn chat từ người dùng
+    
+    Authentication: Bearer token required (JWT)
+    - Token phải chứa userId từ AuthService
+    
     Flow:
-    1. Lấy hoặc tạo session
-    2. Load conversation state
-    3. Router agent phân tích và route đến agent phù hợp
-    4. Agent xử lý và trả response
-    5. Lưu state và history
+    1. Lấy user_id từ JWT token (đã xác thực)
+    2. Lấy hoặc tạo session
+    3. Load conversation state
+    4. Router agent phân tích và route đến agent phù hợp
+    5. Agent xử lý và trả response
+    6. Lưu state và history
     """
     try:
-        # Use user_id from message for testing
-        user_id = message.user_id
+        # Get authenticated user_id from JWT token (convert to string)
+        user_id = str(current_user["user_id"])
         
         # 1. Get or create session
         session_id = message.session_id or session_manager.create_session(user_id)
