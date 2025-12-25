@@ -1,0 +1,23 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: booking-service-scaler
+  namespace: default
+spec:
+  scaleTargetRef:
+    name: booking-service
+  minReplicaCount: 1
+  maxReplicaCount: 5
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus-operated:9090
+        metricName: http_request_rate
+        query: |
+          sum(rate(http_requests_total{job="booking-service"}[1m]))
+        threshold: "100"
+        authModes: "bearer"
+      authentication:
+        secretTargetRef:
+          name: prometheus-auth
+          key: token

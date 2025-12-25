@@ -10,7 +10,14 @@ import (
 	"github.com/armistcxy/cegove/booking-service/internal/repository"
 	"github.com/armistcxy/cegove/booking-service/pkg/httphelp"
 	"github.com/armistcxy/cegove/booking-service/pkg/logging"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cast"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/baggage"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // @BasePath /api/v1
@@ -24,18 +31,38 @@ import (
 // @Success 200 {object} domain.Booking "Booking created successfully"
 // @Router /bookings [post]
 type BookingHandler struct {
-	logger      *logging.Logger
-	bookingRepo repository.BookingRepository
-	userRepo    repository.UserRepository
-	foodRepo    repository.FoodRepository
+	logger           *logging.Logger
+	bookingRepo      repository.BookingRepository
+	userRepo         repository.UserRepository
+	foodRepo         repository.FoodRepository
+	requestsTotal    prometheus.Counter
+	requestsDuration prometheus.Histogram
 }
 
-func NewBookingHandler(bookingRepo repository.BookingRepository, userRepo repository.UserRepository, foodRepo repository.FoodRepository, logger *logging.Logger) *BookingHandler {
+func NewBookingHandler(bookingRepo repository.BookingRepository, userRepo repository.UserRepository, foodRepo repository.FoodRepository, logger *logging.Logger, reg prometheus.Registerer) *BookingHandler {
+	requestsTotal := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "booking_requests_total",
+		Help: "Total number of booking requests",
+	})
+
+	requestsDuration := prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name: "booking_request_duration_seconds",
+		Help: "Duration of booking requests in seconds",
+	})
+
+	if reg != nil {
+		reg.MustRegister(requestsTotal, requestsDuration)
+	} else {
+		prometheus.MustRegister(requestsTotal, requestsDuration)
+	}
+
 	return &BookingHandler{
-		logger:      logger,
-		bookingRepo: bookingRepo,
-		userRepo:    userRepo,
-		foodRepo:    foodRepo,
+		logger:           logger,
+		bookingRepo:      bookingRepo,
+		userRepo:         userRepo,
+		foodRepo:         foodRepo,
+		requestsTotal:    requestsTotal,
+		requestsDuration: requestsDuration,
 	}
 }
 
@@ -51,6 +78,14 @@ type createBookingFoodRequest struct {
 	Quantity   int    `json:"quantity" example:"2"`
 }
 
+func (h *BookingHandler) recordMetrics() func() {
+	timer := prometheus.NewTimer(h.requestsDuration)
+	return func() {
+		h.requestsTotal.Inc()
+		timer.ObserveDuration()
+	}
+}
+
 // @Summary Create a new booking
 // @Description Create a new booking for a user and showtime with selected seats
 // @Tags bookings
@@ -60,6 +95,8 @@ type createBookingFoodRequest struct {
 // @Success 200 {object} domain.Booking "Booking created successfully"
 // @Router /bookings [post]
 func (h *BookingHandler) HandleCreateBooking(w http.ResponseWriter, r *http.Request) {
+	defer h.recordMetrics()()
+
 	ctx := r.Context()
 
 	// Decode request payload
@@ -112,6 +149,17 @@ func (h *BookingHandler) HandleCreateBooking(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// Create span with booking ID and set as trace ID
+	tracer := otel.Tracer("booking-service")
+	spanCtx, span := tracer.Start(ctx, "CreateBooking",
+		trace.WithAttributes(
+			attribute.String("booking.id", booking.ID),
+			attribute.String("user.id", cast.ToString(booking.UserID)),
+			attribute.String("showtime.id", booking.ShowtimeID),
+		),
+	)
+	defer span.End()
+
 	paymentURL := "https://payment.cegove.cloud/api/v1/payments/"
 	paymentPayload := map[string]any{
 		"booking_id": booking.ID,
@@ -125,14 +173,22 @@ func (h *BookingHandler) HandleCreateBooking(w http.ResponseWriter, r *http.Requ
 		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	paymentReq, err := http.NewRequest("POST", paymentURL, bytes.NewReader(paymentPayloadBytes))
+	paymentReq, err := http.NewRequestWithContext(spanCtx, "POST", paymentURL, bytes.NewReader(paymentPayloadBytes))
 	if err != nil {
 		h.logger.Error("Failed to create payment request", err)
 		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
 		return
 	}
 	paymentReq.Header.Set("Content-Type", "application/json")
-	paymentResp, err := http.DefaultClient.Do(paymentReq)
+
+	// Inject trace context into the payment request headers
+	otel.GetTextMapPropagator().Inject(spanCtx, propagation.HeaderCarrier(paymentReq.Header))
+
+	client := http.Client{
+		Transport: otelhttp.NewTransport(http.DefaultTransport),
+	}
+
+	paymentResp, err := client.Do(paymentReq)
 	if err != nil {
 		h.logger.Error("Failed to send payment request", err)
 		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
@@ -174,6 +230,8 @@ func (h *BookingHandler) HandleCreateBooking(w http.ResponseWriter, r *http.Requ
 // @Success 200 {object} domain.Booking "Booking information retrieved successfully"
 // @Router /bookings/{booking_id} [get]
 func (h *BookingHandler) HandleGetBookingInformation(w http.ResponseWriter, r *http.Request) {
+	defer h.recordMetrics()()
+
 	ctx := r.Context()
 
 	bookingID := r.PathValue("booking_id")
@@ -205,6 +263,8 @@ func (h *BookingHandler) HandleGetBookingInformation(w http.ResponseWriter, r *h
 // @Success 200 {array} domain.Booking "List of bookings retrieved successfully"
 // @Router /bookings [get]
 func (h *BookingHandler) HandleListBookings(w http.ResponseWriter, r *http.Request) {
+	defer h.recordMetrics()()
+
 	ctx := r.Context()
 
 	bookings, err := h.bookingRepo.ListBookings(ctx)
@@ -228,6 +288,8 @@ func (h *BookingHandler) HandleListBookings(w http.ResponseWriter, r *http.Reque
 // @Failure 500 {object} map[string]string "Internal Error"
 // @Router /bookings/webhooks/payment [post]
 func (h *BookingHandler) HandlePaymentWebhook(w http.ResponseWriter, r *http.Request) {
+	defer h.recordMetrics()()
+
 	ctx := r.Context()
 
 	req, err := httphelp.DecodeJSON[domain.PaymentWebhookRequest](r)
@@ -243,8 +305,18 @@ func (h *BookingHandler) HandlePaymentWebhook(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// Create span with booking ID
+	tracer := otel.Tracer("booking-service")
+	spanCtx, span := tracer.Start(ctx, "ProcessPaymentWebhook",
+		trace.WithAttributes(
+			attribute.String("booking.id", req.BookingID),
+			attribute.String("payment.status", req.PaymentStatus),
+		),
+	)
+	defer span.End()
+
 	// Process payment status update
-	err = h.bookingRepo.ProcessPaymentWebhook(ctx, req)
+	err = h.bookingRepo.ProcessPaymentWebhook(spanCtx, req)
 	if err != nil {
 		h.logger.Error("Failed to process payment webhook", err)
 		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
@@ -253,7 +325,7 @@ func (h *BookingHandler) HandlePaymentWebhook(w http.ResponseWriter, r *http.Req
 
 	if req.PaymentStatus == "SUCCESS" {
 		// get booking information
-		booking, err := h.bookingRepo.GetBookingInformation(ctx, req.BookingID)
+		booking, err := h.bookingRepo.GetBookingInformation(spanCtx, req.BookingID)
 		if err != nil {
 			h.logger.Error("Failed to get booking information", err)
 			httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
@@ -262,7 +334,7 @@ func (h *BookingHandler) HandlePaymentWebhook(w http.ResponseWriter, r *http.Req
 		h.logger.Info("Booking information", "booking", booking)
 
 		// get user email
-		email, err := h.userRepo.GetUserEmail(ctx, cast.ToString(booking.UserID))
+		email, err := h.userRepo.GetUserEmail(spanCtx, cast.ToString(booking.UserID))
 		if err != nil {
 			h.logger.Error("Failed to get user email", err)
 			httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
@@ -270,11 +342,17 @@ func (h *BookingHandler) HandlePaymentWebhook(w http.ResponseWriter, r *http.Req
 		}
 		h.logger.Info("User email", "email", email)
 
+		// Create a copy of booking with cleared QR codes before sending email
+		bookingForEmail := *booking
+		for i := range bookingForEmail.Tickets {
+			bookingForEmail.Tickets[i].QRCode = ""
+		}
+
 		notificationURL := "https://notification.cegove.cloud/v1/notifications/send"
 		notificationPayload := map[string]any{
 			"to":      []string{email},
 			"subject": "Booking Confirmation",
-			"body":    GenerateBookingConfirmationEmail(booking, email),
+			"body":    GenerateBookingConfirmationEmail(&bookingForEmail, email),
 		}
 		notificationPayloadBytes, err := json.Marshal(notificationPayload)
 		if err != nil {
@@ -282,14 +360,28 @@ func (h *BookingHandler) HandlePaymentWebhook(w http.ResponseWriter, r *http.Req
 			httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
 			return
 		}
-		notificationReq, err := http.NewRequest("POST", notificationURL, bytes.NewReader(notificationPayloadBytes))
+		notificationReq, err := http.NewRequestWithContext(spanCtx, "POST", notificationURL, bytes.NewReader(notificationPayloadBytes))
 		if err != nil {
 			h.logger.Error("Failed to create notification request", err)
 			httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 		notificationReq.Header.Set("Content-Type", "application/json")
-		notificationResp, err := http.DefaultClient.Do(notificationReq)
+
+		// Add booking.id to baggage so it can be extracted by notification service
+		bag, _ := baggage.Parse("")
+		member, _ := baggage.NewMember("booking.id", req.BookingID)
+		bag, _ = bag.SetMember(member)
+		bagCtx := baggage.ContextWithBaggage(spanCtx, bag)
+
+		// Inject trace context and baggage into the notification request headers
+		otel.GetTextMapPropagator().Inject(bagCtx, propagation.HeaderCarrier(notificationReq.Header))
+
+		client := http.Client{
+			Transport: otelhttp.NewTransport(http.DefaultTransport),
+		}
+
+		notificationResp, err := client.Do(notificationReq)
 		if err != nil {
 			h.logger.Error("Failed to send notification request", err)
 			httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
@@ -319,6 +411,8 @@ type scanTicketRequest struct {
 // @Failure 500 {object} map[string]string "Internal error"
 // @Router /tickets/scan [post]
 func (h *BookingHandler) HandleScanTicket(w http.ResponseWriter, r *http.Request) {
+	defer h.recordMetrics()()
+
 	ctx := r.Context()
 
 	req, err := httphelp.DecodeJSON[scanTicketRequest](r)

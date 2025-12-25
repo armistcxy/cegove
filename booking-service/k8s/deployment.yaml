@@ -19,7 +19,10 @@ spec:
           image: zzzsleepzzz/booking-service
           imagePullPolicy: Always
           ports:
-            - containerPort: 8080
+            - name: http
+              containerPort: 8080
+            - name: metrics
+              containerPort: 9090
           
           livenessProbe:
             tcpSocket:
@@ -50,6 +53,8 @@ spec:
                 secretKeyRef:
                   name: consul-credentials
                   key: CONSUL_PASSWORD
+            - name: JAEGER_ENDPOINT
+              value: jaeger:4317
 
           resources:
             requests:

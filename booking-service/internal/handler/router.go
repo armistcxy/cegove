@@ -13,6 +13,7 @@ import (
 
 	"github.com/armistcxy/cegove/booking-service/pkg/httphelp"
 	"github.com/armistcxy/cegove/booking-service/pkg/logging"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -21,14 +22,14 @@ type BookingRouter struct {
 	Router *httphelp.Router
 }
 
-func NewBookingRouter(pool *pgxpool.Pool, logger *logging.Logger) *BookingRouter {
+func NewBookingRouter(pool *pgxpool.Pool, logger *logging.Logger, reg prometheus.Registerer) *BookingRouter {
 	router := httphelp.NewRouter()
 
 	bookingRepo := repository.NewBookingRepository(pool, logger)
 	userRepo := repository.NewUserRepository(pool)
 	foodRepo := repository.NewFoodRepository(pool, logger)
 
-	bookingHandler := NewBookingHandler(bookingRepo, userRepo, foodRepo, logger)
+	bookingHandler := NewBookingHandler(bookingRepo, userRepo, foodRepo, logger, reg)
 	// Showtime routes
 	showtimeRepo := repository.NewShowtimeRepository(pool)
 	seatRepo := repository.NewSeatRepository(pool)
