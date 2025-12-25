@@ -925,10 +925,19 @@ Bạn muốn:
         lines.append(f"🪑 **Sơ đồ ghế:** (Còn **{analysis['available_count']}** / {analysis['total']} ghế)")
         lines.append("")
         
-        # Format by type
-        type_names = {"STANDARD": "🟢 Thường", "VIP": "🟡 VIP", "COUPLE": "💜 Đôi"}
+        # Format by type - handle various type codes
+        type_names = {
+            "STANDARD": "🟢 Thường", 
+            "NORMAL": "🟢 Thường",
+            "REGULAR": "🟢 Thường",
+            "VIP": "🟡 VIP", 
+            "PREMIUM": "🟡 VIP",
+            "COUPLE": "💜 Đôi",
+            "SWEETBOX": "💜 Đôi",
+            "DOUBLE": "💜 Đôi"
+        }
         for seat_type, count in analysis["by_type"].items():
-            type_name = type_names.get(seat_type, seat_type)
+            type_name = type_names.get(seat_type.upper(), f"🔵 {seat_type}")
             lines.append(f"  {type_name}: **{count}** ghế trống")
         
         lines.append("")
@@ -1035,10 +1044,10 @@ Bạn muốn:
         
         # 3. Detect seat type preference
         prefer_type = None
-        if any(w in message_lower for w in ["vip", "v.i.p"]):
+        if any(w in message_lower for w in ["vip", "v.i.p", "premium"]):
             prefer_type = "VIP"
-        elif any(w in message_lower for w in ["thường", "standard", "bình thường"]):
-            prefer_type = "STANDARD"
+        elif any(w in message_lower for w in ["thường", "standard", "bình thường", "normal", "thông thường"]):
+            prefer_type = "NORMAL"  # Could be NORMAL or STANDARD in API
         elif any(w in message_lower for w in ["đôi", "couple", "cặp"]):
             prefer_type = "COUPLE"
         
@@ -1179,22 +1188,49 @@ Hãy chọn lại hoặc nói số lượng để tôi tự chọn (VD: "3 ghế
         Auto-select best adjacent seats intelligently.
         
         Strategy:
-        1. Prefer middle rows (best viewing experience)
-        2. Find adjacent seats in the same row
-        3. Prefer center seats within a row
-        4. If requested type (VIP, STANDARD), filter first
+        1. Filter by seat type if requested
+        2. Prefer middle rows (best viewing experience)
+        3. Find adjacent seats in the same row
+        4. Prefer center seats within a row
+        5. Add some randomness to avoid always picking same seats
         """
+        import random
+        
         if not available or num_seats <= 0:
             return []
         
         logger.info(f"_auto_select_seats() - Selecting {num_seats} seats from {len(available)} available")
         
+        # Log available seat types for debugging
+        type_counts = {}
+        for s in available:
+            t = s.get("metadata", {}).get("type_code", "UNKNOWN")
+            type_counts[t] = type_counts.get(t, 0) + 1
+        logger.info(f"   Available seat types: {type_counts}")
+        
         # Filter by type if requested
         if prefer_type:
-            typed_seats = [s for s in available if s.get("metadata", {}).get("type_code", "").upper() == prefer_type.upper()]
+            # Map similar types (NORMAL/STANDARD are same)
+            type_variants = {
+                "NORMAL": ["NORMAL", "STANDARD", "REGULAR"],
+                "STANDARD": ["NORMAL", "STANDARD", "REGULAR"],
+                "VIP": ["VIP", "PREMIUM"],
+                "COUPLE": ["COUPLE", "DOUBLE", "SWEETBOX"],
+            }
+            
+            allowed_types = type_variants.get(prefer_type.upper(), [prefer_type.upper()])
+            logger.info(f"   Filtering for types: {allowed_types}")
+            
+            typed_seats = [
+                s for s in available 
+                if s.get("metadata", {}).get("type_code", "").upper() in allowed_types
+            ]
+            
             if len(typed_seats) >= num_seats:
                 available = typed_seats
-                logger.info(f"   Filtered to {len(available)} {prefer_type} seats")
+                logger.info(f"   ✅ Filtered to {len(available)} seats of type {prefer_type}")
+            else:
+                logger.warning(f"   ⚠️ Only {len(typed_seats)} {prefer_type} seats, need {num_seats}. Using all available.")
         
         # Group by row
         rows = {}
@@ -1209,7 +1245,6 @@ Hãy chọn lại hoặc nói số lượng để tôi tự chọn (VD: "3 ghế
             rows[row].sort(key=lambda s: s.get("position", {}).get("number", 0))
         
         # Sort rows: prefer middle rows (D, E, F are usually best for cinema)
-        # Assuming rows are A-Z, middle rows are better
         sorted_row_names = sorted(rows.keys())
         num_rows = len(sorted_row_names)
         
@@ -1221,9 +1256,11 @@ Hãy chọn lại hoặc nói số lượng để tôi tự chọn (VD: "3 ghế
                 key=lambda r: abs(sorted_row_names.index(r) - middle_idx)
             )
         
-        logger.info(f"   Rows prioritized: {sorted_row_names[:5]}...")
+        logger.info(f"   Rows prioritized (middle first): {sorted_row_names[:5]}...")
         
-        # Try to find adjacent seats in each row, starting from best rows
+        # Collect all valid consecutive groups from all rows
+        all_valid_groups = []
+        
         for row_name in sorted_row_names:
             row_seats = rows[row_name]
             
@@ -1233,11 +1270,34 @@ Hãy chọn lại hoặc nói số lượng để tôi tự chọn (VD: "3 ghế
             # Find consecutive seats
             consecutive_groups = self._find_consecutive_seats(row_seats, num_seats)
             
-            if consecutive_groups:
-                # Pick the group closest to center
-                best_group = self._pick_center_group(consecutive_groups, row_seats)
-                logger.info(f"   ✅ Selected {num_seats} seats in row {row_name}: {[s.get('label') for s in best_group]}")
-                return best_group
+            for group in consecutive_groups:
+                # Calculate score: prefer center of row, middle rows
+                row_idx = sorted_row_names.index(row_name)
+                row_score = 10 - row_idx  # Higher score for middle rows (they come first)
+                
+                # Center score within row
+                all_numbers = [s.get("position", {}).get("number", 0) for s in row_seats]
+                row_center = (min(all_numbers) + max(all_numbers)) / 2
+                group_numbers = [s.get("position", {}).get("number", 0) for s in group]
+                group_center = sum(group_numbers) / len(group_numbers)
+                center_score = 10 - abs(group_center - row_center)
+                
+                total_score = row_score + center_score
+                all_valid_groups.append((group, total_score, row_name))
+        
+        if all_valid_groups:
+            # Sort by score descending
+            all_valid_groups.sort(key=lambda x: x[1], reverse=True)
+            
+            # Take top 3 best options and randomly pick one (adds variety)
+            top_choices = all_valid_groups[:min(3, len(all_valid_groups))]
+            chosen = random.choice(top_choices)
+            
+            logger.info(f"   📊 Found {len(all_valid_groups)} valid seat groups")
+            logger.info(f"   🎯 Top choices: {[(g[2], [s.get('label') for s in g[0]], round(g[1], 1)) for g in top_choices]}")
+            logger.info(f"   ✅ Selected row {chosen[2]}: {[s.get('label') for s in chosen[0]]} (score: {round(chosen[1], 1)})")
+            
+            return chosen[0]
         
         # Fallback: no consecutive seats found, just take first available
         logger.warning(f"   ⚠️ No consecutive seats found, taking first {num_seats} available")
@@ -1335,11 +1395,21 @@ Bạn muốn:
             }
         
         if is_confirm:
-            # Create booking
+            # Create booking - Log the payload for debugging
+            logger.info(f"📤 Creating booking with:")
+            logger.info(f"   user_id: {state.user_id} (type: {type(state.user_id).__name__})")
+            logger.info(f"   showtime_id: {state.booking_state.showtime_id} (type: {type(state.booking_state.showtime_id).__name__})")
+            logger.info(f"   seat_ids: {state.booking_state.seat_ids} (type: {type(state.booking_state.seat_ids).__name__})")
+            if state.booking_state.seat_ids:
+                logger.info(f"   seat_ids[0] type: {type(state.booking_state.seat_ids[0]).__name__}")
+            
+            # Ensure seat_ids are strings
+            seat_ids = [str(sid) for sid in state.booking_state.seat_ids] if state.booking_state.seat_ids else []
+            
             booking = await api_client.create_booking(
-                user_id=state.user_id,
-                showtime_id=state.booking_state.showtime_id,
-                seat_ids=state.booking_state.seat_ids
+                user_id=str(state.user_id),
+                showtime_id=str(state.booking_state.showtime_id),
+                seat_ids=seat_ids
             )
             
             if not booking:
@@ -1356,19 +1426,19 @@ Bạn muốn:
             booking_id = booking.get("id", "N/A")
             total_price = state.booking_state.total_price or booking.get("total_price", 0)
             
-            # Create payment
-            payment = await api_client.create_payment(
+            # Create payment (payment-service returns {payment: {...}, url: "..."})
+            payment_response = await api_client.create_payment(
                 booking_id=booking_id,
-                amount=total_price,
-                user_id=state.user_id
+                amount=total_price
             )
             
-            payment_url = payment.get("payment_url") if payment else None
+            payment_url = payment_response.get("url") if payment_response else None
+            payment = payment_response.get("payment") if payment_response else None
             payment_info = ""
             if payment_url:
                 payment_info = f"\n\n🔗 **Link thanh toán:** {payment_url}"
             elif payment:
-                payment_info = f"\n\n💳 **Mã thanh toán:** {payment.get('transaction_id', booking_id)}"
+                payment_info = f"\n\n💳 **Mã thanh toán:** {payment.get('id', booking_id)}"
             
             response = f"""🎉 **ĐẶT VÉ THÀNH CÔNG!**
 
