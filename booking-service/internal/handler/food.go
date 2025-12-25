@@ -61,7 +61,12 @@ func (h *FoodHandler) HandleGetFoodItem(w http.ResponseWriter, r *http.Request) 
 	foodItem, err := h.foodRepo.GetFoodItem(ctx, foodID)
 	if err != nil {
 		h.logger.Error("Failed to get food item", err)
-		httphelp.EncodeJSONError(w, r, http.StatusNotFound, err)
+		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)
+		return
+	}
+
+	if foodItem == nil {
+		httphelp.EncodeJSONError(w, r, http.StatusNotFound, nil)
 		return
 	}
 

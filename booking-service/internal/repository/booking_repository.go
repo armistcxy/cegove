@@ -334,6 +334,36 @@ func (r *bookingRepository) GetBookingInformation(ctx context.Context, bookingID
 	}
 
 	b.Tickets = tickets
+
+	// Fetch food items for the booking
+	fQuery, fArgs, err := builder.Select(
+		"food_item_id", "quantity", "price",
+	).From("booking_food_items").Where(sq.Eq{"booking_id": bookingID}).OrderBy("created_at").ToSql()
+	if err != nil {
+		return &b, fmt.Errorf("build food items query: %w", err)
+	}
+
+	fRows, err := r.pool.Query(ctx, fQuery, fArgs...)
+	if err != nil {
+		return &b, fmt.Errorf("query food items: %w", err)
+	}
+	defer fRows.Close()
+
+	var foodItems []domain.BookingFoodItem
+	for fRows.Next() {
+		var f domain.BookingFoodItem
+		if err := fRows.Scan(
+			&f.FoodItemID, &f.Quantity, &f.Price,
+		); err != nil {
+			return &b, fmt.Errorf("scan food item: %w", err)
+		}
+		foodItems = append(foodItems, f)
+	}
+	if err := fRows.Err(); err != nil {
+		return &b, fmt.Errorf("food items rows error: %w", err)
+	}
+
+	b.FoodItems = foodItems
 	return &b, nil
 }
 

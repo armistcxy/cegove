@@ -56,7 +56,7 @@ func (h *ShowtimeHandler) HandleListShowtimes(w http.ResponseWriter, r *http.Req
 	movieID := q.Get("movie_id")
 	cinemaID := q.Get("cinema_id")
 
-	var date = time.Now()
+	var date time.Time
 	dateStr := q.Get("date")
 	if dateStr != "" {
 		var err error
@@ -67,7 +67,7 @@ func (h *ShowtimeHandler) HandleListShowtimes(w http.ResponseWriter, r *http.Req
 		}
 	}
 
-	showtimes, err := h.showtimeRepo.ListShowtimes(ctx, movieID, cinemaID, date)
+	showtimes, err := h.showtimeRepo.ListShowtimes(ctx, movieID, cinemaID, date, time.Now())
 	if err != nil {
 		h.logger.Error("Failed to list showtimes", err)
 		httphelp.EncodeJSONError(w, r, http.StatusInternalServerError, err)

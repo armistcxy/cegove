@@ -48,7 +48,7 @@ func NewBookingRouter(pool *pgxpool.Pool, logger *logging.Logger) *BookingRouter
 	router.RegisterHandlerFunc(http.MethodPost, "/v1/tickets/scan", bookingHandler.HandleScanTicket)
 
 	router.RegisterHandlerFunc(http.MethodGet, "/v1/food/items", footHandler.HandleListFoodItems)
-	router.RegisterHandlerFunc(http.MethodGet, "/v1/food/items/{food_item_id}", footHandler.HandleGetFoodItem)
+	router.RegisterHandlerFunc(http.MethodGet, "/v1/food/items/{food_id}", footHandler.HandleGetFoodItem)
 
 	return &BookingRouter{
 		Router: router,

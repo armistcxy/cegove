@@ -6,6 +6,7 @@ import (
 
 	"github.com/armistcxy/cegove/booking-service/internal/domain"
 	"github.com/armistcxy/cegove/booking-service/pkg/logging"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	sq "github.com/Masterminds/squirrel"
@@ -53,6 +54,9 @@ func (r *foodRepository) GetFoodItem(ctx context.Context, foodItemID string) (*d
 		&foodItem.Available,
 		&foodItem.CreatedAt,
 	); err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("query food item: %w", err)
 	}
 
