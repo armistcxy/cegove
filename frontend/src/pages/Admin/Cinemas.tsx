@@ -28,6 +28,8 @@ export default function Cinemas() {
     images: [],
   });
   const [editCinema, setEditCinema] = useState<null | (Cinema & {id: number})>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   useEffect(() => {
     loadCinemas();
@@ -88,15 +90,21 @@ export default function Cinemas() {
   // Get unique cities for filter
   const cities = [...new Set(cinemas.map(c => c.city))].sort();
 
-  // Filter cinemas based on search and city
-  const filteredCinemas = cinemas.filter(cinema => {
-    const name = cinema.name || '';
-    const address = cinema.address || '';
-    const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         address.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCity = !selectedCity || cinema.city === selectedCity;
-    return matchesSearch && matchesCity;
-  });
+  // Filter and sort cinemas based on search and city, then sort by id ascending
+  const filteredCinemas = cinemas
+    .filter(cinema => {
+      const name = cinema.name || '';
+      const address = cinema.address || '';
+      const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        address.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCity = !selectedCity || cinema.city === selectedCity;
+      return matchesSearch && matchesCity;
+    })
+    .sort((a, b) => a.id - b.id);
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredCinemas.length / pageSize);
+  const paginatedCinemas = filteredCinemas.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
     <div className={styles.pageContainer}>
@@ -273,7 +281,7 @@ export default function Cinemas() {
                     </td>
                   </tr>
                 ) : (
-                  filteredCinemas.map((cinema) => (
+                  paginatedCinemas.map((cinema) => (
                     <tr key={cinema.id}>
                       <td style={{ textAlign: 'center' }}>{cinema.id}</td>
                       <td className={styles.cinemaName} style={{ textAlign: 'center' }}>{cinema.name}</td>
@@ -342,6 +350,26 @@ export default function Cinemas() {
               </tbody>
             </table>
           </div>
+          {/* Pagination controls */}
+          {filteredCinemas.length > pageSize && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16, gap: 8 }}>
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                style={{ padding: '6px 12px', borderRadius: 4, border: '1px solid #bbb', background: currentPage === 1 ? '#eee' : '#fff', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+              >
+                Trước
+              </button>
+              <span style={{ alignSelf: 'center' }}>Trang {currentPage} / {totalPages}</span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                style={{ padding: '6px 12px', borderRadius: 4, border: '1px solid #bbb', background: currentPage === totalPages ? '#eee' : '#fff', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
+              >
+                Sau
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>
