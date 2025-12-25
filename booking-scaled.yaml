@@ -1,0 +1,22 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: booking-service-scaler
+  namespace: default 
+spec:
+  scaleTargetRef:
+    name: booking-service 
+  minReplicaCount: 1     
+  maxReplicaCount: 10   
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+        metricName: booking_requests_total
+        query: sum(rate(booking_requests_total[30s]))
+        threshold: '10' 
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 60
