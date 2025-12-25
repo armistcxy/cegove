@@ -44,7 +44,6 @@ CREATE TABLE tickets (
     showtime TIMESTAMPTZ NOT NULL,
     seat_number TEXT NOT NULL,
 
-    qr_code TEXT NOT NULL,
     price DECIMAL(10, 2) NOT NULL,
     status SMALLINT NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
