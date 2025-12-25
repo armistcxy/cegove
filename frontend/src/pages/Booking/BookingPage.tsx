@@ -7,7 +7,38 @@ import type {Movie} from "../Movies/MovieLogic.ts";
 import {useUser} from "../../context/UserContext.tsx";
 import axios from "axios";
 
-const BookingPage = ({ showtimeId }) => {
+interface FoodItem {
+    id: string;
+    name: string;
+    type: string;
+    category: string;
+    price: number;
+    image_url: string;
+    available: boolean;
+    created_at: string;
+}
+
+interface SelectedFood {
+    id: string;
+    quantity: number;
+}
+
+interface SeatItem {
+    id: string;
+    row: string;
+    col: number;
+    type: string;
+    isCouple: boolean;
+    status: string;
+    price: number;
+    seat_id?: string | number;
+}
+
+interface BookingPageProps {
+    showtimeId: string;
+}
+
+const BookingPage: React.FC<BookingPageProps> = ({ showtimeId }) => {
     const { userProfile } = useUser();
     const [step, setStep] = useState<1 | 2>(1);
 
@@ -15,11 +46,29 @@ const BookingPage = ({ showtimeId }) => {
     const [movie, setMovie] = useState<Movie | null>(null);
     const [cinema, setCinema] = useState<Cinema | null>(null);
     const [auditorium, setAuditorium] = useState<Auditorium | null>(null);
-    const [seats, setSeats] = useState([]);
-    const [selectedSeats, setSelectedSeats] = useState([]);
+    const [seats, setSeats] = useState<SeatItem[]>([]);
+    const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const [error, setError] = useState<string | null>(null);
     const [paymentProcessing, setPaymentProcessing] = useState(false);
+    // Đồ ăn lấy từ API
+    const [foodList, setFoodList] = useState<FoodItem[]>([]);
+    const [selectedFoods, setSelectedFoods] = useState<SelectedFood[]>([]);
+
+    // Fetch food items from API
+    useEffect(() => {
+        const fetchFoodItems = async () => {
+            try {
+                const res = await axios.get("https://booking.cegove.cloud/api/v1/food/items");
+                // API trả về đúng định dạng FoodItem
+                setFoodList(res.data || []);
+            } catch (err) {
+                console.error("Error fetching food items:", err);
+                setFoodList([]);
+            }
+        };
+        fetchFoodItems();
+    }, []);
 
     // Fetch showtime and related data
     useEffect(() => {
@@ -51,7 +100,11 @@ const BookingPage = ({ showtimeId }) => {
                 processSeats(auditoriumData.pattern, seatsData);
             } catch (err) {
                 console.error("Error fetching data:", err);
-                setError(err.message);
+                if (err && typeof err === 'object' && 'message' in err) {
+                    setError((err as any).message);
+                } else {
+                    setError('Unknown error');
+                }
             } finally {
                 setLoading(false);
             }
@@ -63,9 +116,9 @@ const BookingPage = ({ showtimeId }) => {
     }, [showtimeId]);
 
     // Process seats based on pattern and API data
-    const processSeats = (pattern, apiSeatsData) => {
-        const seatData = [];
-        let rows = [];
+    const processSeats = (pattern: string, apiSeatsData: any[]) => {
+        const seatData: SeatItem[] = [];
+        let rows: { row: string; count: number; type: string; isCouple: boolean }[] = [];
 
         if (pattern === "ONE") {
             rows = [
@@ -111,8 +164,8 @@ const BookingPage = ({ showtimeId }) => {
         }
 
         // Create a map for quick lookup of API seat data
-        const apiSeatMap = {};
-        apiSeatsData.forEach(seat => {
+        const apiSeatMap: { [key: string]: any } = {};
+        apiSeatsData.forEach((seat: any) => {
             apiSeatMap[seat.seat_number] = seat;
         });
 
@@ -155,7 +208,7 @@ const BookingPage = ({ showtimeId }) => {
         setSeats(seatData);
     };
 
-    const handleSeatClick = (seat) => {
+    const handleSeatClick = (seat: SeatItem) => {
         if (seat.status === "booked") return;
 
         if (selectedSeats.includes(seat.id)) {
@@ -165,7 +218,7 @@ const BookingPage = ({ showtimeId }) => {
         }
     };
 
-    const getSeatClass = (seat) => {
+    const getSeatClass = (seat: SeatItem) => {
         const baseClass = "text-xs font-bold rounded cursor-pointer transition-all duration-200 flex items-center justify-center border-2";
         const sizeClass = seat.isCouple ? "w-16 h-8" : "w-8 h-8";
 
@@ -191,11 +244,11 @@ const BookingPage = ({ showtimeId }) => {
         return `${baseClass} ${sizeClass} bg-gray-100 border-gray-400 text-gray-800 hover:bg-gray-200`;
     };
 
-    const calculateTotal = () => {
-        // Calculate total based on actual seat prices from API
+    // Tính tổng tiền ghế
+    const calculateSeatTotal = () => {
         let total = 0;
-        selectedSeats.forEach(seatId => {
-            const seat = seats.find(s => s.id === seatId);
+        selectedSeats.forEach((seatId: string) => {
+            const seat = seats.find((s) => s.id === seatId);
             if (seat) {
                 total += seat.price || 0;
             }
@@ -203,7 +256,22 @@ const BookingPage = ({ showtimeId }) => {
         return total;
     };
 
-    const formatDateTime = (isoString) => {
+    // Tính tổng tiền đồ ăn
+    const calculateFoodTotal = () => {
+        let total = 0;
+        selectedFoods.forEach((f) => {
+            const food = foodList.find((item) => item.id === f.id);
+            if (food) {
+                total += food.price * f.quantity;
+            }
+        });
+        return total;
+    };
+
+    // Tổng tiền tất cả
+    const calculateTotal = () => calculateSeatTotal() + calculateFoodTotal();
+
+    const formatDateTime = (isoString: string) => {
         const date = new Date(isoString);
         return date.toLocaleString('vi-VN', {
             day: '2-digit',
@@ -246,9 +314,9 @@ const BookingPage = ({ showtimeId }) => {
         );
     }
 
-    const getRowSeats = (row) => seats.filter(s => s.row === row);
-    const uniqueRows = [...new Set(seats.map(s => s.row))];
-    const availableSeats = seats.filter(s => s.status === "available").length;
+    const getRowSeats = (row: string) => seats.filter((s) => s.row === row);
+    const uniqueRows = [...new Set(seats.map((s) => s.row))];
+    const availableSeats = seats.filter((s) => s.status === "available").length;
     const totalSeats = seats.length;
 
     if (step === 1) {
@@ -343,7 +411,6 @@ const BookingPage = ({ showtimeId }) => {
                     </div>
 
                     {/* Footer */}
-                    {/* Footer */}
                     <div className="bg-gray-900 text-white p-4 rounded-b-lg">
                         <div className="flex flex-wrap items-center justify-between gap-4">
                             <div className="flex items-center gap-6 flex-1">
@@ -354,7 +421,8 @@ const BookingPage = ({ showtimeId }) => {
                                         alt={movie?.series_title || "Movie"}
                                         className="w-20 h-28 object-cover rounded shadow-lg"
                                         onError={(e) => {
-                                            e.target.src = "/placeholder-poster.jpg";
+                                            const target = e.target as HTMLImageElement;
+                                            target.src = "/placeholder-poster.jpg";
                                         }}
                                     />
                                 </div>
@@ -378,7 +446,7 @@ const BookingPage = ({ showtimeId }) => {
 
                                 <div className="text-right ml-auto">
                                     <p className="text-sm text-gray-400">Tổng tiền</p>
-                                    <p className="font-bold text-2xl text-yellow-400">{calculateTotal().toLocaleString()} đ</p>
+                                    <p className="font-bold text-2xl text-yellow-400">{calculateSeatTotal().toLocaleString()} đ</p>
                                 </div>
                             </div>
 
@@ -387,7 +455,7 @@ const BookingPage = ({ showtimeId }) => {
                                 disabled={selectedSeats.length === 0}
                                 className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-8 py-3 rounded-lg font-bold transition"
                             >
-                                THANH TOÁN
+                                Tiếp tục
                             </button>
                         </div>
                     </div>
@@ -396,19 +464,19 @@ const BookingPage = ({ showtimeId }) => {
         );
     }
 
+    // Bước 2: Chọn đồ ăn và thanh toán
     return (
         <div className="min-h-screen bg-amber-50 py-8">
             <div className="max-w-4xl mx-auto px-4">
                 {/* Header */}
                 <div className="bg-gray-900 text-white text-center py-4 rounded-t-lg">
-                    <h1 className="text-2xl font-bold">THANH TOÁN</h1>
+                    <h1 className="text-2xl font-bold">CHỌN ĐỒ ĂN & THANH TOÁN</h1>
                 </div>
 
                 <div className="bg-white p-8 rounded-b-lg shadow-lg">
                     {/* Thông tin đặt vé */}
                     <div className="mb-8">
                         <h2 className="text-xl font-bold mb-4 text-gray-800">Thông tin đặt vé</h2>
-
                         <div className="grid grid-cols-2 gap-6">
                             <div className="flex gap-4">
                                 <img
@@ -430,7 +498,6 @@ const BookingPage = ({ showtimeId }) => {
                                     </p>
                                 </div>
                             </div>
-
                             <div className="border-l-2 border-gray-200 pl-6">
                                 <h3 className="font-bold mb-3">Chi tiết</h3>
                                 <div className="space-y-2">
@@ -441,6 +508,26 @@ const BookingPage = ({ showtimeId }) => {
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">Số lượng:</span>
                                         <span className="font-semibold">{selectedSeats.length} ghế</span>
+                                    </div>
+                                    {/* Đồ ăn đã chọn */}
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Đồ ăn:</span>
+                                        <span className="font-semibold">
+                                            {selectedFoods.length === 0 ? "Không" : selectedFoods.map(f => {
+                                                const food = foodList.find(item => item.id === f.id);
+                                                return food ? `${food.name} x${f.quantity}` : "";
+                                            }).join(", ")}
+                                        </span>
+                                    </div>
+                                    {/* Tổng tiền ghế */}
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Tiền vé:</span>
+                                        <span className="font-semibold">{calculateSeatTotal().toLocaleString()} đ</span>
+                                    </div>
+                                    {/* Tổng tiền đồ ăn */}
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Tiền đồ ăn:</span>
+                                        <span className="font-semibold">{calculateFoodTotal().toLocaleString()} đ</span>
                                     </div>
                                     <div className="border-t pt-2 mt-4">
                                         <div className="flex justify-between text-lg">
@@ -453,10 +540,67 @@ const BookingPage = ({ showtimeId }) => {
                         </div>
                     </div>
 
+                    {/* Chọn đồ ăn */}
+                    <div className="mb-8">
+                        <h2 className="text-xl font-bold mb-4 text-gray-800">Chọn đồ ăn</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {foodList.map(food => {
+                                const selected = selectedFoods.find(f => f.id === food.id);
+                                return (
+                                    <div key={food.id} className="border rounded-lg p-4 flex flex-col items-center">
+                                        <img
+                                            src={food.image_url && food.image_url.trim() !== "" ? food.image_url : "/assets/placeholder-food.jpg"}
+                                            alt={food.name}
+                                            className="w-20 h-20 object-contain mb-2"
+                                            onError={(e) => {
+                                                const target = e.target as HTMLImageElement;
+                                                if (target.src !== window.location.origin + "/assets/placeholder-food.jpg") {
+                                                    target.src = "/assets/placeholder-food.jpg";
+                                                }
+                                            }}
+                                        />
+                                        <div className="font-bold text-lg mb-2">{food.name}</div>
+                                        <div className="text-yellow-700 font-semibold mb-2">{food.price.toLocaleString()} đ</div>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                className="bg-gray-300 px-2 rounded"
+                                                onClick={() => {
+                                                    setSelectedFoods(prev => {
+                                                        const found = prev.find(f => f.id === food.id);
+                                                        if (found && found.quantity > 1) {
+                                                            return prev.map(f => f.id === food.id ? { ...f, quantity: f.quantity - 1 } : f);
+                                                        } else if (found && found.quantity === 1) {
+                                                            return prev.filter(f => f.id !== food.id);
+                                                        }
+                                                        return prev;
+                                                    });
+                                                }}
+                                                disabled={!selected || selected.quantity === 0}
+                                            >-</button>
+                                            <span>{selected ? selected.quantity : 0}</span>
+                                            <button
+                                                className="bg-gray-300 px-2 rounded"
+                                                onClick={() => {
+                                                    setSelectedFoods(prev => {
+                                                        const found = prev.find(f => f.id === food.id);
+                                                        if (found) {
+                                                            return prev.map(f => f.id === food.id ? { ...f, quantity: f.quantity + 1 } : f);
+                                                        } else {
+                                                            return [...prev, { id: food.id, quantity: 1 }];
+                                                        }
+                                                    });
+                                                }}
+                                            >+</button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
                     {/* Phương thức thanh toán */}
                     <div className="mb-8">
                         <h2 className="text-xl font-bold mb-4 text-gray-800">Phương thức thanh toán</h2>
-
                         <div className="max-w-md mx-auto">
                             <button className="w-full border-2 border-blue-500 bg-blue-50 hover:bg-blue-100 rounded-lg p-6 transition">
                                 <div className="flex items-center justify-center gap-4">
@@ -498,10 +642,15 @@ const BookingPage = ({ showtimeId }) => {
                                         return seat?.seat_id ? String(seat.seat_id) : null;
                                     }).filter(Boolean);
 
+
+                                    // Đồ ăn gửi lên backend (nếu cần)
+                                    const food_items = selectedFoods.map(f => ({ food_item_id: f.id, quantity: f.quantity }));
+
                                     const bookingData = {
-                                        user_id: String(userProfile.id),
+                                        food_items,
+                                        seat_ids: seatIds,
                                         showtime_id: String(showtimeId),
-                                        seat_ids: seatIds
+                                        user_id: String(userProfile.id)
                                     };
 
                                     console.log("Creating booking with data:", bookingData);
@@ -522,17 +671,17 @@ const BookingPage = ({ showtimeId }) => {
                                     }
                                 } catch (err) {
                                     console.error("Payment error:", err);
-                                    console.error("Error response:", err.response?.data);
-
                                     let errorMessage = "Có lỗi xảy ra khi xử lý thanh toán";
-                                    if (err.response?.data?.detail) {
-                                        errorMessage += ": " + err.response.data.detail;
-                                    } else if (err.response?.data?.message) {
-                                        errorMessage += ": " + err.response.data.message;
-                                    } else if (err.message) {
-                                        errorMessage += ": " + err.message;
+                                    if (err && typeof err === 'object') {
+                                        const anyErr = err as any;
+                                        if (anyErr.response?.data?.detail) {
+                                            errorMessage += ": " + anyErr.response.data.detail;
+                                        } else if (anyErr.response?.data?.message) {
+                                            errorMessage += ": " + anyErr.response.data.message;
+                                        } else if (anyErr.message) {
+                                            errorMessage += ": " + anyErr.message;
+                                        }
                                     }
-
                                     alert(errorMessage);
                                     setPaymentProcessing(false);
                                 }

@@ -3,6 +3,7 @@ from app.schema.payment import PaymentCreate, PaymentInitResponse, PaymentOut
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.payment_providers.provider_factory import PaymentProviderFactory
 from app.core.config import settings
+from app.database.session import AsyncSessionLocal
 import httpx
 import asyncio
 
@@ -22,12 +23,26 @@ class PaymentService:
 
         payment_url = provider.build_payment_url(payment.id, payment.amount, client_ip)
         payment_out = PaymentOut.model_validate(payment)
+        
+        # Schedule a delayed check for payment status
+        asyncio.create_task(self.check_payment_status_delayed(payment.id))
 
         return PaymentInitResponse(
             payment=payment_out,
             url=payment_url
         )
 
+    async def check_payment_status_delayed(self, payment_id: int):
+        """Wait 16 minutes then check payment status"""
+        print(f"Scheduling payment status check for payment {payment_id} in 16 minutes...")
+        await asyncio.sleep(16 * 60)
+        
+        print(f"Executing delayed check for payment {payment_id}...")
+        async with AsyncSessionLocal() as db:
+            try:
+                await self.query_and_update_payment(db, payment_id)
+            except Exception as e:
+                print(f"Error in delayed payment check for {payment_id}: {e}")
     
     async def get_payment(self, db: AsyncSession, payment_id: int):
         return await self.repo.get_payment_by_id(db, payment_id)

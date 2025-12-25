@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useChatBot } from '../../context/ChatBotContext';
 import { useUser } from '../../context/UserContext';
 import styles from './ChatBot.module.css';
@@ -198,7 +200,9 @@ const ChatBot: React.FC = () => {
                                 className={`${styles.message} ${msg.role === 'user' ? styles.userMessage : styles.botMessage}`}
                             >
                                 <div className={styles.messageContent}>
-                                    {msg.content}
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                        {msg.content}
+                                    </ReactMarkdown>
                                 </div>
                                 {showTimestamps && isLoggedIn && (
                                     <div className={styles.messageTime}>

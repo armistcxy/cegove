@@ -23,12 +23,8 @@ export default function RoomManage() {
   const [newRoomName, setNewRoomName] = useState('');
   const [newRoomPattern, setNewRoomPattern] = useState<'ONE'|'TWO'|'THREE'>('ONE');
   // const [addingRoom, setAddingRoom] = useState(false); // No longer needed
-  const [optimisticRooms, setOptimisticRooms] = useState<AuditoriumRow[]>([]);
-  const [deletingRoomIds, setDeletingRoomIds] = useState<number[]>([]);
-  const [optimisticDeleteRooms, setOptimisticDeleteRooms] = useState<AuditoriumRow[]>([]);
   const [editingPatternId, setEditingPatternId] = useState<number|null>(null);
   const [editingPatternValue, setEditingPatternValue] = useState<'ONE'|'TWO'|'THREE'>('ONE');
-  const [savingPatternIds, setSavingPatternIds] = useState<number[]>([]);
     // Edit pattern handler
     const handleEditPattern = (room: AuditoriumRow) => {
       setEditingPatternId(room.id);
@@ -40,11 +36,10 @@ export default function RoomManage() {
     };
 
     const handleSavePattern = async (room: AuditoriumRow) => {
-      setSavingPatternIds(prev => [...prev, room.id]);
+      // Update pattern in UI immediately
+      setAuditoriums(prev => prev.map(r => r.id === room.id ? { ...r, pattern: editingPatternValue } : r));
       setEditingPatternId(null);
-      // Optimistically disable row
-      setOptimisticDeleteRooms(prev => [room, ...prev]);
-      setAuditoriums(prev => prev.filter(r => r.id !== room.id));
+      // Fire and forget API call
       try {
         const token = localStorage.getItem('access-token');
         const headers: HeadersInit = {
@@ -56,22 +51,14 @@ export default function RoomManage() {
           headers,
           body: editingPatternValue, // send as plain string, not JSON
         });
-        await reloadRooms(selectedCinemaId);
       } catch (e) {
         // Optionally show error
-      } finally {
-        setSavingPatternIds(prev => prev.filter(id => id !== room.id));
-        setOptimisticDeleteRooms(prev => prev.filter(r => r.id !== room.id));
       }
     };
   // Delete room handler
   const handleDeleteRoom = async (roomId: number) => {
-    // Find the room info to show spinner row
-    const room = auditoriums.find(r => r.id === roomId);
-    if (!room) return;
-    setDeletingRoomIds(prev => [...prev, roomId]);
-    setOptimisticDeleteRooms(prev => [room, ...prev]);
     setAuditoriums(prev => prev.filter(r => r.id !== roomId));
+    // Fire and forget API call
     try {
       const token = localStorage.getItem('access-token');
       const headers: HeadersInit = {
@@ -82,13 +69,8 @@ export default function RoomManage() {
         method: 'DELETE',
         headers,
       });
-      // Reload rooms after delete
-      await reloadRooms(selectedCinemaId);
     } catch (e) {
       // Optionally show error
-    } finally {
-      setDeletingRoomIds(prev => prev.filter(id => id !== roomId));
-      setOptimisticDeleteRooms(prev => prev.filter(r => r.id !== roomId));
     }
   };
 
@@ -142,39 +124,33 @@ export default function RoomManage() {
   const handleAddRoom = async () => {
     if (!selectedCinemaId || !newRoomName) return;
     setShowAddPopup(false);
-    // setAddingRoom(true); // No longer needed
-    // Create optimistic room with unique temp id
-    const optimistic: AuditoriumRow = {
-      id: Date.now() + Math.floor(Math.random() * 10000), // unique temp id
-      name: newRoomName,
-      pattern: newRoomPattern,
-    };
-    setOptimisticRooms(prev => [optimistic, ...prev]);
-    // POST request with token
+    // Add room directly to the list with a fake id near the current max id
+    setAuditoriums(prev => {
+      const maxId = prev.length > 0 ? Math.max(...prev.map(r => r.id)) : 1000;
+      const newRoom: AuditoriumRow = {
+        id: maxId + 1 + Math.floor(Math.random() * 5),
+        name: newRoomName,
+        pattern: newRoomPattern,
+      };
+      return [newRoom, ...prev];
+    });
+    // Fire and forget API call
     try {
       const token = localStorage.getItem('access-token');
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
       };
       if (token) headers['Authorization'] = `Bearer ${token}`;
-      const res = await fetch(`https://cinema.cegove.cloud/cinemas/${selectedCinemaId}/auditoriums`, {
+      await fetch(`https://cinema.cegove.cloud/cinemas/${selectedCinemaId}/auditoriums`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ name: newRoomName, pattern: newRoomPattern }),
       });
-      const data = await res.json();
-      // Remove this optimistic room regardless of success
-      setOptimisticRooms(prev => prev.filter(r => r.id !== optimistic.id));
-      if (data && data.id) {
-        await new Promise(r => setTimeout(r, 0));
-        await reloadRooms(selectedCinemaId); // Reload room list after success
-      }
     } catch (e) {
-      setOptimisticRooms(prev => prev.filter(r => r.id !== optimistic.id));
-    } finally {
-      setNewRoomName('');
-      setNewRoomPattern('ONE');
+      // Optionally show error
     }
+    setNewRoomName('');
+    setNewRoomPattern('ONE');
   };
 
   return (
@@ -256,76 +232,12 @@ export default function RoomManage() {
                 <tr><td colSpan={4} style={{ textAlign: 'center', color: '#888' }}>Vui lòng chọn rạp</td></tr>
               ) : (
                 <>
-                  {optimisticRooms.map(room => (
-                    <tr key={room.id} style={{ opacity: 0.5, pointerEvents: 'none' }}>
-                      <td style={{ textAlign: 'center' }}>
-                        <span style={{
-                          display: 'inline-block',
-                          width: 20,
-                          height: 20,
-                          border: '3px solid #ccc',
-                          borderTop: '3px solid #1976d2',
-                          borderRadius: '50%',
-                          animation: 'spin 1s linear infinite',
-                        }} />
-                        <style>{`@keyframes spin { 0% { transform: rotate(0deg);} 100% { transform: rotate(360deg);} }`}</style>
-                      </td>
-                      <td style={{ textAlign: 'center' }}>{room.name}</td>
-                      <td style={{ textAlign: 'center' }}>{room.pattern}</td>
-                      <td style={{ textAlign: 'center' }}><span>Đang tạo phòng...</span></td>
-                    </tr>
-                  ))}
-                  {optimisticDeleteRooms.map(room => {
-                    // If this row is being saved for pattern, show 'Đang lưu...'; if being deleted, show 'Đang xóa...'
-                    const isSavingPattern = savingPatternIds.includes(room.id);
-                    return (
-                      <tr key={room.id} style={{ opacity: 0.5, pointerEvents: 'none' }}>
-                        <td style={{ textAlign: 'center' }}>
-                          <span style={{
-                            display: 'inline-block',
-                            width: 20,
-                            height: 20,
-                            border: '3px solid #ccc',
-                            borderTop: isSavingPattern ? '#1976d2' : '#d32f2f',
-                            borderRadius: '50%',
-                            animation: 'spin 1s linear infinite',
-                          }} />
-                          <style>{`@keyframes spin { 0% { transform: rotate(0deg);} 100% { transform: rotate(360deg);} }`}</style>
-                        </td>
-                        <td style={{ textAlign: 'center', color: '#888' }}>{room.name}</td>
-                        <td style={{ textAlign: 'center', color: '#888' }}>{room.pattern}</td>
-                        <td style={{ textAlign: 'center', color: '#888' }}>{isSavingPattern ? 'Đang lưu...' : 'Đang xóa...'}</td>
-                      </tr>
-                    );
-                  })}
-                  {auditoriums.length === 0 && optimisticDeleteRooms.length === 0 ? (
+                  {/* No optimistic rows needed, UI updates instantly */}
+                  {auditoriums.length === 0 ? (
                     <tr><td colSpan={4} style={{ textAlign: 'center', color: '#888' }}>Không có phòng nào</td></tr>
                   ) : (
                     auditoriums.map(room => {
                       const isEditing = editingPatternId === room.id;
-                      const isSaving = savingPatternIds.includes(room.id);
-                      if (isSaving) {
-                        // Show disabled row with spinner while saving
-                        return (
-                          <tr key={room.id} style={{ opacity: 0.5, pointerEvents: 'none' }}>
-                            <td style={{ textAlign: 'center' }}>
-                              <span style={{
-                                display: 'inline-block',
-                                width: 20,
-                                height: 20,
-                                border: '3px solid #ccc',
-                                borderTop: '3px solid #1976d2',
-                                borderRadius: '50%',
-                                animation: 'spin 1s linear infinite',
-                              }} />
-                              <style>{`@keyframes spin { 0% { transform: rotate(0deg);} 100% { transform: rotate(360deg);} }`}</style>
-                            </td>
-                            <td style={{ textAlign: 'center', color: '#888' }}>{room.name}</td>
-                            <td style={{ textAlign: 'center', color: '#888' }}>{room.pattern}</td>
-                            <td style={{ textAlign: 'center', color: '#888' }}>Đang lưu...</td>
-                          </tr>
-                        );
-                      }
                       return (
                         <tr key={room.id} style={isEditing ? { opacity: 1 } : {}}>
                           <td style={{ textAlign: 'center' }}>{room.id}</td>
@@ -336,7 +248,6 @@ export default function RoomManage() {
                                 value={editingPatternValue}
                                 onChange={e => setEditingPatternValue(e.target.value as 'ONE'|'TWO'|'THREE')}
                                 style={{ padding: 6, borderRadius: 6, border: '1px solid #bbb', minWidth: 80 }}
-                                disabled={isSaving}
                               >
                                 <option value="ONE">ONE</option>
                                 <option value="TWO">TWO</option>
@@ -353,12 +264,10 @@ export default function RoomManage() {
                                   className={styles.btnPrimary}
                                   style={{ marginRight: 8, padding: '4px 12px', borderRadius: 4 }}
                                   onClick={() => handleSavePattern(room)}
-                                  disabled={isSaving}
                                 >Lưu</button>
                                 <button
                                   style={{ border: '1px solid #000', borderRadius: 4, padding: '4px 12px', background: 'white', color: '#000' }}
                                   onClick={handleCancelEditPattern}
-                                  disabled={isSaving}
                                 >Hủy</button>
                               </>
                             ) : (
@@ -366,12 +275,12 @@ export default function RoomManage() {
                                 <button
                                   style={{ marginRight: 8, border: '1px solid #000', borderRadius: 4, padding: '4px 12px', background: 'white', color: '#000', cursor: 'pointer' }}
                                   onClick={() => handleEditPattern(room)}
-                                  disabled={editingPatternId !== null || savingPatternIds.length > 0}
+                                  disabled={editingPatternId !== null}
                                 >Sửa pattern</button>
                                 <button
                                   style={{ border: '1px solid #000', borderRadius: 4, padding: '4px 12px', background: 'white', color: '#000', cursor: 'pointer', minWidth: 60 }}
                                   onClick={() => handleDeleteRoom(room.id)}
-                                  disabled={editingPatternId !== null || savingPatternIds.length > 0}
+                                  disabled={editingPatternId !== null}
                                 >Xóa</button>
                               </>
                             )}
