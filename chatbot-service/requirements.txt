@@ -3,13 +3,12 @@ uvicorn[standard]
 pydantic
 pydantic-settings
 python-dotenv
-google-generativeai
+groq
 httpx
 redis
 python-multipart
 pyjwt
 requests
 pyyaml
-pandas
-fuzzywuzzy 
+fuzzywuzzy
 python-Levenshtein

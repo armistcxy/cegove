@@ -1,18 +1,49 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useChatBot } from '../../context/ChatBotContext';
+import { useNavigate } from 'react-router-dom';
+import { useChatBot, ChatMessage, QuickReplyChip } from '../../context/ChatBotContext';
 import { useUser } from '../../context/UserContext';
 import styles from './ChatBot.module.css';
 
-interface ChatMessage {
-    role: 'user' | 'assistant';
-    content: string;
-    timestamp: string;
-    agent?: string;
-}
+// Quick Reply Chips Component
+const QuickReplyChips: React.FC<{
+    chips: QuickReplyChip[];
+    onChipClick: (chip: QuickReplyChip) => void;
+    disabled?: boolean;
+}> = ({ chips, onChipClick, disabled }) => {
+    if (!chips || chips.length === 0) return null;
+
+    const getChipIcon = (type: string) => {
+        switch (type) {
+            case 'movie': return '🎬';
+            case 'showtime': return '🕐';
+            case 'seat': return '🪑';
+            case 'cinema': return '🏢';
+            case 'action': return '▶️';
+            case 'link': return '🔗';
+            default: return '';
+        }
+    };
+
+    return (
+        <div className={styles.chipsContainer}>
+            {chips.map((chip, index) => (
+                <button
+                    key={index}
+                    className={`${styles.chip} ${styles[`chip${chip.type.charAt(0).toUpperCase() + chip.type.slice(1)}`]}`}
+                    onClick={() => onChipClick(chip)}
+                    disabled={disabled}
+                >
+                    {getChipIcon(chip.type)} {chip.label}
+                </button>
+            ))}
+        </div>
+    );
+};
 
 const ChatBot: React.FC = () => {
+    const navigate = useNavigate();
     const {
         messages,
         isOpen,
@@ -48,18 +79,16 @@ const ChatBot: React.FC = () => {
     // Clear chat when user logs out
     useEffect(() => {
         if (wasLoggedIn && !isLoggedIn) {
-            // User just logged out - clear the session
             clearSession();
         }
         setWasLoggedIn(isLoggedIn);
     }, [isLoggedIn, wasLoggedIn, clearSession]);
 
-    // Get user ID - use logged in user ID or generate a guest ID
+    // Get user ID
     const getUserId = (): string => {
         if (isLoggedIn && userProfile?.id) {
             return String(userProfile.id);
         }
-        // Use a stable guest ID stored in localStorage
         let guestId = localStorage.getItem('chatbot-guest-id');
         if (!guestId) {
             guestId = `guest-${Date.now()}`;
@@ -74,6 +103,42 @@ const ChatBot: React.FC = () => {
 
         await sendMessage(inputValue.trim(), getUserId());
         setInputValue('');
+    };
+
+    const handleChipClick = async (chip: QuickReplyChip) => {
+        if (isLoading) return;
+
+        // Handle link type - open in new tab
+        if (chip.type === 'link' && chip.url) {
+            window.open(chip.url, '_blank');
+            return;
+        }
+
+        // Handle movie type - navigate + continue chat
+        if (chip.type === 'movie' && chip.id) {
+            // Navigate to movie detail page
+            navigate(`/MovieDetail/${chip.id}`);
+            // Also send context to bot to show showtimes
+            await sendMessage(`I want to see showtimes for ${chip.label}`, getUserId(), chip);
+            return;
+        }
+
+        // Handle showtime type - navigate to seat selection
+        if (chip.type === 'showtime' && chip.id) {
+            // Navigate to booking page with showtime ID
+            navigate(`/booking/${chip.id}`);
+            return;
+        }
+
+        // Handle cinema type - navigate + continue chat
+        if (chip.type === 'cinema' && chip.id) {
+            navigate(`/CinemaDetails/${chip.id}`);
+            await sendMessage(`Show me movies at ${chip.label}`, getUserId(), chip);
+            return;
+        }
+
+        // For other chips, just send to bot with context
+        await sendMessage(chip.label, getUserId(), chip);
     };
 
     const handleLoadHistory = async () => {
@@ -107,6 +172,16 @@ const ChatBot: React.FC = () => {
         }
     };
 
+    // Check if this is the last assistant message (for showing chips)
+    const isLastAssistantMessage = (index: number): boolean => {
+        for (let i = messages.length - 1; i >= 0; i--) {
+            if (messages[i].role === 'assistant') {
+                return i === index;
+            }
+        }
+        return false;
+    };
+
     return (
         <div className={styles.chatbotContainer}>
             {/* Chat Window */}
@@ -129,7 +204,6 @@ const ChatBot: React.FC = () => {
                         </div>
                     </div>
                     <div className={styles.headerActions}>
-                        {/* Only show history button for logged in users */}
                         {isLoggedIn && (
                             <button
                                 className={styles.headerBtn}
@@ -204,6 +278,14 @@ const ChatBot: React.FC = () => {
                                         {msg.content}
                                     </ReactMarkdown>
                                 </div>
+                                {/* Render chips only for the last assistant message */}
+                                {msg.role === 'assistant' && isLastAssistantMessage(index) && msg.metadata?.chips && (
+                                    <QuickReplyChips
+                                        chips={msg.metadata.chips}
+                                        onChipClick={handleChipClick}
+                                        disabled={isLoading}
+                                    />
+                                )}
                                 {showTimestamps && isLoggedIn && (
                                     <div className={styles.messageTime}>
                                         {formatTime(msg.timestamp)}

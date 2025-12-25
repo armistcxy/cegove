@@ -156,21 +156,19 @@ class APIClient:
             return []
     
     async def get_showtimes_by_cinema_name(
-        self, 
+        self,
         cinema_name: str,
         date: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Get showtimes for a specific cinema by name.
-        Useful when user asks "Rạp CGV Times City chiếu phim gì?"
+        Useful when user asks "Rap CGV Times City chieu phim gi?"
         """
-        from app.services.knowledge_service import knowledge_service
-        
-        # Tìm cinema ID từ tên
-        cinemas = knowledge_service.search_cinema(cinema_name)
+        # Search cinema by name using cinema API
+        cinemas = await self.search_cinemas(cinema_name)
         if not cinemas:
             return []
-        
+
         cinema_id = cinemas[0].get("id")
         return await self.get_showtimes(cinema_id=cinema_id, date=date)
     
@@ -333,8 +331,54 @@ class APIClient:
             print(f"Error creating payment: {e}")
             return None
     
+    # ========== CINEMA SERVICE APIs ==========
+
+    async def get_cinemas(self, city: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get all cinemas, optionally filtered by city."""
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                params = {}
+                if city:
+                    params["city"] = city
+                response = await client.get(
+                    f"{self.cinema_service_url}/api/v1/cinemas",
+                    params=params
+                )
+                response.raise_for_status()
+                return response.json()
+        except Exception as e:
+            print(f"Error getting cinemas: {e}")
+            return []
+
+    async def search_cinemas(self, query: str) -> List[Dict[str, Any]]:
+        """Search cinemas by name."""
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.get(
+                    f"{self.cinema_service_url}/api/v1/cinemas/search",
+                    params={"q": query}
+                )
+                response.raise_for_status()
+                return response.json()
+        except Exception as e:
+            print(f"Error searching cinemas: {e}")
+            return []
+
+    async def get_cinema_by_id(self, cinema_id: int) -> Optional[Dict[str, Any]]:
+        """Get cinema details by ID."""
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.get(
+                    f"{self.cinema_service_url}/api/v1/cinemas/{cinema_id}"
+                )
+                response.raise_for_status()
+                return response.json()
+        except Exception as e:
+            print(f"Error getting cinema: {e}")
+            return None
+
     # ========== HELPER METHODS ==========
-    
+
     def parse_date_from_text(self, text: str) -> Optional[str]:
         """Parse date from Vietnamese text"""
         text_lower = text.lower()

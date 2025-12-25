@@ -1,7 +1,6 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 from typing import Optional
-from app.consul_loader import get_consul_loader
 
 
 class Settings(BaseSettings):
@@ -10,8 +9,8 @@ class Settings(BaseSettings):
     CONSUL_USER: Optional[str] = None
     CONSUL_PASSWORD: Optional[str] = None
     
-    # Gemini
-    GEMINI_API_KEY: str = ""
+    # Groq API
+    GROQ_API_KEY: str = ""
     
     # Redis
     REDIS_HOST: str = "localhost"
@@ -69,7 +68,7 @@ def get_settings() -> Settings:
             if hasattr(settings, key_upper):
                 setattr(settings, key_upper, value)
                 # Hide sensitive values in logs
-                if key_upper in ['GEMINI_API_KEY', 'JWT_SECRET_KEY']:
+                if key_upper in ['GROQ_API_KEY', 'JWT_SECRET_KEY']:
                     print(f"  ✓ Loaded from Consul: {key_upper} = ***")
                 else:
                     print(f"  ✓ Loaded from Consul: {key_upper} = {value}")

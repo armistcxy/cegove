@@ -1,10 +1,27 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 
+// Chip types for structured responses
+export interface QuickReplyChip {
+    type: 'movie' | 'showtime' | 'seat' | 'cinema' | 'action' | 'link';
+    label: string;
+    id?: string;
+    action?: string;
+    url?: string;
+    movie_id?: number;
+    cinema_id?: number;
+}
+
+export interface ChatMetadata {
+    intent?: string;
+    chips?: QuickReplyChip[];
+}
+
 export interface ChatMessage {
     role: 'user' | 'assistant';
     content: string;
     timestamp: string;
     agent?: string;
+    metadata?: ChatMetadata;
 }
 
 interface ChatBotContextType {
@@ -13,14 +30,14 @@ interface ChatBotContextType {
     isOpen: boolean;
     isLoading: boolean;
     setIsOpen: (open: boolean) => void;
-    sendMessage: (message: string, userId: string) => Promise<void>;
+    sendMessage: (message: string, userId: string, chipData?: QuickReplyChip) => Promise<void>;
     loadHistory: () => Promise<void>;
     clearSession: () => Promise<void>;
 }
 
 const ChatBotContext = createContext<ChatBotContextType | undefined>(undefined);
 
-const CHATBOT_API_URL = 'https://chatbot.cegove.cloud/api/v1';
+const CHATBOT_API_URL = import.meta.env.VITE_CHATBOT_API_URL || 'https://chatbot.cegove.cloud/api/v1';
 
 export const ChatBotProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [sessionId, setSessionId] = useState<string | null>(() =>
@@ -52,11 +69,11 @@ export const ChatBotProvider: React.FC<{ children: React.ReactNode }> = ({ child
                         role: msg.role,
                         content: msg.content,
                         timestamp: msg.timestamp,
-                        agent: msg.agent
+                        agent: msg.agent,
+                        metadata: msg.metadata
                     })));
                 }
             } else if (response.status === 401) {
-                // Session expired or unauthorized - clear old session
                 localStorage.removeItem('chatbot-session-id');
                 setSessionId(null);
             }
@@ -65,7 +82,7 @@ export const ChatBotProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
     }, [sessionId]);
 
-    const sendMessage = async (message: string, userId: string) => {
+    const sendMessage = async (message: string, userId: string, chipData?: QuickReplyChip) => {
         setIsLoading(true);
 
         const userMessage: ChatMessage = {
@@ -84,7 +101,8 @@ export const ChatBotProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 body: JSON.stringify({
                     user_id: userId,
                     message: message,
-                    session_id: sessionId || undefined
+                    session_id: sessionId || undefined,
+                    chip_data: chipData || undefined
                 })
             });
 
@@ -100,7 +118,8 @@ export const ChatBotProvider: React.FC<{ children: React.ReactNode }> = ({ child
                     role: 'assistant',
                     content: data.message,
                     timestamp: data.timestamp,
-                    agent: data.agent
+                    agent: data.agent,
+                    metadata: data.metadata
                 };
                 setMessages(prev => [...prev, assistantMessage]);
             } else {
